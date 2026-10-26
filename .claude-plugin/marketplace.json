@@ -1,0 +1,12 @@
+{
+  "name": "design-flow-skills",
+  "description": "Skills del flujo de producto a diseño, en español.",
+  "owner": { "name": "Lucas Grez" },
+  "plugins": [
+    {
+      "name": "flujo-diseno",
+      "source": "./",
+      "description": "Grilling, spec, tickets y HTML con design system liviano."
+    }
+  ]
+}

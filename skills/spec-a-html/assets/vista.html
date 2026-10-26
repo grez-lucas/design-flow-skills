@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Épica · Vista</title>
+  <meta name="tickets" content="ID-DEL-TICKET">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <style>
+    /* Layout propio de esta vista. Solo var(--...) para valores visuales. */
+  </style>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos">
+  <header class="topbar">
+    <strong>Producto</strong>
+  </header>
+  <main data-frame>
+    <section data-state="normal muchos-datos">
+      <!-- contenido con datos -->
+    </section>
+    <section data-state="vacio" class="empty-state">
+      <!-- qué ve el usuario sin datos y qué puede hacer -->
+    </section>
+    <section data-state="cargando">
+      <div class="skeleton"></div>
+    </section>
+    <section data-state="error">
+      <div class="alert alert--danger" role="alert"><!-- mensaje y cómo reintentar --></div>
+    </section>
+    <section data-state="sin-permiso" class="empty-state">
+      <!-- qué ve un usuario sin acceso y a quién pedirlo -->
+    </section>
+  </main>
+</body>
+</html>

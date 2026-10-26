@@ -1,0 +1,7 @@
+{
+  "name": "flujo-diseno",
+  "description": "Flujo de producto a diseño: grilling, spec con historias de usuario, tickets y HTML con un design system liviano.",
+  "author": { "name": "Lucas Grez" },
+  "license": "MIT",
+  "repository": "https://github.com/grez-lucas/design-flow-skills"
+}
