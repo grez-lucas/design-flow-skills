@@ -112,4 +112,4 @@ Muestra el resumen de archivos antes de hacer push, solo con los que entran en e
 
 ### 9. Siguiente paso
 
-Cierra diciendo qué quedó (vistas, escenarios, si cambió el design system) y que antes de la planificación del sprint conviene correr `checklist-diseno` sobre las vistas nuevas. Si el design system cambió, avisa que diseño lo revisa en la planificación.
+Cierra diciendo qué quedó (vistas, escenarios, si cambió el design system) y que antes de la planificación del sprint conviene correr `checklist-diseno` sobre las vistas nuevas. Si el design system cambió, avisa que diseño lo revisa en la planificación. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:checklist-diseno`; con `npx skills`, `checklist-diseno`.

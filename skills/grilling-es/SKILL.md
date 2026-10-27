@@ -91,4 +91,4 @@ Si reemplaza a un spec anterior, agrega al inicio del anterior una línea `> Sup
 
 ### Siguiente paso
 
-Cierra diciendo dónde quedó el spec, qué quedó pendiente y con quién, y el siguiente paso: `spec-a-tickets` con este spec para escribir los tickets, y después, en una sesión nueva, `spec-a-html` para dibujar las vistas.
+Cierra diciendo dónde quedó el spec, qué quedó pendiente y con quién, y el siguiente paso: `spec-a-tickets` con este spec para escribir los tickets, y después, en una sesión nueva, `spec-a-html` para dibujar las vistas. Nombra cada skill como figura en tu lista de skills: instaladas como plugin de Claude Code son `flujo-diseno:spec-a-tickets` y `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-tickets` y `spec-a-html`.

@@ -11,6 +11,15 @@ Skills en español para pasar de una idea de producto a un diseño listo para co
 3. `spec-a-html`: en una sesión nueva, toma el spec y genera el HTML de la vista o del flujo. Busca un design system existente y, si no hay, lo crea, siempre preguntando antes.
 4. `checklist-diseno`: revisa el HTML contra la definición de listo antes de la planificación del sprint.
 
+El nombre con que se invoca cada skill depende de cómo se instaló. Al cerrar, cada skill nombra el siguiente paso con las dos formas y dice qué hace.
+
+| Con `npx skills` | Con el plugin de Claude Code |
+| :--- | :--- |
+| `grilling-es` | `flujo-diseno:grilling-es` |
+| `spec-a-tickets` | `flujo-diseno:spec-a-tickets` |
+| `spec-a-html` | `flujo-diseno:spec-a-html` |
+| `checklist-diseno` | `flujo-diseno:checklist-diseno` |
+
 ---
 
 ## Artefactos

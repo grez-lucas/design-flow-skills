@@ -55,6 +55,31 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
                     self.assertIn("el resumen", texto.lower())
 
 
+class NombreDelSiguientePaso(unittest.TestCase):
+    PLUGIN = "flujo-diseno"
+
+    def skills(self):
+        return sorted(p.name for p in SKILLS.iterdir() if (p / "SKILL.md").is_file())
+
+    def test_el_cierre_da_el_nombre_con_y_sin_prefijo_del_plugin(self):
+        nombres = self.skills()
+        for skill in nombres:
+            texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+            cierre = re.split(r"^#{2,3} ", texto, flags=re.M)[-1]
+            nombrados = [n for n in nombres if n != skill and f"`{n}`" in cierre]
+            with self.subTest(skill=skill):
+                self.assertTrue(nombrados, "el cierre no nombra el siguiente paso")
+                for nombre in nombrados:
+                    self.assertIn(f"`{self.PLUGIN}:{nombre}`", cierre)
+
+    def test_el_readme_da_los_dos_nombres_de_cada_skill(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        for skill in self.skills():
+            with self.subTest(skill=skill):
+                self.assertIn(f"`{skill}`", readme)
+                self.assertIn(f"`{self.PLUGIN}:{skill}`", readme)
+
+
 class VersionDelPlugin(unittest.TestCase):
     def test_plugin_y_marketplace_declaran_la_misma_version_semver(self):
         manifiestos = RAIZ / ".claude-plugin"

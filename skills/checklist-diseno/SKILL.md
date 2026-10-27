@@ -81,4 +81,4 @@ Lista.   (cuando no tiene hallazgos)
 
 Bloquea lo que impide construir sin preguntar: un escenario del spec o un criterio de un ticket que no se ve, valores visuales sueltos o variables sin definir, controles de prototipo dentro de la pantalla, una vista que no cita tickets ni spec o declara un spec que no existe o está fuera del repositorio, aunque cite tickets, recursos externos, texto de relleno, y dominios o marcas que confirmaste que son reales (el script los marca como aviso porque no puede saberlo; tú sí, mirando si el nombre existe fuera del ejemplo). Lo demás va en "Conviene mirar".
 
-No corrijas las vistas: el informe es para decidir en la planificación. Si la persona quiere corregir, el siguiente paso es `spec-a-html` en modo edición, con la lista de hallazgos.
+No corrijas las vistas: el informe es para decidir en la planificación. Si la persona quiere corregir, el siguiente paso es `spec-a-html` en modo edición, con la lista de hallazgos. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.

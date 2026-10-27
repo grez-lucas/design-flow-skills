@@ -94,4 +94,4 @@ En la misma edición, completa "Tickets" en "Enlaces" con los identificadores re
 
 ### 9. Cerrar
 
-Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso: en una sesión nueva, `spec-a-html` con el mismo spec para dibujar las vistas.
+Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso: en una sesión nueva, `spec-a-html` con el mismo spec para dibujar las vistas. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
