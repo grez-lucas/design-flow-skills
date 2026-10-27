@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semilla · Panel de riego (prototipo v3)</title>
+<style>
+:root {
+  --fondo: #f6f7f2;
+  --papel: #ffffff;
+  --texto: #1c2a21;
+  --suave: #5b6b60;
+  --agua: #1f6f8b;
+  --linea: #d6dccf;
+  --alerta: #c62828;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: var(--fondo); color: var(--texto); }
+.marco { max-width: 1180px; margin: 0 auto; padding: 20px; }
+.cabecera { display: flex; justify-content: space-between; align-items: center; }
+.pestanas { display: flex; gap: 4px; margin: 18px 0; border-bottom: 1px solid var(--linea); }
+.pestana { padding: 10px 14px; border: 0; background: none; color: var(--suave); cursor: pointer; }
+.pestana.activa { color: var(--agua); border-bottom: 2px solid var(--agua); }
+.zonas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.zona { background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; padding: 16px; }
+.zona h3 { margin: 0 0 6px; font-size: 17px; }
+.humedad { font-size: 30px; font-weight: 700; color: var(--agua); }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; background: #e6f0f3; color: var(--agua); }
+.chip[data-state="partial"] { background: #fff1d6; color: #9a5b00; }
+.chip[data-state="off"] { background: #fde2e2; color: var(--alerta); }
+.programado { color: #7b4fd6; font-weight: 600; }
+.aviso { display: none; padding: 12px 16px; border-radius: 8px; background: #fde2e2; color: var(--alerta); margin-bottom: 16px; }
+body.sin-senal .aviso--senal, body.tanque-vacio .aviso--tanque { display: block; }
+body.sin-senal .humedad { color: var(--suave); }
+.boton { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--agua); background: var(--agua); color: #ffffff; cursor: pointer; }
+.demo { position: relative; }
+.demo-btn { padding: 4px 10px; border-radius: 6px; border: 1px dashed #9a5b00; background: #fff8e8; color: #9a5b00; font-size: 12px; cursor: pointer; }
+.demo-menu { display: none; position: absolute; right: 0; top: 30px; background: var(--papel); border: 1px solid var(--linea); border-radius: 8px; padding: 6px; width: 220px; }
+.demo.abierto .demo-menu { display: block; }
+.demo-menu button { display: block; width: 100%; text-align: left; padding: 8px; border: 0; background: none; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; background: var(--papel); }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--linea); text-align: left; font-size: 14px; }
+.modal-fondo { display: none; position: fixed; inset: 0; background: rgba(16, 23, 18, 0.45); align-items: center; justify-content: center; }
+.modal-fondo.abierto { display: flex; }
+.modal { background: var(--papel); border-radius: 12px; padding: 24px; width: 380px; }
+.error { color: var(--alerta); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="marco">
+  <header class="cabecera">
+    <h1>Panel de riego</h1>
+    <div class="demo" id="demo">
+      <button class="demo-btn" onclick="demoToggleMenu()">DEMO ▾</button>
+      <div class="demo-menu">
+        <button onclick="demoSet('sin-senal')">Simular sensor sin señal</button>
+        <button onclick="demoSet('tanque-vacio')">Simular tanque vacío</button>
+        <button onclick="demoSet('')">Salir de demo</button>
+      </div>
+    </div>
+  </header>
+  <nav class="pestanas">
+    <button class="pestana activa" onclick="verPestana('panel-page', this)">Zonas</button>
+    <button class="pestana" onclick="verPestana('historial-page', this)">Historial de riego</button>
+  </nav>
+
+  <section id="panel-page">
+    <p class="aviso aviso--senal">El sensor de la zona norte no envía datos desde hace 3 horas.</p>
+    <p class="aviso aviso--tanque">El tanque está vacío: el riego automático quedó en pausa.</p>
+    <p>Tanque de agua: <span class="chip" data-state="full">Lleno</span> <span class="chip" data-state="partial">A la mitad</span> <span class="chip" data-state="off">Sin agua</span></p>
+    <div class="zonas">
+      <article class="zona">
+        <h3>Zona norte</h3>
+        <div class="humedad">42 %</div>
+        <p>Humedad del suelo</p>
+        <p class="programado">Próximo riego: hoy 19:00</p>
+        <button class="boton" onclick="abrirRiego('Zona norte')">Regar ahora</button>
+      </article>
+      <article class="zona">
+        <h3>Zona invernadero</h3>
+        <div class="humedad">61 %</div>
+        <p>Humedad del suelo</p>
+        <p class="programado">Próximo riego: mañana 07:30</p>
+        <button class="boton" onclick="abrirRiego('Zona invernadero')">Regar ahora</button>
+      </article>
+      <article class="zona">
+        <h3>Zona aromáticas</h3>
+        <div class="humedad">28 %</div>
+        <p>Humedad del suelo</p>
+        <p class="programado">Próximo riego: hoy 18:15</p>
+        <button class="boton" onclick="abrirRiego('Zona aromáticas')">Regar ahora</button>
+      </article>
+    </div>
+  </section>
+
+  <section id="historial-page" hidden>
+    <table>
+      <thead><tr><th>Fecha</th><th>Zona</th><th>Duración</th><th>Origen</th></tr></thead>
+      <tbody>
+        <tr><td>12 de abril, 19:00</td><td>Zona norte</td><td>15 min</td><td>Programado</td></tr>
+        <tr><td>12 de abril, 07:30</td><td>Zona invernadero</td><td>20 min</td><td>Programado</td></tr>
+        <tr><td>11 de abril, 16:42</td><td>Zona aromáticas</td><td>10 min</td><td>Manual, Bruno Lagos</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<div class="modal-fondo" id="regar-modal">
+  <div class="modal" role="dialog">
+    <h2>Regar ahora</h2>
+    <p id="regar-zona">Zona norte</p>
+    <label>Duración en minutos <input id="duracion" type="number" value="15"></label>
+    <p class="error" id="duracion-error" hidden>La duración tiene que estar entre 5 y 60 minutos.</p>
+    <button class="boton" onclick="confirmarRiego()">Iniciar riego</button>
+    <button onclick="cerrarRiego()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+var DEMO_MODES = ['sin-senal', 'tanque-vacio'];
+function demoToggleMenu() { document.getElementById('demo').classList.toggle('abierto'); }
+function demoSet(modo) {
+  DEMO_MODES.forEach(function (m) { document.body.classList.remove(m); });
+  if (modo) document.body.classList.add(modo);
+  document.getElementById('demo').classList.remove('abierto');
+}
+function verPestana(id, b) {
+  document.querySelectorAll('section').forEach(function (s) { s.hidden = s.id !== id; });
+  document.querySelectorAll('.pestana').forEach(function (x) { x.classList.toggle('activa', x === b); });
+}
+function abrirRiego(zona) {
+  document.getElementById('regar-zona').textContent = zona;
+  document.getElementById('regar-modal').classList.add('abierto');
+}
+function cerrarRiego() { document.getElementById('regar-modal').classList.remove('abierto'); }
+// Valida la duración: entre 5 y 60 minutos
+function confirmarRiego() {
+  var d = Number(document.getElementById('duracion').value);
+  var ok = d >= 5 && d <= 60;
+  document.getElementById('duracion-error').hidden = ok;
+  if (ok) cerrarRiego();
+}
+</script>
+</body>
+</html>

@@ -18,6 +18,8 @@ jobs:
           python-version: "3.12"
       - name: Tests de revisar.py
         run: python3 -m unittest discover -s tests/checklist-diseno -v
+      - name: Tests de los scripts de html-a-vista
+        run: python3 -m unittest discover -s tests/html-a-vista -v
       - name: Tests de los grade.py
         run: python3 -m unittest discover -s tests/pruebas -v
       - name: Tests del repositorio

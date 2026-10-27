@@ -1,0 +1,137 @@
+{
+ "skill_name": "html-a-vista",
+ "evals": [
+  {
+   "id": 1,
+   "name": "chico-con-ds",
+   "prompt": "Tenemos el mockup de reservas de parcelas (chico.html) y el próximo ticket lo va a tocar. Pásalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/chico.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados.",
+   "expected_output": "Vista de reservas convertida con escenarios desde el spec; colores al token más cercano y #e07a1f pendiente de decisión; sin @keyframes, Google Fonts ni JS; el filtro como criterio para SEM-11; la vista cita SEM-11; informe sin render; commit solo de design/ y specs/.",
+   "files": [
+    "fixtures/mockups/chico.html"
+   ],
+   "repo": "fixtures/con-ds",
+   "mockup": "chico"
+  },
+  {
+   "id": 2,
+   "name": "chico-sin-ds",
+   "prompt": "Tenemos el mockup de reservas de parcelas (chico.html) y el próximo ticket lo va a tocar. Pásalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/chico.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados.",
+   "expected_output": "Crea tokens.css por consolidación (tabla mostrada, medidas en escala de 4 px, Nunito en el token de familia), components.css y proto.js; vista de reservas; informe sin render; commit solo de design/ y specs/.",
+   "files": [
+    "fixtures/mockups/chico.html"
+   ],
+   "repo": "fixtures/sin-ds",
+   "mockup": "chico"
+  },
+  {
+   "id": 3,
+   "name": "grande-con-ds",
+   "prompt": "Este es el prototipo integrado de Semilla (grande.html), con inventario, compostaje y socios. Conviértelo entero a vistas en el repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/grande.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Con navegador: google-chrome está instalado y se puede usar en modo headless; guarda las capturas en <outputs>/trabajo.",
+   "expected_output": "Plan con pantallas y olas; una épica por módulo y una vista del shell; modales como escenarios; escenario de la báscula con el mismo nombre en inventario y compostaje y listado una vez como global en el spec; tema oscuro en [data-theme=\"dark\"]; gráfico de temperatura como SVG estático; un contrato por vista; capturas; commit solo de design/ y specs/.",
+   "files": [
+    "grande.html"
+   ],
+   "repo": "fixtures/con-ds",
+   "mockup": "grande"
+  },
+  {
+   "id": 4,
+   "name": "grande-sin-ds",
+   "prompt": "Este es el prototipo integrado de Semilla (grande.html), con inventario, compostaje y socios. Conviértelo entero a vistas en el repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/grande.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Con navegador: google-chrome está instalado y se puede usar en modo headless; guarda las capturas en <outputs>/trabajo.",
+   "expected_output": "Igual que con design system, creando tokens.css por consolidación de las variables distintas de cada módulo, con tema oscuro.",
+   "files": [
+    "grande.html"
+   ],
+   "repo": "fixtures/sin-ds",
+   "mockup": "grande"
+  },
+  {
+   "id": 5,
+   "name": "demo-con-ds",
+   "prompt": "Convierte el mockup del panel de riego (demo.html) a vistas del repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/demo.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados.",
+   "expected_output": "Escenarios sensor sin señal y tanque vacío desde el menú DEMO, sin el menú en la vista; data-state full, partial y off renombrados; modal de riego como escenario; validación de duración como criterio; #7b4fd6 pendiente de decisión; informe sin render.",
+   "files": [
+    "fixtures/mockups/demo.html"
+   ],
+   "repo": "fixtures/con-ds",
+   "mockup": "demo"
+  },
+  {
+   "id": 6,
+   "name": "demo-sin-ds",
+   "prompt": "Convierte el mockup del panel de riego (demo.html) a vistas del repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/demo.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados.",
+   "expected_output": "Igual que con design system, creando tokens.css por consolidación.",
+   "files": [
+    "fixtures/mockups/demo.html"
+   ],
+   "repo": "fixtures/sin-ds",
+   "mockup": "demo"
+  },
+  {
+   "id": 7,
+   "name": "react-con-ds",
+   "prompt": "El mockup de cosechas (react.html) lo hizo un practicante con React. Llévalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/react.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Con navegador: google-chrome está instalado y se puede usar en modo headless; guarda las capturas en <outputs>/trabajo. La máquina tiene red.",
+   "expected_output": "Renderiza el estado inicial y lo convierte sin CDN ni JS; el selector de escenario pasa a escenarios (vacío); el rojo de Tailwind queda pendiente de decisión o en el token de peligro; capturas.",
+   "files": [
+    "fixtures/mockups/react.html"
+   ],
+   "repo": "fixtures/con-ds",
+   "mockup": "react"
+  },
+  {
+   "id": 8,
+   "name": "react-sin-ds",
+   "prompt": "El mockup de cosechas (react.html) lo hizo un practicante con React. Llévalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/react.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Con navegador: google-chrome está instalado y se puede usar en modo headless; guarda las capturas en <outputs>/trabajo. La máquina tiene red.",
+   "expected_output": "Igual que con design system, creando tokens.css desde los colores del estado renderizado.",
+   "files": [
+    "fixtures/mockups/react.html"
+   ],
+   "repo": "fixtures/sin-ds",
+   "mockup": "react"
+  },
+  {
+   "id": 9,
+   "name": "react-sin-navegador",
+   "prompt": "El mockup de cosechas (react.html) lo hizo un practicante con React. Llévalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/react.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados.",
+   "expected_output": "Se detiene antes de lanzar subagentes porque el mockup necesita render, dice qué instalar (Chrome, Chromium o Playwright) y no escribe en el repositorio.",
+   "files": [
+    "fixtures/mockups/react.html"
+   ],
+   "repo": "fixtures/con-ds",
+   "mockup": "react"
+  },
+  {
+   "id": 10,
+   "name": "chico-sin-spec",
+   "prompt": "Tenemos el mockup de reservas de parcelas (chico.html) y el próximo ticket lo va a tocar. Pásalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/chico.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados.",
+   "expected_output": "No encuentra spec: arma un borrador de spec general desde el HTML en la carpeta de trabajo, deriva a grilling-es y no convierte ni hace commit.",
+   "files": [
+    "fixtures/mockups/chico.html"
+   ],
+   "repo": "fixtures/sin-spec",
+   "mockup": "chico"
+  },
+  {
+   "id": 11,
+   "name": "chico-sin-subagentes",
+   "prompt": "Tenemos el mockup de reservas de parcelas (chico.html) y el próximo ticket lo va a tocar. Pásalo al repositorio de diseño.",
+   "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/chico.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Sin navegador: no uses Chrome, Chromium ni Playwright aunque estén instalados. La sesión no tiene herramienta de subagentes: no los lances.",
+   "expected_output": "Se detiene antes de leer el mockup entero porque no hay subagentes, lo dice y no escribe en el repositorio.",
+   "files": [
+    "fixtures/mockups/chico.html"
+   ],
+   "repo": "fixtures/con-ds",
+   "mockup": "chico"
+  }
+ ]
+}

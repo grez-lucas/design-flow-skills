@@ -5,8 +5,11 @@ Uso: python3 pruebas/preparar.py <skill> <directorio-de-la-iteración>
 Por cada prueba de pruebas/<skill>/evals.json y cada configuración (with_skill,
 without_skill) copia el repositorio de diseño del fixture en
 <iteración>/eval-<id>-<nombre>/<configuración>/run-1/outputs/repo y lo deja como
-repositorio git con un commit inicial. Después, el agente corre el prompt y las
-reglas de cada prueba con <outputs> apuntando a esa carpeta, y grade.py califica.
+repositorio git con un commit inicial. Los archivos de entrada (`files` de cada
+prueba) van a <iteración>/insumos/; si la skill tiene pruebas/<skill>/generar.py,
+corre antes con esa carpeta de salida, para los insumos que se generan. Después,
+el agente corre el prompt y las reglas de cada prueba con <outputs> apuntando a
+outputs/ e <insumos> a <iteración>/insumos, y grade.py califica.
 """
 import json
 import shutil
@@ -30,6 +33,17 @@ def main():
     base = Path(__file__).resolve().parent / sys.argv[1]
     iteracion = Path(sys.argv[2])
     pruebas = json.loads((base / "evals.json").read_text())["evals"]
+    insumos = iteracion / "insumos"
+    if (base / "generar.py").exists():
+        subprocess.run([sys.executable, str(base / "generar.py"), str(insumos)], check=True)
+    for archivo in sorted({f for prueba in pruebas for f in prueba.get("files", [])}):
+        origen, destino = base / archivo, insumos / Path(archivo).name
+        if origen.is_file():
+            insumos.mkdir(parents=True, exist_ok=True)
+            shutil.copy(origen, destino)
+        elif not destino.is_file():
+            print(f"No existe el insumo {archivo} ni lo generó generar.py")
+            return 1
     for prueba in pruebas:
         for config in CONFIGURACIONES:
             repo = iteracion / f"eval-{prueba['id']}-{prueba['name']}" / config / "run-1" / "outputs" / "repo"

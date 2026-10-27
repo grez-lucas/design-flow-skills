@@ -14,7 +14,7 @@ from pathlib import Path
 PRUEBAS = Path(__file__).resolve().parents[2] / "pruebas"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 REQUERIDO = {"checklist-diseno": "informe.md", "grilling-es": "transcripcion.md",
-             "spec-a-html": "notas.md", "spec-a-tickets": "notas.md"}
+             "spec-a-html": "notas.md", "spec-a-tickets": "notas.md", "html-a-vista": "notas.md"}
 
 
 class CorridaSinSalidas(unittest.TestCase):
@@ -201,6 +201,45 @@ class VeredictoLista(unittest.TestCase):
         for informe in (LISTA_RESUMEN, LISTA_PROSA):
             with self.subTest(informe=informe[:20]):
                 self.assertEqual(self.dice_lista(informe), {"eval2": True, "eval3": True})
+
+
+PENDIENTE_FORMAS = {
+    "viñeta": "- Pendiente de decisión: #e07a1f, el naranja del estado pendiente; mientras tanto usa --color-warning.\n"
+              "- Criterio para el ticket: dado que elijo un estado, cuando filtro, entonces veo solo esas reservas.\n",
+    "tabla": "| Valor | Token usado | Estado |\n| :--- | :--- | :--- |\n| #e07a1f | Naranja del estado. Se usó --color-warning | Pendiente de decisión |\n\n"
+             "| Lógica | Destino |\n| :--- | :--- |\n| Filtro por estado de la tabla | Criterio para el ticket SEM-11 |\n",
+    "encabezado": "## Pendientes de decisión\n\n- #e07a1f (naranja de pendiente): se usó --color-warning.\n\n"
+                  "## Criterios para los tickets\n\n- El filtro por estado muestra solo las reservas de ese estado.\n",
+    "negrita": "**Pendiente de decisión:**\n- #e07a1f, naranja del estado.\n\n**Criterios para SEM-11:**\n- Filtrar por estado.\n",
+}
+SIN_MARCA = {
+    "resuelto": "## Tokens\n\n- #e07a1f quedó aprobado como --color-pending.\n- La lógica de filtro quedó como comentario en la vista.\n",
+    "dentro de otro hallazgo": "- Pendiente de decisión: el radio de 999px. El naranja #e07a1f ya quedó en --color-warning.\n"
+                               "- Criterio para el ticket: el total del mes. La vista también filtra por estado.\n",
+}
+MARCAS = ("El valor fuera de umbral figura como pendiente de decisión", "La lógica JS figura como criterio para el ticket")
+
+
+class SeveridadHtmlAVista(unittest.TestCase):
+    def marcas(self, notas):
+        grade = cargar("html-a-vista")
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, out)
+        (out / "notas.md").write_text("Reservas de parcelas convertida, sin render.\n\n" + notas)
+        cfg = grade.MOCKUPS["chico"]
+        res, low, its = grade.informe(out, cfg, False)
+        res += grade.chequeos_fuera(cfg, low, its, out / "repo", True)
+        return {r["text"]: r["passed"] for r in res if r["text"] in MARCAS}
+
+    def test_pendiente_y_criterio_en_cuatro_formas(self):
+        for forma, notas in PENDIENTE_FORMAS.items():
+            with self.subTest(forma=forma):
+                self.assertEqual(self.marcas(notas), dict.fromkeys(MARCAS, True))
+
+    def test_resuelto_o_mencionado_dentro_de_otro_hallazgo_no_cuenta(self):
+        for caso, notas in SIN_MARCA.items():
+            with self.subTest(caso=caso):
+                self.assertEqual(self.marcas(notas), dict.fromkeys(MARCAS, False))
 
 
 if __name__ == "__main__":

@@ -166,10 +166,11 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 
 ## Pruebas
 
-Tests de `skills/checklist-diseno/scripts/revisar.py`, solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez:
+Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar:
 
 ```
 python3 -m unittest discover -s tests/checklist-diseno -v
+python3 -m unittest discover -s tests/html-a-vista -v
 python3 -m unittest discover -s tests/pruebas -v
 python3 -m unittest discover -s tests/repositorio -v
 python3 -m unittest discover -s tests/spec-a-html -v
@@ -183,7 +184,7 @@ Las pruebas de cada skill viven en `pruebas/<skill>/`, fuera de `evals/`, que es
 python3 pruebas/preparar.py checklist-diseno iteraciones/checklist-diseno/iteration-1
 ```
 
-Eso deja un repositorio de diseño con su commit inicial en `eval-<id>-<nombre>/{with_skill,without_skill}/run-1/outputs/repo`. Un agente corre cada prompt con sus reglas, con y sin la skill, y deja lo que produce en `outputs/`. Después:
+Eso deja un repositorio de diseño con su commit inicial en `eval-<id>-<nombre>/{with_skill,without_skill}/run-1/outputs/repo`, y los archivos de entrada de cada prueba (`files`) en `<iteración>/insumos/`. Si la skill tiene `pruebas/<skill>/generar.py`, `preparar.py` lo corre antes para los insumos que no se versionan: el mockup grande de `html-a-vista` pasa los 256 KB y se genera de forma determinista. Un agente corre cada prompt con sus reglas, con `<outputs>` en `outputs/` e `<insumos>` en `<iteración>/insumos`, con y sin la skill, y deja lo que produce en `outputs/`. Después:
 
 ```
 python3 pruebas/checklist-diseno/grade.py iteraciones/checklist-diseno/iteration-1

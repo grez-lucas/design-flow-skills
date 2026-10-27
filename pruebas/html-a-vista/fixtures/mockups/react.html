@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semilla · Cosechas</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-50">
+<div id="root"></div>
+<script type="text/babel">
+const COSECHAS = [
+  { cultivo: 'Tomate cherry', parcela: 'P-04', kilos: 12.5, socio: 'Tomás Aguilera' },
+  { cultivo: 'Lechuga costina', parcela: 'P-02', kilos: 6, socio: 'Joaquín Ferrada' },
+  { cultivo: 'Zapallo italiano', parcela: 'P-11', kilos: 9.2, socio: 'Valentina Soto Arancibia' },
+];
+
+function App() {
+  const [escenario, setEscenario] = React.useState('normal');
+  const filas = escenario === 'sin-cosechas' ? [] : COSECHAS;
+  const total = filas.reduce((s, c) => s + c.kilos, 0);
+  return (
+    <main className="max-w-5xl mx-auto p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-emerald-800">Cosechas de la semana</h1>
+        <label className="text-xs text-stone-500">Escenario:
+          <select className="ml-2 border rounded" value={escenario} onChange={e => setEscenario(e.target.value)}>
+            <option value="normal">normal</option>
+            <option value="sin-cosechas">sin cosechas</option>
+          </select>
+        </label>
+      </div>
+      <p className="mb-4 text-stone-600">Total cosechado: <strong>{total.toFixed(1)} kg</strong></p>
+      {filas.length === 0 ? (
+        <p className="p-10 text-center text-red-600">Esta semana no se registraron cosechas.</p>
+      ) : (
+        <table className="w-full bg-white border border-stone-200 rounded-xl">
+          <thead><tr className="text-left text-stone-500"><th className="p-3">Cultivo</th><th className="p-3">Parcela</th><th className="p-3">Kilos</th><th className="p-3">Socio</th></tr></thead>
+          <tbody>
+            {filas.map(c => (
+              <tr key={c.cultivo} className="border-t border-stone-200">
+                <td className="p-3">{c.cultivo}</td><td className="p-3">{c.parcela}</td><td className="p-3">{c.kilos} kg</td><td className="p-3">{c.socio}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <button className="mt-4 px-4 py-2 rounded-lg bg-emerald-700 text-white">Registrar cosecha</button>
+    </main>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
