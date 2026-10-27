@@ -72,6 +72,14 @@ class Revision(unittest.TestCase):
         _, avisa = revisar.revisar_compartidos(self.design, revisar.tokens_definidos(self.design))
         self.assertIn("`proto.js` no es igual al de la skill `spec-a-html`; se copia sin modificar.", avisa)
 
+    def test_proto_js_anterior_al_control_de_tema_avisa_una_vez(self):
+        shutil.copy(FIXTURES / "proto-anterior.js", self.design / "proto.js")
+        _, avisa = revisar.revisar_compartidos(self.design, revisar.tokens_definidos(self.design))
+        self.assertEqual([a for a in avisa if "proto.js" in a], ["`proto.js` no es igual al de la skill `spec-a-html`; se copia sin modificar."])
+        shutil.copy(PROTO, self.design / "proto.js")
+        _, avisa = revisar.revisar_compartidos(self.design, revisar.tokens_definidos(self.design))
+        self.assertEqual([a for a in avisa if "proto.js" in a], [])
+
     def test_no_aplica_valido_cubre_escenarios_base(self):
         self.assertEqual(self.revisar("no-aplica-valido.html"), ([], []))
 

@@ -40,7 +40,7 @@ Parte de `assets/vista.html`. La estructura es:
 - `sin-permiso` muestra lo que ve un usuario sin acceso, no una pantalla en blanco.
 - Los escenarios propios del spec se nombran en minúsculas con guiones: `plan-expirado`, `pago-rechazado`.
 
-`proto.js` arma un panel fuera del frame con los escenarios y los anchos (390, 1280 y 1440), y lee `?escenario=` y `?ancho=` de la URL. `?proto=0` esconde el panel para una captura limpia. No escribas otros controles de prototipo.
+`proto.js` arma un panel fuera del frame con los escenarios y los anchos (390, 1280 y 1440), y lee `?escenario=` y `?ancho=` de la URL. Si `tokens.css` define un tema oscuro, el panel suma un grupo "Tema" con `claro` y `oscuro`, y la URL acepta `?tema=claro|oscuro`; la vista abre en claro salvo `?tema=oscuro`. `?proto=0` esconde el panel para una captura limpia y respeta `?tema=`. No escribas otros controles de prototipo, tampoco un selector de tema propio.
 
 ## Reglas
 

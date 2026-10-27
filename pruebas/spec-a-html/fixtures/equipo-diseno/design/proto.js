@@ -1,7 +1,10 @@
-// proto.js: escenarios y anchos de las vistas de design/. Se copia sin modificar.
+// proto.js: escenarios, anchos y tema de las vistas de design/. Se copia sin modificar.
 // Lee <body data-escenarios>, muestra los elementos [data-state] del escenario activo,
 // clona filas en [data-repeat] para "muchos-datos" y arma un panel fuera del frame.
-// URL: ?escenario=<nombre>  ?ancho=390|1280|1440  ?proto=0 (sin panel)
+// El tema oscuro aparece solo si tokens.css define [data-theme="dark"]: se detecta
+// comparando --color-bg, --color-surface y --color-text con y sin data-theme, porque
+// Chrome no deja leer cssRules de una hoja enlazada cuando la vista se abre como file://.
+// URL: ?escenario=<nombre>  ?ancho=390|1280|1440  ?tema=claro|oscuro  ?proto=0 (sin panel)
 (function () {
   var params = new URLSearchParams(location.search);
   var body = document.body;
@@ -35,6 +38,29 @@
     body.dataset.ancho = ancho || "";
   }
 
+  function hayTemaOscuro() {
+    var html = document.documentElement;
+    var nombres = ["--color-bg", "--color-surface", "--color-text"];
+    function leer() {
+      var estilo = getComputedStyle(html);
+      return nombres.map(function (n) { return estilo.getPropertyValue(n).trim(); }).join("|");
+    }
+    var previo = html.getAttribute("data-theme");
+    html.removeAttribute("data-theme");
+    var claro = leer();
+    html.setAttribute("data-theme", "dark");
+    var oscuro = leer();
+    if (previo === null) html.removeAttribute("data-theme");
+    else html.setAttribute("data-theme", previo);
+    return claro !== oscuro;
+  }
+
+  function aplicarTema(tema) {
+    if (tema === "oscuro") document.documentElement.setAttribute("data-theme", "dark");
+    else document.documentElement.removeAttribute("data-theme");
+    body.dataset.tema = tema;
+  }
+
   function actualizarUrl(clave, valor) {
     var p = new URLSearchParams(location.search);
     p.set(clave, valor);
@@ -46,6 +72,8 @@
   aplicarEscenario(actual);
   var ancho = parseInt(params.get("ancho"), 10);
   aplicarAncho(anchos.indexOf(ancho) === -1 ? null : ancho);
+  var temas = hayTemaOscuro() ? ["claro", "oscuro"] : [];
+  if (temas.length) aplicarTema(params.get("tema") === "oscuro" ? "oscuro" : "claro");
 
   if (params.get("proto") === "0") return;
 
@@ -77,14 +105,20 @@
   }
 
   function render() {
-    panel.replaceChildren(
+    var grupos = [
       grupo("Escenario", escenarios, body.dataset.escenario, function (v) {
         aplicarEscenario(v); actualizarUrl("escenario", v); render();
       }),
       grupo("Ancho", ["auto"].concat(anchos), body.dataset.ancho || "auto", function (v) {
         aplicarAncho(v === "auto" ? null : v); actualizarUrl("ancho", v); render();
       })
-    );
+    ];
+    if (temas.length) {
+      grupos.push(grupo("Tema", temas, body.dataset.tema, function (v) {
+        aplicarTema(v); actualizarUrl("tema", v); render();
+      }));
+    }
+    panel.replaceChildren.apply(panel, grupos);
   }
 
   render();

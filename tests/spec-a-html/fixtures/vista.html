@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Prueba · Tema</title>
+  <link rel="stylesheet" href="../../tokens.css">
+  <script src="../../proto.js" defer></script>
+  <script>
+    // Propio del fixture, no de una vista: con ?clic=<botón> pulsa ese botón del panel
+    // y deja en <body> lo que --dump-dom no muestra: la URL y el --color-bg calculado.
+    window.addEventListener("load", function () {
+      var clic = new URLSearchParams(location.search).get("clic");
+      if (clic) {
+        document.querySelectorAll("[data-proto] button").forEach(function (b) {
+          if (b.textContent === clic) b.click();
+        });
+      }
+      document.body.dataset.pruebaUrl = location.search;
+      document.body.dataset.pruebaBg = getComputedStyle(document.documentElement)
+        .getPropertyValue("--color-bg").trim();
+    });
+  </script>
+</head>
+<body data-escenarios="normal, vacio">
+  <main data-frame>
+    <section data-state="normal">Con datos</section>
+    <section data-state="vacio">Sin datos</section>
+  </main>
+</body>
+</html>

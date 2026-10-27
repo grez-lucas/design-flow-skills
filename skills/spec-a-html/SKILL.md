@@ -15,7 +15,7 @@ Todo vive en el repositorio de diseño del producto, separado del repositorio de
 design/
   tokens.css        design system: variables CSS
   components.css    componentes compartidos, solo con variables de tokens.css
-  proto.js          cambia escenarios y anchos; lo copia esta skill
+  proto.js          cambia escenarios, anchos y tema; lo copia esta skill
   vistas/<épica>/<vista>.html
 specs/<épica>/spec.md   cuando el proyecto no tiene tracker
 ```

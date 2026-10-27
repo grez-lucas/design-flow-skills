@@ -39,6 +39,8 @@ Reglas:
 
 El tema claro va en `:root`. Un tema oscuro, si el producto lo tiene, va en `[data-theme="dark"]` y redefine solo los `--color-*`. Los demás tokens no cambian entre temas.
 
+Con el tema oscuro definido, el panel de `proto.js` suma un grupo "Tema" y la vista acepta `?tema=oscuro`, que pone `data-theme="dark"` en `<html>`. `proto.js` detecta el tema comparando `--color-bg`, `--color-surface` y `--color-text` con y sin `data-theme`, así que el bloque oscuro redefine al menos uno de esos tres. No lee las reglas de `tokens.css` porque Chrome las bloquea cuando la vista se abre como `file://`.
+
 ## Reglas de components.css
 
 `components.css` tiene los componentes que se repiten entre vistas: botones, campos, tablas, tarjetas, badges, alertas, navegación, estados vacíos, esqueletos de carga.
