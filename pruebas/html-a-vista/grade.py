@@ -16,6 +16,7 @@ from pathlib import Path
 PRUEBAS = Path(__file__).resolve().parent
 SKILLS = PRUEBAS.parents[1] / "skills"
 REVISAR = SKILLS / "checklist-diseno" / "scripts" / "revisar.py"
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(SKILLS / "html-a-vista" / "scripts"))
 import tokens as T  # noqa: E402
 from desarmar import DEMO  # noqa: E402
@@ -38,7 +39,7 @@ MOCKUPS = {
         "superposiciones": {"Nuevo lote": r"nuevo lote", "Dar de baja": r"dar de baja", "Registrar aporte": r"registrar aporte",
                             "Invitar socio": r"invitar socio", "Registrar pago de cuota": r"registrar pago", "Notificaciones": r"notificaciones",
                             "Centro de ayuda": r"centro de ayuda"},
-        "fuera": None,
+        "fuera": r"#e07a1f",
         "logica": r"mayor que cero|cantidad",
         "global": r"b[aá]scula",
     },
@@ -164,7 +165,7 @@ def repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo):
     res = [check("Hay al menos un commit nuevo", commits(repo) >= 2, f"commits: {commits(repo)}")]
     fuera = [f for f in cambiados(repo) if not f.startswith(("design/", "specs/"))]
     res.append(check("Los commits nuevos tocan solo design/ y specs/", commits(repo) >= 2 and not fuera, fuera[:5]))
-    r = subprocess.run([sys.executable, str(REVISAR), str(repo)], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, "-B", str(REVISAR), str(repo)], capture_output=True, text=True)
     bloqueos = [l for l in r.stdout.splitlines() if "BLOQUEA" in l]
     res.append(check("revisar.py no tiene hallazgos que bloquean", vs and r.returncode == 0, bloqueos[:3] or r.stdout[-200:]))
     original = iteracion / "insumos" / f"{mockup}.html"

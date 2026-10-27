@@ -30,7 +30,7 @@
    "name": "grande-con-ds",
    "prompt": "Este es el prototipo integrado de Semilla (grande.html), con inventario, compostaje y socios. Conviértelo entero a vistas en el repositorio de diseño.",
    "reglas": "Persona: Paula, de producto de Semilla. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/<épica>/tickets/ cuando existen). El mockup está en <insumos>/grande.html, fuera del repositorio; no lo modifiques. La persona no puede responder: aprueba el plan y las tablas que se le muestran, pero no decide entre un token existente y uno nuevo, así que esa elección queda pendiente. Carpeta de trabajo: <outputs>/trabajo. Commit local, sin push. Al terminar escribe <outputs>/notas.md con el informe tal como se lo entregarías a Paula. Con navegador: google-chrome está instalado y se puede usar en modo headless; guarda las capturas en <outputs>/trabajo.",
-   "expected_output": "Plan con pantallas y olas; una épica por módulo y una vista del shell; modales como escenarios; escenario de la báscula con el mismo nombre en inventario y compostaje y listado una vez como global en el spec; tema oscuro en [data-theme=\"dark\"]; gráfico de temperatura como SVG estático; un contrato por vista; capturas; commit solo de design/ y specs/.",
+   "expected_output": "Plan con pantallas y olas; una épica por módulo y una vista del shell; modales como escenarios; escenario de la báscula con el mismo nombre en inventario y compostaje y listado una vez como global en el spec; tema oscuro en [data-theme=\"dark\"]; gráfico de temperatura como SVG estático; un contrato por vista; #e07a1f de las cuotas atrasadas pendiente de decisión; capturas; commit solo de design/ y specs/.",
    "files": [
     "grande.html"
    ],

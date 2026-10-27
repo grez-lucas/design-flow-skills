@@ -236,6 +236,18 @@ class SeveridadHtmlAVista(unittest.TestCase):
             with self.subTest(forma=forma):
                 self.assertEqual(self.marcas(notas), dict.fromkeys(MARCAS, True))
 
+    def test_el_mockup_grande_busca_su_valor_fuera_de_umbral_como_pendiente(self):
+        grade = cargar("html-a-vista")
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, out)
+        cfg = grade.MOCKUPS["grande"]
+        for notas, esperado in (("- Pendiente de decisión: #e07a1f, el naranja de las cuotas atrasadas.\n", True),
+                                ("- #e07a1f quedó como --color-warning.\n", False)):
+            with self.subTest(notas=notas):
+                its = grade.hallazgos(notas)
+                res = grade.chequeos_fuera(cfg, notas.lower(), its, out / "repo", True)
+                self.assertEqual(next(r["passed"] for r in res if r["text"] == MARCAS[0]), esperado)
+
     def test_resuelto_o_mencionado_dentro_de_otro_hallazgo_no_cuenta(self):
         for caso, notas in SIN_MARCA.items():
             with self.subTest(caso=caso):

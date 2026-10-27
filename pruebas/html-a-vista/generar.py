@@ -6,7 +6,8 @@ Escribe <carpeta>/grande.html. Es determinista: la misma versión del script da 
 grade.py puede comparar el md5. Los módulos van como documentos completos en <script type="text/plain">
 (con </script> escapado como <\\/script>) y el shell los monta en <iframe srcdoc>. Cada módulo tiene sus
 propias variables CSS, abre en tema oscuro con el claro definido, y el shell sincroniza entre módulos el
-escenario de la báscula desconectada desde un menú DEMO.
+escenario de la báscula desconectada desde un menú DEMO. El naranja #e07a1f de las cuotas atrasadas queda
+fuera del umbral de los tokens de fixtures/con-ds: grade.py lo busca como pendiente de decisión.
 """
 import random
 import sys
