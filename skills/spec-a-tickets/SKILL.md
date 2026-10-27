@@ -78,7 +78,7 @@ Sin terminal, muéstralo en el chat. Ajusta hasta que la persona apruebe. Public
 Sigue `references/trackers.md` según dónde van los tickets. En todos los casos:
 
 1. Verifica el acceso con una lectura antes de escribir.
-2. Busca tickets que ya cubran estas historias. Si encuentras uno, muéstralo y pregunta si se extiende, se reemplaza o se omite. Nunca edites ni cierres un ticket que esta corrida no creó.
+2. Busca tickets que ya cubran estas historias. Si el spec reemplaza a uno anterior (lo dice su sección "Enlaces"), los tickets con el mismo ID son de este spec: muestra qué cambia en cada uno y actualízalos con aprobación explícita; las historias que el spec retira se informan, no se cierran. Cualquier otro ticket que encuentres es ajeno: muéstralo y pregunta si se extiende, se reemplaza o se omite, y nunca lo edites ni lo cierres.
 3. Crea los tickets en orden de dependencias, para que cada uno cite identificadores reales.
 4. Si algo falla a mitad de camino, para y di qué quedó creado y qué no.
 
@@ -90,7 +90,7 @@ Agrega una línea al inicio del spec, en el tracker o en `specs/<épica>/spec.md
 > Congelado el 2026-10-26: los tickets US-REC-001 y US-REC-002 mandan. Un cambio posterior pasa por grilling y actualiza los tickets.
 ```
 
-Desde ahí, el spec no se reescribe: los tickets son la fuente de lo que se acepta.
+En la misma edición, completa "Tickets" en "Enlaces" con los identificadores reales. Desde ahí, el spec no se reescribe: los tickets son la fuente de lo que se acepta.
 
 ### 9. Cerrar
 

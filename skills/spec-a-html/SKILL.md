@@ -46,7 +46,7 @@ Trabaja en el repositorio de diseño, que tiene `design/` o `specs/` en la raíz
 Si la vista ya existe en `design/vistas/<épica>/`, es una edición. Antes de tocarla pregunta qué cambia y por qué:
 
 - Si cambia comportamiento, estados, flujo o alcance, el cambio necesita grilling y tickets actualizados antes que el HTML. Dilo, sugiere `grilling-es` y `spec-a-tickets`, y no edites hasta que el spec o los tickets reflejen el cambio. Un HTML que se adelanta a sus tickets vuelve a abrir la brecha entre lo que se aceptó y lo que se dibujó.
-- Si es cosmético (color, texto, espaciado, orden visual sin cambio de comportamiento), sigue, y guarda el por qué para el mensaje del commit.
+- Si es cosmético (color, texto, espaciado, orden visual sin cambio de comportamiento), sigue, y guarda el por qué para el mensaje del commit. Si el texto o el valor que cambia figura en un criterio de aceptación de un ticket, el ticket manda: se actualiza primero, y recién después la vista.
 
 ### 4. Design system
 

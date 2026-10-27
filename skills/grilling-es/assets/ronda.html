@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es" data-theme="corporate" data-lavish-annotate="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grilling · NOMBRE DEL REQUERIMIENTO</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex) > * { min-width: 0; }
+  :where(p, h1, h2, li, label, span, code) { overflow-wrap: anywhere; }
+  .opt { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .7rem; border-radius: .5rem; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); cursor: pointer; }
+  .opt:has(input:checked) { border-color: var(--color-primary); background: color-mix(in oklab, var(--color-primary) 8%, transparent); }
+  .rec { border-left: 3px solid var(--color-primary); }
+  .queued { outline: 2px solid var(--color-success); outline-offset: 2px; }
+  svg.flujo { width: 100%; height: auto; color: var(--color-base-content); }
+  svg.flujo text { fill: currentColor; font-size: 13px; font-family: inherit; }
+  svg.flujo .pantalla { fill: var(--color-base-100); stroke: currentColor; stroke-opacity: .6; }
+  svg.flujo .accion { stroke: currentColor; stroke-opacity: .7; fill: none; }
+  svg.flujo .etiqueta { font-size: 11px; opacity: .75; }
+</style>
+</head>
+<body class="min-h-screen bg-base-100">
+<main class="max-w-3xl mx-auto px-4 py-8 space-y-6">
+
+<header class="space-y-3">
+  <div class="text-sm opacity-60">Grilling · NOMBRE DEL REQUERIMIENTO</div>
+  <h1 class="text-2xl font-bold">Ronda N</h1>
+  <!-- Una línea por ronda anterior con lo que quedó decidido. -->
+  <div class="alert alert-success alert-soft text-sm"><span><b>Ronda 1:</b> P1 ... · P2 ...</span></div>
+</header>
+
+<!-- Diagrama del flujo entre pantallas, solo si el requerimiento tiene flujo. SVG inline, sin bocetos. -->
+<section class="card card-border"><div class="card-body gap-3 text-sm">
+  <h2 class="card-title text-base">Flujo entre pantallas</h2>
+  <svg class="flujo" viewBox="0 0 640 120" role="img" aria-label="Flujo entre pantallas">
+    <defs><marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+    <g id="pantalla-a"><title>Pantalla A</title><rect class="pantalla" x="20" y="35" width="160" height="50" rx="8"/><text x="100" y="65" text-anchor="middle">Pantalla A</text></g>
+    <g id="pantalla-b"><title>Pantalla B</title><rect class="pantalla" x="440" y="35" width="160" height="50" rx="8"/><text x="520" y="65" text-anchor="middle">Pantalla B</text></g>
+    <path class="accion" d="M180,60 L438,60" marker-end="url(#f)"/><text class="etiqueta" x="310" y="52" text-anchor="middle">acción del usuario</text>
+  </svg>
+</div></section>
+
+<!-- Una tarjeta por pregunta. Reemplaza P1, el texto y las opciones. Deja siempre la opción "No lo sé".
+     Para una pregunta abierta (el problema, cómo se mide), quita las opciones y deja solo la nota. -->
+<section class="card card-border" data-lavish-question="P1"><div class="card-body gap-3 text-sm">
+  <h2 class="card-title text-base">P1 · Título corto</h2>
+  <p>La pregunta, con el contexto mínimo para responderla.</p>
+  <form class="space-y-2" onsubmit="event.preventDefault(); const f=new FormData(this); const a=f.get('P1')||''; const n=(f.get('nota')||'').trim(); if(!a && !n) return; window.lavish.queuePrompt('P1: '+(a||'(sin opción)')+(n?' · Nota: '+n:''), {tag:'choice', text:'P1: '+(a||n), element:this, queueKey:'P1', data:{pregunta:'P1', respuesta:a, nota:f.get('nota')}}); this.classList.add('queued');">
+    <label class="opt rec"><input type="radio" class="radio radio-sm radio-primary" name="P1" value="a) Opción recomendada"><span><b>a)</b> Opción recomendada <span class="badge badge-primary badge-xs">recomendada</span></span></label>
+    <label class="opt"><input type="radio" class="radio radio-sm radio-primary" name="P1" value="b) Otra opción"><span><b>b)</b> Otra opción</span></label>
+    <label class="opt"><input type="radio" class="radio radio-sm radio-primary" name="P1" value="No lo sé / lo decide otra persona"><span>No lo sé, o lo decide otra persona (escribe quién en la nota)</span></label>
+    <textarea name="nota" class="textarea textarea-sm w-full" placeholder="Nota opcional"></textarea>
+    <button class="btn btn-sm btn-primary" type="submit">Encolar P1</button>
+  </form>
+  <p class="opacity-70">➡️ <b>a).</b> Por qué se recomienda, en una o dos frases.</p>
+</div></section>
+
+<section class="card card-border border-primary"><div class="card-body gap-2 text-sm">
+  <h2 class="card-title text-base">Enviar</h2>
+  <p>Encola cada respuesta y presiona <b>Send to Agent</b>. Una pregunta sin responder queda para la ronda siguiente.</p>
+  <div>
+    <button type="button" class="btn btn-sm" onclick="(async (btn) => { const out=[]; for (const q of document.querySelectorAll('[data-lavish-question]')) { const lines=[]; for (const el of q.querySelectorAll('input, textarea')) { if ((el.type==='radio'||el.type==='checkbox') && !el.checked) continue; const v=el.value.trim(); if (v) lines.push('  '+el.name+': '+v); } if (lines.length) out.push(q.dataset.lavishQuestion+':\n'+lines.join('\n')); } const s=btn.nextElementSibling; const text=out.join('\n\n'); if(!text){ s.textContent='Sin respuestas todavía.'; return; } try { await navigator.clipboard.writeText(text); s.textContent='Respuestas copiadas.'; } catch { s.textContent='No se pudo copiar.'; } })(this)">Copiar todas las respuestas</button>
+    <span role="status" aria-live="polite" class="ml-2 opacity-70"></span>
+  </div>
+</div></section>
+
+</main>
+</body>
+</html>

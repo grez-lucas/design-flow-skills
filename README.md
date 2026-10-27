@@ -54,7 +54,7 @@ Como plugin de Claude Code, desde una sesión:
 | Skill | Estado |
 | :--- | :--- |
 | `spec-a-html` | borrador, probado con specs ficticios |
-| `grilling-es` | pendiente |
+| `grilling-es` | borrador, probado con specs ficticios y revisado por un subagente |
 | `spec-a-tickets` | borrador, probado con specs ficticios |
 | `checklist-diseno` | pendiente |
 
