@@ -35,6 +35,8 @@ flowchart LR
     B --> E
     E --> F[(vistas HTML)]
     F --> G[checklist-diseno]
+    D --> G
+    B --> G
     G --> H([planificación del sprint])
 ```
 
@@ -45,6 +47,7 @@ sequenceDiagram
     actor P as Persona de producto
     participant A as Agente
     participant L as Lavish
+    participant T as Tracker
     participant R as Repositorio de diseño
     P->>A: idea o requerimiento
     loop una ronda por tema
@@ -53,7 +56,13 @@ sequenceDiagram
         P->>L: respuestas y anotaciones
         L-->>A: respuestas
     end
-    A->>R: specs/<épica>/spec.md
+    alt con tracker
+        A->>T: spec como documento de la épica
+    else sin tracker
+        A-->>P: archivos que entran en el commit
+        P->>A: confirma
+        A->>R: commit y push de specs/<épica>/spec.md
+    end
     A-->>P: siguiente paso: spec-a-tickets
 ```
 
