@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Huerta · Pedidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root { --fondo: #fafaf7; --tinta: #1d2b22; --acento: #2f7d4f; --r: 6px; }
+[data-theme="dark"] { --fondo: #121815; --tinta: #e8efe9; }
+/* historial: cambio #4, botones redondeados */
+body { background: var(--fondo); color: var(--tinta); font-family: 'Inter', sans-serif; }
+.tarjeta { padding: 14px; border: 1px solid #d9dfd8; border-radius: var(--r); }
+.boton { padding: 8px 14px; background: #2f7d4f; color: #fff; }
+.aviso { color: #b3261e; margin-top: 14px; }
+@keyframes latido { from { opacity: 1; } to { opacity: .4; } }
+</style>
+</head>
+<body>
+<header class="barra">
+  <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>
+  <span>Huerta</span>
+  <button class="boton" onclick="activarDemo('vencido')">DEMO: plan vencido</button>
+</header>
+<main>
+  <section id="pedidos-page" class="pantalla">
+    <h1>Pedidos de la semana</h1>
+    <div class="tarjeta">
+      <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>
+      <span class="chip" data-state="lleno">Canasta llena</span>
+      <p>Lechugas, tomates y acelgas para ventas@example.com</p>
+    </div>
+    <button onclick="abrir('confirmar-modal')">Confirmar pedido</button>
+  </section>
+  <section id="ajustes-page" class="pantalla">
+    <h2>Ajustes de entrega</h2>
+    <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>
+    <label>Día de entrega <select name="dia"><option>Martes</option><option>Viernes</option></select></label>
+  </section>
+</main>
+<dialog id="confirmar-modal">
+  <p>¿Confirmas el pedido de esta semana?</p>
+  <button>Sí, confirmar</button>
+</dialog>
+<script>
+function abrir(id) { document.getElementById(id).showModal(); }
+function activarDemo(modo) { document.body.dataset.modo = modo; }
+const SIM_ESTADOS = ['vencido', 'activo'];
+const chip = `<span class="demo-chip" data-state="parcial">Parcial</span>`;
+setTimeout(() => document.querySelector('.aviso')?.remove(), 3000);
+document.querySelector('.barra').style.borderColor = '#d9dfd8';
+document.body.classList.toggle('demo-activo', false);
+</script>
+</body>
+</html>

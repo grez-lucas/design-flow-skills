@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Huerta · Integrado con plantillas</title>
+<style>.marco { display: grid; }</style>
+</head>
+<body>
+<nav class="marco"><a href="#pedidos">Pedidos</a><a href="#clientes">Clientes</a></nav>
+<div id="app-frames"></div>
+<script type="text/plain" id="tpl-pedidos"><!doctype html>
+<html>
+<head><style>:root { --c: #0a7cff; } .x { margin: 12px; }</style></head>
+<body>
+<section id="pedidos-page"><h1>Pedidos abiertos</h1></section>
+<script>
+function pedidosModoDemo() { return '<b>hola</b>'; }
+<\/script>
+</body>
+</html>
+</script>
+<script type="text/plain" id="tpl-clientes"><!doctype html>
+<html><body>
+<#!-- plantilla de clientes -->
+<div id="clientes-page"><h1>Clientes frecuentes</h1></div>
+<script>var total = 3; var cierre = "<\/script>";<#/script>
+</body></html>
+</script>
+<script>
+function montar(id) { const t = document.getElementById(id).textContent; return t; }
+</script>
+</body>
+</html>

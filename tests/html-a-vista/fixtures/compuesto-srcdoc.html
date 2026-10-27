@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Huerta · Integrado</title>
+<style>
+:root { --fondo: #ffffff; --tinta: #222222; }
+.marco { display: flex; }
+</style>
+</head>
+<body>
+<nav class="marco"><a href="#ventas">Ventas</a><a href="#stock">Stock</a></nav>
+<iframe id="mod-ventas" title="Ventas" srcdoc="&lt;!doctype html&gt;
+&lt;html&gt;&lt;head&gt;&lt;style&gt;:root { --verde: #2f7d4f; } .fila { padding: 10px; }&lt;/style&gt;&lt;/head&gt;
+&lt;body&gt;&lt;section id=&quot;ventas-page&quot;&gt;&lt;h1&gt;Ventas del mes&lt;/h1&gt;&lt;p class=&quot;fila&quot;&gt;Canasta mediana&lt;/p&gt;&lt;/section&gt;
+&lt;script&gt;function ventasSimular() { return 1; }&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;"></iframe>
+<iframe id="mod-stock" srcdoc="&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;div id=&quot;stock-panel&quot;&gt;&lt;h1&gt;Stock en bodega&lt;/h1&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;"></iframe>
+<script>
+document.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => {}));
+</script>
+</body>
+</html>
