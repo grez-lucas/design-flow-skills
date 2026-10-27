@@ -120,6 +120,30 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
 | `git` | El commit y push al repositorio de diseño cuando el proyecto no tiene tracker. | No hay commit ni push: los archivos quedan solo en la máquina. |
 
+### Primer setup en Windows
+
+Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no en PowerShell: PowerShell puede bloquear `npx` con un error de "ejecución de scripts deshabilitada".
+
+1. Comprueba que el comando `claude` existe: `claude --version`. Si no se reconoce, la app de escritorio no lo dejó en la terminal; instálalo con `winget install Anthropic.ClaudeCode` y abre CMD de nuevo.
+2. Instala el plugin:
+
+   ```
+   claude plugin marketplace add grez-lucas/design-flow-skills
+   claude plugin install flujo-diseno@design-flow-skills
+   ```
+
+3. Opcional, para Lavish: instala Node.js, que trae `npx`, con `winget install OpenJS.NodeJS.LTS`. Si `winget` no se reconoce, usa el instalador "LTS" de https://nodejs.org con las opciones por defecto. Cierra CMD y la app de Claude Code y ábrelas de nuevo.
+4. Comprueba:
+
+   ```
+   node --version
+   npx --version
+   npx -y lavish-axi --help
+   ```
+
+   `node` debe mostrar `v22` o un número mayor, `npx` un número, y el último una descripción de Lavish sin errores. Si algo falla, las skills funcionan igual en el chat.
+5. Abre Claude Code de escritorio en la carpeta del repositorio de diseño, escribe `/` y busca `flujo-diseno:`: tienen que aparecer las skills del plugin.
+
 ---
 
 ## Estado
