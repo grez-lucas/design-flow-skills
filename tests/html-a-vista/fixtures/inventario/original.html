@@ -1,0 +1,20 @@
+<section id="pedidos-page">
+  <h1>Pedidos   de la
+     semana</h1>
+  <button class="demo" onclick="activarDemo()">DEMO: plan vencido</button>
+  <span class="chip" data-state="lleno">Canasta llena</span>
+  <table>
+    <tr><th>Cliente</th><th>Total</th></tr>
+    <tr><td>Rosa Quintana</td><td>$12.400</td></tr>
+  </table>
+  <label for="correo">Correo de contacto</label>
+  <input id="correo" type="email" placeholder="nombre@example.com">
+  <label>Día de entrega <select name="dia"><option>Martes</option><option>Viernes</option></select></label>
+  <button onclick="exportar()">Exportar</button>
+  <a href="#ajustes">Ir a ajustes</a>
+  <button aria-label="Cerrar aviso">×</button>
+  <svg><text>Texto del gráfico</text></svg>
+</section>
+<script>
+function exportar() { aviso.innerHTML = `<p class="ok">Planilla enviada a ${correo}</p>`; }
+</script>

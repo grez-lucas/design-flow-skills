@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Huerta · Pedidos</title>
+<meta name="spec" content="specs/pedidos/spec.md">
+<link rel="stylesheet" href="../../tokens.css"><link rel="stylesheet" href="../../components.css">
+<script src="../../proto.js" defer></script></head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos, plan-vencido, confirmar">
+<main data-frame>
+  <h1>Pedidos de la semana</h1>
+  <span class="badge" data-state="normal">Canasta llena</span>
+  <p data-state="plan-vencido">Tu plan venció.</p>
+  <table class="table">
+    <tr><th>Cliente</th><th>Total</th></tr>
+    <tr><td>Rosa Quintana</td><td>$12.400</td></tr>
+  </table>
+  <label class="field">Correo de contacto <input type="email" placeholder="nombre@example.com"></label>
+  <label class="field">Día de entrega <select><option>Martes</option><option>Viernes</option></select></label>
+  <!-- al exportar: muestra "Planilla enviada a" con el correo -->
+  <button class="btn">Exportar</button>
+  <a href="ajustes.html">Ir a ajustes</a>
+  <button class="btn" aria-label="Cerrar aviso">×</button>
+  <dialog open data-state="confirmar">
+    <p>¿Confirmas el pedido de esta semana?</p>
+    <button class="btn">Sí, confirmar</button>
+  </dialog>
+</main>
+</body>
+</html>
