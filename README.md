@@ -60,6 +60,35 @@ Como plugin de Claude Code, desde una sesión:
 
 ---
 
+## Pruebas
+
+Tests de `skills/checklist-diseno/scripts/revisar.py`, solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez:
+
+```
+python3 -m unittest discover -s tests/checklist-diseno -v
+python3 -m unittest discover -s tests/pruebas -v
+```
+
+`tests/pruebas/` verifica que un `grade.py` falle entero, con código de salida 1 y 0 puntos, cuando la corrida está vacía o le falta su informe, y que la severidad dé el mismo puntaje con el informe escrito en distintos formatos.
+
+Las pruebas de cada skill viven en `pruebas/<skill>/`, fuera de `evals/`, que es la carpeta por defecto de `claude plugin eval`: `evals.json` (prompt, reglas de la corrida, resultado esperado y fixture), `fixtures/` (datos ficticios) y `grade.py`. Una iteración se arma así; `preparar.py` y los `grade.py` necesitan `git` en el `PATH`, además de la biblioteca estándar:
+
+```
+python3 pruebas/preparar.py checklist-diseno iteraciones/checklist-diseno/iteration-1
+```
+
+Eso deja un repositorio de diseño con su commit inicial en `eval-<id>-<nombre>/{with_skill,without_skill}/run-1/outputs/repo`. Un agente corre cada prompt con sus reglas, con y sin la skill, y deja lo que produce en `outputs/`. Después:
+
+```
+python3 pruebas/checklist-diseno/grade.py iteraciones/checklist-diseno/iteration-1
+```
+
+`grade.py` escribe un `grading.json` por corrida. Regla de los `grade.py`: el contenido esperado se busca en todo el informe, sin depender de una sección ni de un formato, y la severidad o la ubicación se verifican en un chequeo aparte, solo sobre la primera oración de cada hallazgo para no contar menciones dentro de otro.
+
+El workflow `.github/workflows/ci.yml` corre los tests y `claude plugin validate .` en cada push a `main` y en cada pull request.
+
+---
+
 ## Licencia
 
 MIT. Ver `LICENSE`.
