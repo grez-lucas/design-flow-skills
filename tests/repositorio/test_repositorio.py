@@ -15,9 +15,20 @@ class RevisarSinBytecode(unittest.TestCase):
         for linea in llamadas:
             self.assertRegex(linea, r"\bpython3 -B ", linea)
 
+    def test_html_a_vista_corre_sus_scripts_con_python3_b(self):
+        for ruta in [SKILLS / "html-a-vista" / "SKILL.md", *sorted((SKILLS / "html-a-vista" / "references").glob("*.md"))]:
+            texto = ruta.read_text(encoding="utf-8")
+            llamadas = re.findall(r"python3?[^`\n]*\.py", texto)
+            with self.subTest(archivo=ruta.name):
+                for llamada in llamadas:
+                    self.assertRegex(llamada, r"^python3 -B ", llamada)
+        texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
+        for script in ("desarmar.py", "tokens.py", "inventario.py", "revisar.py"):
+            self.assertRegex(texto, rf"python3 -B [^`\n]*{script}", script)
+
 
 class CommitSoloDeDesignYSpecs(unittest.TestCase):
-    SKILLS_CON_COMMIT = ("grilling-es", "spec-a-html", "spec-a-tickets")
+    SKILLS_CON_COMMIT = ("grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
 
     def archivos_con_commit(self, skill):
         return [

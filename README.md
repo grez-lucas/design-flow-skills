@@ -11,6 +11,8 @@ Skills en español para pasar de una idea de producto a un diseño listo para co
 3. `spec-a-html`: en una sesión nueva, toma el spec y genera el HTML de la vista o del flujo. Busca un design system existente y, si no hay, lo crea, siempre preguntando antes.
 4. `checklist-diseno`: revisa el HTML contra la definición de listo antes de la planificación del sprint.
 
+`html-a-vista` es la entrada para un HTML que ya está hecho: un mockup vigente que un ticket nuevo va a tocar, o un prototipo de otra herramienta. Lo desarma con un script, muestra un plan, reparte la conversión entre subagentes en tres olas y deja vistas con la misma convención que `spec-a-html`. Exige spec como `spec-a-html`: sin spec, arma un borrador desde el HTML y deriva a `grilling-es`. Necesita una sesión con subagentes.
+
 El nombre con que se invoca cada skill depende de cómo se instaló. Al cerrar, cada skill nombra el siguiente paso con las dos formas y dice qué hace.
 
 | Con `npx skills` | Con el plugin de Claude Code |
@@ -19,6 +21,7 @@ El nombre con que se invoca cada skill depende de cómo se instaló. Al cerrar, 
 | `spec-a-tickets` | `flujo-diseno:spec-a-tickets` |
 | `spec-a-html` | `flujo-diseno:spec-a-html` |
 | `checklist-diseno` | `flujo-diseno:checklist-diseno` |
+| `html-a-vista` | `flujo-diseno:html-a-vista` |
 
 ---
 
@@ -118,6 +121,9 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | :--- | :--- | :--- |
 | Node.js 22 o superior y `npx` | Las rondas de `grilling-es` y las revisiones de tickets y vistas de `spec-a-tickets` y `spec-a-html` en Lavish (`npx -y lavish-axi`), donde la persona responde con formularios y anota sobre la pantalla. | Las rondas y las revisiones van en el chat, y las vistas se abren a mano en el navegador. |
 | `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
+| `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
+| Herramienta de subagentes en la sesión | Las tres olas de `html-a-vista`. | `html-a-vista` se detiene antes de leer el mockup. |
+| Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. | Un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. |
 | `git` | El commit y push al repositorio de diseño cuando el proyecto no tiene tracker. | No hay commit ni push: los archivos quedan solo en la máquina. |
 
 ### Primer setup en Windows
@@ -154,6 +160,7 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 | `grilling-es` | borrador, probado con specs ficticios y revisado por un subagente |
 | `spec-a-tickets` | borrador, probado con specs ficticios |
 | `checklist-diseno` | borrador, probado con vistas con defectos plantados y revisado por un subagente |
+| `html-a-vista` | borrador, scripts probados con fixtures ficticios y con mockups reales en local; la skill todavía sin corridas |
 
 ---
 
