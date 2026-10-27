@@ -55,7 +55,7 @@ Como plugin de Claude Code, desde una sesión:
 | :--- | :--- |
 | `spec-a-html` | borrador, probado con specs ficticios |
 | `grilling-es` | pendiente |
-| `spec-a-tickets` | pendiente |
+| `spec-a-tickets` | borrador, probado con specs ficticios |
 | `checklist-diseno` | pendiente |
 
 ---
