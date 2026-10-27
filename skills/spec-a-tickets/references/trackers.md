@@ -64,4 +64,4 @@ Agrega o actualiza `specs/<épica>/tickets/README.md` con la tabla:
 | 01 | [US-REC-001] Ver facturas vencidas | ninguno | listo |
 ```
 
-Haz commit y push a `main` del repositorio de diseño con un mensaje que nombre la épica y los tickets, después de mostrar el resumen y pedir la confirmación. Los archivos quedan listos para pasar a un tracker más adelante, uno a uno.
+Haz commit y push a `main` del repositorio de diseño con un mensaje que nombre la épica y los tickets, después de mostrar el resumen y pedir la confirmación. Agrega solo la carpeta de la épica, con `git add specs/<épica>/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit. Los archivos quedan listos para pasar a un tracker más adelante, uno a uno.

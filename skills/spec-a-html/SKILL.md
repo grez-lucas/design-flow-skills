@@ -106,7 +106,9 @@ diseno(alertas): listado con estados vacío, error y muchos datos
 Tickets: US-ALERT-002
 ```
 
-Muestra el resumen de archivos antes de hacer push y pide la confirmación. Si el push falla por permisos, explica el error en simple y que el TL es quien da los accesos.
+Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, y `git add specs/<épica>/` si tocaste algo ahí; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
+
+Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. Si el push falla por permisos, explica el error en simple y que el TL es quien da los accesos.
 
 ### 9. Siguiente paso
 

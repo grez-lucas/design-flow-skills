@@ -34,18 +34,22 @@ El formato es liviano a propósito: los agentes leen estos archivos en cada tare
 
 ## Instalación
 
-Con `npx skills` (Node.js 22.20 o superior):
-
-```
-npx skills add grez-lucas/design-flow-skills
-```
-
-Como plugin de Claude Code, desde una sesión:
+Con Claude Code, el camino principal es el plugin. Desde una sesión:
 
 ```
 /plugin marketplace add grez-lucas/design-flow-skills
 /plugin install flujo-diseno@design-flow-skills
 ```
+
+El plugin queda instalado a nivel de usuario y no escribe archivos en el repositorio de diseño.
+
+Con otro agente, la alternativa es `npx skills` (Node.js 22.20 o superior):
+
+```
+npx skills add grez-lucas/design-flow-skills -a <agente>
+```
+
+`npx skills add` instala por proyecto: copia las skills en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills --help` lista las opciones. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`.
 
 ---
 

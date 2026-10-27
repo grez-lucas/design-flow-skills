@@ -85,7 +85,7 @@ Muestra el spec completo y ajusta hasta que la persona lo apruebe.
 ### Guardar
 
 - Si el proyecto tiene tracker, guarda el spec como documento de la épica o del proyecto (en Linear, un documento del proyecto; en GitHub o GitLab, la descripción de la épica o un issue de spec). Usa la herramienta que tenga la sesión y verifica el acceso con una lectura antes de escribir.
-- Si no hay tracker, guárdalo en `specs/<épica>/spec.md` del repositorio de diseño, con `<épica>` en minúsculas y con guiones. Haz commit y push a `main` después de mostrar el resumen y pedir confirmación.
+- Si no hay tracker, guárdalo en `specs/<épica>/spec.md` del repositorio de diseño, con `<épica>` en minúsculas y con guiones. Haz commit y push a `main` después de mostrar el resumen y pedir confirmación. Agrega solo esa carpeta, con `git add specs/<épica>/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit.
 
 Si reemplaza a un spec anterior, agrega al inicio del anterior una línea `> Superado el <fecha> por <enlace o ruta al spec nuevo>.` y no toques el resto: el spec anterior es historia. Sin tracker, el spec nuevo ocupa `specs/<épica>/spec.md`, que es donde lo buscan `spec-a-tickets` y `spec-a-html`, y el anterior se mueve sin cambios, salvo esa línea, a `specs/<épica>/anteriores/spec-<fecha>.md`, con la fecha de su línea `Congelado`, o la de hoy si no tiene.
 
