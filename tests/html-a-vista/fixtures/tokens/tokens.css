@@ -12,6 +12,7 @@
   --space-3: 12px;
   --space-4: 16px;
   --radius-md: 8px;
+  --radius-full: 9999px;
 }
 [data-theme="dark"] {
   --color-bg: #121815;

@@ -60,6 +60,16 @@ class Mapear(unittest.TestCase):
         self.assertFalse(self.fila("10px", "space")["dentro"])
         self.assertNotIn(("4px", "space"), self.filas, "las medidas de box-shadow no son espacios")
 
+    def test_cada_tema_contra_los_tokens_de_su_tema(self):
+        claro = self.filas[("#e6efe8", "color")]
+        self.assertEqual(claro["bloque"], ":root", "un valor del tema claro no va a un token del oscuro")
+        oscuro = self.filas[("#131916", "color")]
+        self.assertEqual((oscuro["token"], oscuro["bloque"], oscuro["dentro"]), ("--color-bg", '[data-theme="dark"]', True))
+
+    def test_radio_de_pildora_va_al_radio_completo(self):
+        f = self.fila("999px", "radius")
+        self.assertEqual((f["token"], f["dentro"]), ("--radius-full", True))
+
     def test_umbral_declarado(self):
         r = correr("mapear", FIX / "tokens.css", FIX / "mockup.html", "--json")
         umbral = json.loads(r.stdout)["umbral"]
@@ -98,7 +108,7 @@ class Consolidar(unittest.TestCase):
         espacios = {m["valor"]: g["propuesta"] for g in self.d["medidas"] if g["categoria"] == "space" for m in g["miembros"]}
         self.assertEqual(espacios, {"14px": "16px", "13px": "12px", "10px": "12px"})
         radios = {m["valor"]: g["propuesta"] for g in self.d["medidas"] if g["categoria"] == "radius" for m in g["miembros"]}
-        self.assertEqual(radios, {"10px": "12px"})
+        self.assertEqual(radios, {"10px": "12px", "999px": "9999px"})
 
 
 class Verificar(unittest.TestCase):

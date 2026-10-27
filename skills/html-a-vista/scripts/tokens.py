@@ -14,7 +14,9 @@ consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral, 
             múltiplos de 4 px y junta tamaños de letra a 1 px o menos.
 verificar   lista los tokens nuevos que quedan dentro del umbral de uno existente; sale con 1 si hay alguno.
 
-Umbral de color: distancia OKLab por 100, más la diferencia de opacidad por 100, de 2,0 o menos, que es
+Cada valor se compara con los tokens de su tema: los de un bloque oscuro del mockup con los de
+[data-theme="dark"], los demás con los de :root. Un radio de 100 px o más es una píldora y va al
+radio mayor. Umbral de color: distancia OKLab por 100, más la diferencia de opacidad por 100, de 2,0 o menos, que es
 del orden de la diferencia mínima perceptible. Umbral de medida: 1 px o el 10 % del paso, lo que sea mayor.
 Sale con 2 si el uso es incorrecto.
 """
@@ -34,6 +36,7 @@ NOMBRES = {"black": "#000000", "white": "#ffffff", "red": "#ff0000", "green": "#
            "pink": "#ffc0cb", "brown": "#a52a2a"}
 COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)|(?<![\w-])(?:" + "|".join(NOMBRES) + r")(?![\w-])", re.I)
 MEDIDA = re.compile(r"(?<![\w.#-])(\d+(?:\.\d+)?)(px|rem|em|pt)\b")
+PILDORA = 100
 PREFIJO = {"space": "--space-", "font-size": "--font-size-", "radius": "--radius-", "size": "--size-"}
 
 
@@ -160,13 +163,18 @@ def css_de(path):
     return texto
 
 
+def es_oscuro(contexto, selector):
+    texto = " ".join([*contexto, selector]).lower()
+    return "dark" in texto or "oscuro" in texto
+
+
 def ocurrencias(fuentes):
     """Valores (normalizados) con su tipo, categoría, cuántas veces aparecen y en qué propiedades."""
     out = {}
 
-    def sumar(valor, tipo, categoria, prop):
-        clave = (valor, categoria)
-        o = out.setdefault(clave, {"valor": valor, "tipo": tipo, "categoria": categoria, "ocurrencias": 0, "usos": []})
+    def sumar(valor, tipo, categoria, prop, tema):
+        clave = (valor, categoria, tema)
+        o = out.setdefault(clave, {"valor": valor, "tipo": tipo, "categoria": categoria, "tema": tema, "ocurrencias": 0, "usos": []})
         o["ocurrencias"] += 1
         if prop not in o["usos"]:
             o["usos"].append(prop)
@@ -176,18 +184,19 @@ def ocurrencias(fuentes):
             if any(c.lstrip("@").startswith(("keyframes", "-webkit-keyframes")) for c in contexto):
                 continue
             variables = es_bloque_de_variables(contexto, selector)
+            tema = "oscuro" if es_oscuro(contexto, selector) else "claro"
             for prop, valor in declaraciones(cuerpo):
                 if prop.startswith("--") and not variables:
                     continue
                 for c in COLOR.findall(valor):
                     if leer_color(c):
-                        sumar(c.lower().replace(" ", ""), "color", "color", prop)
+                        sumar(c.lower().replace(" ", ""), "color", "color", prop, tema)
                 cat = categoria_de_variable(prop) if prop.startswith("--") else categoria_de_propiedad(prop)
                 if cat:
                     for m in MEDIDA.finditer(valor):
                         px = leer_medida(m.group(0))
                         if px is not None and px > 2:
-                            sumar(m.group(0).lower(), "medida", cat, prop)
+                            sumar(m.group(0).lower(), "medida", cat, prop, tema)
     return sorted(out.values(), key=lambda o: -o["ocurrencias"])
 
 
@@ -205,6 +214,8 @@ def tokens_de(path):
 
 
 def mas_cercano(o, toks):
+    mismo_tema = {k: v for k, v in toks.items() if es_oscuro([], k[1]) == (o.get("tema") == "oscuro")}
+    toks = mismo_tema or toks
     if o["tipo"] == "color":
         c = leer_color(o["valor"])
         cands = [(distancia_color(c, leer_color(v)), n, v, b) for (n, b), v in toks.items()
@@ -214,6 +225,8 @@ def mas_cercano(o, toks):
         d, n, v, b = min(cands, key=lambda x: x[0])
         return {"token": n, "valor_token": v, "bloque": b, "distancia": d, "dentro": d <= UMBRAL_COLOR}
     px = leer_medida(o["valor"])
+    if o["categoria"] == "radius" and px >= PILDORA:
+        px = max([leer_medida(v) for (n, _), v in toks.items() if n.startswith("--radius-") and leer_medida(v)] + [px])
     cands = [(abs(px - leer_medida(v)), n, v, b) for (n, b), v in toks.items()
              if n.startswith(PREFIJO[o["categoria"]]) and leer_medida(v) is not None]
     if not cands:
@@ -257,7 +270,7 @@ def consolidar(fuentes):
                 g = {"categoria": "font-size", "propuesta": fmt(px), "miembros": [], "ocurrencias": 0}
                 letras.append(g)
         else:
-            propuesta = fmt(max(4, math.floor(px / 4 + 0.5) * 4))
+            propuesta = "9999px" if o["categoria"] == "radius" and px >= PILDORA else fmt(max(4, math.floor(px / 4 + 0.5) * 4))
             g = medidas.setdefault((o["categoria"], propuesta), {"categoria": o["categoria"], "propuesta": propuesta,
                                                                   "miembros": [], "ocurrencias": 0})
         g["miembros"].append({"valor": o["valor"], "ocurrencias": o["ocurrencias"]})
