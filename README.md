@@ -22,6 +22,43 @@ El nombre con que se invoca cada skill depende de cómo se instaló. Al cerrar, 
 
 ---
 
+## Uso
+
+Cada skill deja un artefacto que toma la siguiente:
+
+```mermaid
+flowchart LR
+    A[grilling-es] --> B[(spec)]
+    B --> C[spec-a-tickets]
+    C --> D[(tickets)]
+    D --> E[spec-a-html]
+    B --> E
+    E --> F[(vistas HTML)]
+    F --> G[checklist-diseno]
+    G --> H([planificación del sprint])
+```
+
+Una sesión de `grilling-es`, con Lavish cuando hay terminal:
+
+```mermaid
+sequenceDiagram
+    actor P as Persona de producto
+    participant A as Agente
+    participant L as Lavish
+    participant R as Repositorio de diseño
+    P->>A: idea o requerimiento
+    loop una ronda por tema
+        A->>L: preguntas como formulario
+        L-->>P: abre la ronda en el navegador
+        P->>L: respuestas y anotaciones
+        L-->>A: respuestas
+    end
+    A->>R: specs/<épica>/spec.md
+    A-->>P: siguiente paso: spec-a-tickets
+```
+
+---
+
 ## Artefactos
 
 Todo vive en un repositorio de diseño por producto, separado del repositorio de código:
