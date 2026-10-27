@@ -58,7 +58,7 @@ Con otro agente, la alternativa es `npx skills` (Node.js 22.20 o superior):
 npx skills add grez-lucas/design-flow-skills -a <agente>
 ```
 
-`npx skills add` instala por proyecto: copia las skills en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills --help` lista las opciones. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`.
+`npx skills add` instala las skills por proyecto, en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills --help` lista las opciones. Con `-g, --global` instala a nivel de usuario, sin dejar archivos en el repositorio de diseño. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`.
 
 ---
 
@@ -95,9 +95,10 @@ Tests de `skills/checklist-diseno/scripts/revisar.py`, solo con la biblioteca es
 python3 -m unittest discover -s tests/checklist-diseno -v
 python3 -m unittest discover -s tests/pruebas -v
 python3 -m unittest discover -s tests/repositorio -v
+python3 -m unittest discover -s tests/spec-a-html -v
 ```
 
-`tests/pruebas/` verifica que un `grade.py` falle entero, con código de salida 1 y 0 puntos, cuando la corrida está vacía o le falta su informe, y que la severidad dé el mismo puntaje con el informe escrito en distintos formatos. `tests/repositorio/` verifica reglas que cruzan las skills y los manifiestos, como que `checklist-diseno` corra `revisar.py` sin dejar `__pycache__/`.
+`tests/pruebas/` verifica que un `grade.py` falle entero, con código de salida 1 y 0 puntos, cuando la corrida está vacía o le falta su informe, y que la severidad dé el mismo puntaje con el informe escrito en distintos formatos. `tests/repositorio/` verifica reglas que cruzan las skills y los manifiestos, como que `checklist-diseno` corra `revisar.py` sin dejar `__pycache__/`. `tests/spec-a-html/` prueba `proto.js` en Chrome headless; sin Chrome se salta, salvo con `CI` definido, y `CHROME=<ruta>` elige el binario.
 
 Las pruebas de cada skill viven en `pruebas/<skill>/`, fuera de `evals/`, que es la carpeta por defecto de `claude plugin eval`: `evals.json` (prompt, reglas de la corrida, resultado esperado y fixture), `fixtures/` (datos ficticios) y `grade.py`. Una iteración se arma así; `preparar.py` y los `grade.py` necesitan `git` en el `PATH`, además de la biblioteca estándar:
 
