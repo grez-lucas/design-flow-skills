@@ -62,6 +62,20 @@ npx skills add grez-lucas/design-flow-skills -a <agente>
 
 ---
 
+## Requisitos
+
+Para instalar, el plugin pide solo Claude Code; `npx skills` pide Node.js 22.20 o superior.
+
+Al usarse, las skills corren herramientas en la máquina de quien las usa, también cuando se instalaron como plugin:
+
+| Herramienta | Para qué | Sin ella |
+| :--- | :--- | :--- |
+| Node.js 22 o superior y `npx` | Las rondas de `grilling-es` y las revisiones de tickets y vistas de `spec-a-tickets` y `spec-a-html` en Lavish (`npx -y lavish-axi`), donde la persona responde con formularios y anota sobre la pantalla. | Las rondas y las revisiones van en el chat, y las vistas se abren a mano en el navegador. |
+| `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
+| `git` | El commit y push al repositorio de diseño cuando el proyecto no tiene tracker. | No hay commit ni push: los archivos quedan solo en la máquina. |
+
+---
+
 ## Estado
 
 | Skill | Estado |
