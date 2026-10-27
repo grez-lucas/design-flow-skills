@@ -150,5 +150,58 @@ class EstadosBaseDeGrilling(unittest.TestCase):
             self.assertTrue(estados["passed"], estados["evidence"])
 
 
+NIEGA_LISTA = """No, todavía no está lista para la planning. Falta el ticket.
+
+## Lo que bloquea
+
+1. **No hay ticket.**
+
+## Para dejarla lista
+
+1. Crear el ticket con `specs/proveedores/spec.md`.
+"""
+SOLO_PENDIENTE = """La vista tiene dos bloqueos.
+
+## Para dejarla lista
+
+1. Crear el ticket.
+"""
+LISTA_RESUMEN = """## Resultado
+
+1 vista revisada: 1 lista (con avisos), 0 con bloqueos.
+
+## design/vistas/proveedores/proveedores.html · Spec: specs/proveedores/spec.md
+
+Conviene mirar:
+- El orden de la lista de proveedores no está en el spec.
+"""
+LISTA_PROSA = """**Veredicto:** la vista de proveedores está lista para la planning; la crucé con `specs/proveedores/spec.md`.
+
+No encontré nada que bloquee.
+"""
+
+
+class VeredictoLista(unittest.TestCase):
+    def dice_lista(self, informe):
+        grade = cargar("checklist-diseno")
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, out)
+        (out / "informe.md").write_text(informe)
+        res = {}
+        for nombre, evaluar in (("eval2", grade.eval2), ("eval3", grade.eval3)):
+            res[nombre] = next(r["passed"] for r in evaluar(out) if r["text"] == "Dice que la vista está lista")
+        return res
+
+    def test_informe_que_niega_y_tiene_pendientes_no_cuenta_como_lista(self):
+        for informe in (NIEGA_LISTA, SOLO_PENDIENTE):
+            with self.subTest(informe=informe[:20]):
+                self.assertEqual(self.dice_lista(informe), {"eval2": False, "eval3": False})
+
+    def test_informe_afirmativo_en_dos_formatos_cuenta_como_lista(self):
+        for informe in (LISTA_RESUMEN, LISTA_PROSA):
+            with self.subTest(informe=informe[:20]):
+                self.assertEqual(self.dice_lista(informe), {"eval2": True, "eval3": True})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -30,6 +30,17 @@ DEFECTOS = [
 ]
 DE_OTRAS_VISTAS = r"reponer-plan|reponer\.html|plan.?gratis|#d93025|abastos-quiltraco|lorem|proveedor"
 NO_LISTA = r"\b(no|casi|todav[íi]a no)\s+(est[áa]\s+)?lista"
+NIEGA_LISTA = r"\b(no|casi|todav[íi]a no|a[úu]n no)\b[^.\n]{0,30}\blista\b"
+PENDIENTE = r"\bpara\s+(\w+\s+){0,3}lista\b"
+
+
+def dice_lista(low):
+    """Líneas que dicen que la vista está lista. Si alguna línea lo niega, el veredicto es que no lo está, y
+    una frase de algo pendiente ("para dejarla lista") no cuenta como afirmación."""
+    lineas = low.splitlines()
+    if any(re.search(NIEGA_LISTA, l) for l in lineas):
+        return []
+    return [l for l in lineas if re.search(r"\blista\b", re.sub(PENDIENTE, "", l))]
 
 
 SEVERIDAD = r"bloque|conviene|aviso|menor|detalle|ajuste"
@@ -148,7 +159,7 @@ def eval2(out):
     inf = (out / "informe.md").read_text() if (out / "informe.md").exists() else ""
     low = inf.lower()
     limpio, diff = sin_cambios(out / "repo")
-    lista = [l for l in low.splitlines() if re.search(r"\blista\b", l) and not re.search(NO_LISTA, l)]
+    lista = dice_lista(low)
     bloqueos = [i["texto"] for i in items(inf) if i["bloquea"]]
     otras = sorted(set(m.group(0) for m in re.finditer(DE_OTRAS_VISTAS, low)))
     return [
@@ -163,7 +174,7 @@ def eval3(out):
     inf = (out / "informe.md").read_text() if (out / "informe.md").exists() else ""
     low, its = inf.lower(), items(inf)
     limpio, diff = sin_cambios(out / "repo")
-    lista = [l for l in low.splitlines() if re.search(r"\blista\b", l) and not re.search(NO_LISTA, l)]
+    lista = dice_lista(low)
     bloqueos = [i["texto"] for i in its if i["bloquea"]]
     por_tickets = [i["texto"] for i in its if i["bloquea"] and re.search(r"ticket", i["hallazgo"])]
     return [
