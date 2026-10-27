@@ -1,0 +1,24 @@
+{
+ "skill_name": "checklist-diseno",
+ "evals": [
+  {
+   "id": 1,
+   "name": "defectos",
+   "prompt": "Mañana es la planning. ¿Puedes revisar si las vistas de stock están listas?",
+   "reglas": "Persona: Ana, de producto de Bodega. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/stock/tickets/). Revisa todo design/vistas/stock/. Sin navegador. No modifiques el repositorio. Escribe el informe tal como se lo entregarías a Ana en <outputs>/informe.md.",
+   "expected_output": "Encuentra los siete defectos plantados (falta la columna proveedor, falta el escenario error, falta el estado plan-gratis, color suelto #d93025, dominio que parece real, selector de plan dentro de la pantalla, lorem ipsum) y los marca como bloqueo; editar-producto queda lista; no toca el repositorio.",
+   "files": [],
+   "repo": "fixtures/bodega-diseno",
+   "plantados": "Dominio que parece real: ventas@abastos-quiltraco.cl en design/vistas/stock/reponer.html, no registrado (NXDOMAIN en a.nic.cl, verificado el 27-10-2026). No lleva comentario en el fixture porque el agente evaluado lee el repositorio."
+  },
+  {
+   "id": 2,
+   "name": "vista-limpia",
+   "prompt": "Revisa solo la vista de editar producto, ¿está lista para la planning?",
+   "reglas": "Persona: Ana, de producto de Bodega. Repositorio de diseño en <outputs>/repo (git, sin tracker; tickets en specs/stock/tickets/). La vista es design/vistas/stock/editar-producto.html. Sin navegador. No modifiques el repositorio. Escribe el informe tal como se lo entregarías a Ana en <outputs>/informe.md.",
+   "expected_output": "Dice que la vista está lista, no inventa bloqueos, no revisa las otras vistas y no toca el repositorio.",
+   "files": [],
+   "repo": "fixtures/bodega-diseno"
+  }
+ ]
+}

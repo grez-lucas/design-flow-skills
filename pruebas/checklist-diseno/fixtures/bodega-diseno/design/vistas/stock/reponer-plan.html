@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock · Reponer por plan</title>
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos">
+  <header class="topbar"><strong>Bodega</strong></header>
+  <main data-frame>
+    <label>Ver como:
+      <select onchange="document.body.dataset.plan=this.value">
+        <option value="almacen">Plan Almacén</option>
+        <option value="gratis">Plan Gratis</option>
+      </select>
+    </label>
+    <section data-state="normal muchos-datos">
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+    </section>
+    <div class="empty-state" data-state="vacio">Sin productos.</div>
+    <div data-state="cargando"><div class="skeleton"></div></div>
+    <div class="alert alert--danger" data-state="error">Mensaje de error</div>
+    <div class="empty-state" data-state="sin-permiso">Sin permiso.</div>
+  </main>
+</body>
+</html>

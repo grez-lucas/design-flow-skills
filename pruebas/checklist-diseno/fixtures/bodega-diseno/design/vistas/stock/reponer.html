@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock · Reponer</title>
+  <meta name="tickets" content="BOD-2">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <style>
+    .reponer { padding: var(--space-6); }
+    .faltan { color: #d93025; font-weight: var(--font-weight-bold); }
+  </style>
+</head>
+<body data-escenarios="normal, vacio, cargando, sin-permiso, muchos-datos">
+  <header class="topbar"><strong>Bodega</strong></header>
+  <main data-frame class="reponer">
+    <h1>Reponer</h1>
+    <table class="table" data-state="normal muchos-datos">
+      <thead><tr><th>Producto</th><th>Stock actual</th><th>Mínimo</th></tr></thead>
+      <tbody data-repeat="40">
+        <tr><td>Aceite maravilla 1 L</td><td class="faltan">1</td><td>6</td></tr>
+        <tr><td>Azúcar granulada 1 kg</td><td class="faltan">2</td><td>10</td></tr>
+        <tr><td>Fideos spaghetti 400 g</td><td class="faltan">0</td><td>8</td></tr>
+      </tbody>
+    </table>
+    <p data-state="normal">Pedidos a: ventas@abastos-quiltraco.cl</p>
+    <div class="empty-state" data-state="vacio">Todos tus productos están sobre su mínimo.</div>
+    <div data-state="cargando"><div class="skeleton"></div></div>
+    <div class="empty-state" data-state="sin-permiso">No tienes acceso a Reponer.</div>
+  </main>
+</body>
+</html>

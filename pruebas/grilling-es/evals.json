@@ -1,0 +1,36 @@
+{
+ "skill_name": "grilling-es",
+ "evals": [
+  {
+   "id": 1,
+   "name": "nuevo-exportar",
+   "prompt": "Los contadores nos piden exportar las facturas a Excel. Ayúdame a pensarlo y deja el spec listo.",
+   "reglas": "Persona: Camila, de producto de Facturo. Simulas la conversación. Camila responde solo con lo que está en fixtures/persona-exportar.md. Si una pregunta no tiene respuesta ahí, dice \"no lo sé\" o nombra quién decide si el archivo lo dice; no le inventes respuestas. Acepta recomendaciones solo si no contradicen ese archivo y son decisiones de diseño menores. Las decisiones de negocio que el archivo no cubre quedan sin responder. Camila confirma el entendimiento y aprueba el spec si refleja lo que dijo. Escribe cada ronda en <outputs>/transcripcion.md. Sin navegador ni Lavish: formato de chat. Repositorio de diseño en <outputs>/repo (git, sin tracker); commit local, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste y qué asumiste.",
+   "expected_output": "Spec nuevo en specs/<épica>/spec.md con las siete secciones de la plantilla, historias Como/quiero/para con escenarios Dado/cuando/entonces, el límite de filas pendiente del equipo técnico y el plan Básico pendiente de Rodrigo, PDF y correo fuera de alcance, preguntas con respuesta recomendada y un commit nuevo.",
+   "files": [
+    "fixtures/persona-exportar.md"
+   ],
+   "repo": "fixtures/facturo-diseno"
+  },
+  {
+   "id": 2,
+   "name": "cambio-whatsapp",
+   "prompt": "Queremos que los recordatorios de facturas vencidas también salgan por WhatsApp.",
+   "reglas": "Persona: Camila, de producto de Facturo. Simulas la conversación. Camila responde solo con lo que está en fixtures/persona-whatsapp.md. Si una pregunta no tiene respuesta ahí, dice \"no lo sé\" o nombra quién decide si el archivo lo dice; no le inventes respuestas. Acepta recomendaciones solo si no contradicen ese archivo y son decisiones de diseño menores. Camila confirma y aprueba si el resultado refleja lo que dijo. Escribe cada ronda en <outputs>/transcripcion.md. Sin navegador ni Lavish: formato de chat. Repositorio de diseño en <outputs>/repo (git, sin tracker); commit local, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste y qué asumiste.",
+   "expected_output": "Spec nuevo completo en specs/recordatorios/spec.md que conserva los IDs y agrega US-REC-003; el anterior pasa a specs/recordatorios/anteriores/spec-<fecha>.md con la línea Superado; el proveedor queda pendiente de Rodrigo; commit nuevo.",
+   "files": [
+    "fixtures/persona-whatsapp.md"
+   ],
+   "repo": "fixtures/facturo-diseno"
+  },
+  {
+   "id": 3,
+   "name": "cambio-cosmetico",
+   "prompt": "En la vista de facturas vencidas, el botón 'Emitir factura' debería decir 'Nueva factura'. ¿Me haces el grilling?",
+   "reglas": "Persona: Camila, de producto de Facturo. Simulas la conversación: Camila solo sabe que quiere cambiar ese texto porque así se llama en el resto de la app. Escribe lo que harías y dirías en <outputs>/transcripcion.md. Sin navegador ni Lavish. Repositorio de diseño en <outputs>/repo (git, sin tracker); commit local si corresponde, sin push. Al terminar escribe <outputs>/notas.md.",
+   "expected_output": "No crea spec ni toca el spec congelado; deriva el cambio a spec-a-html.",
+   "files": [],
+   "repo": "fixtures/facturo-diseno"
+  }
+ ]
+}

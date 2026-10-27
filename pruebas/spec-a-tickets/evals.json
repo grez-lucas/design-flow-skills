@@ -1,0 +1,32 @@
+{
+ "skill_name": "spec-a-tickets",
+ "evals": [
+  {
+   "id": 1,
+   "name": "sin-tracker-facturo",
+   "prompt": "Crea los tickets del spec de recordatorios de Facturo. No usamos tracker.",
+   "reglas": "Repositorio de diseño en <outputs>/repo (git); el spec está en specs/recordatorios/spec.md. La persona no puede responder en esta sesión. Si hay que aprobar algo, asume que lo aprueba. Si falta un insumo o una decisión de producto, no la inventes: anótala. Sin navegador ni Lavish. Commit local si corresponde, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste, qué le habrías mostrado o preguntado a la persona y qué asumiste.",
+   "expected_output": "Dos tickets en specs/recordatorios/tickets/NN-*.md con la plantilla de story, títulos con US-REC-00n, criterios Dado/Cuando/Entonces, pruebas para DEV, enlace a design/vistas/recordatorios/, sin campo de aprobación; spec congelado; índice README.md; commit nuevo.",
+   "files": [],
+   "repo": "fixtures/facturo-diseno"
+  },
+  {
+   "id": 2,
+   "name": "spec-debil-agenda",
+   "prompt": "Pasa a tickets el spec de reservas de Agenda, lo necesitamos para el sprint del lunes.",
+   "reglas": "Repositorio de diseño en <outputs>/repo (git, sin tracker); el spec está en specs/reservas/spec.md. La persona no puede responder en esta sesión. Si hay que aprobar algo, asume que lo aprueba. Si falta un insumo o una decisión de producto, no la inventes: detente o anótala según tu criterio. Sin navegador ni Lavish. Commit local si corresponde, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste, qué le habrías mostrado o preguntado a la persona y qué asumiste.",
+   "expected_output": "No publica tickets sobre un spec débil y recomienda volver al grilling.",
+   "files": [],
+   "repo": "fixtures/agenda-diseno"
+  },
+  {
+   "id": 3,
+   "name": "convenciones-propias-bodega",
+   "prompt": "Arma las stories del spec de alertas de stock de Bodega.",
+   "reglas": "Repositorio de diseño en <outputs>/repo (git); el spec está en specs/stock/spec.md. La persona no puede responder en esta sesión. Si hay que aprobar algo, asume que lo aprueba. Si falta un insumo o una decisión de producto, no la inventes: anótala. Sin navegador ni Lavish. Commit local si corresponde, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste, qué le habrías mostrado o preguntado a la persona y qué asumiste.",
+   "expected_output": "Un ticket por historia con la plantilla y el formato de título BOD-<n> que define .claude/pm-conventions.md, no la plantilla de la skill; commit nuevo.",
+   "files": [],
+   "repo": "fixtures/bodega-diseno"
+  }
+ ]
+}

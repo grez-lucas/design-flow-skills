@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock · Editar producto</title>
+  <meta name="tickets" content="BOD-1">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <style>
+    .editar { display: grid; gap: var(--space-4); max-width: var(--size-content-max); padding: var(--space-6); }
+  </style>
+</head>
+<body data-escenarios="normal, error-validacion, guardado, cargando, error" data-no-aplica="sin-permiso: solo el dueño usa la app; muchos-datos: un solo producto; vacio: siempre hay un producto abierto">
+  <header class="topbar"><strong>Bodega</strong></header>
+  <main data-frame>
+    <form class="editar card" data-state="normal error-validacion guardado">
+      <h1>Arroz grado 1, 1 kg</h1>
+      <div class="field">
+        <label for="minimo">Stock mínimo</label>
+        <input id="minimo" value="5" data-state="normal guardado">
+        <input id="minimo-error" value="-2" aria-invalid="true" data-state="error-validacion">
+        <span class="field__error" data-state="error-validacion">El mínimo no puede ser negativo.</span>
+        <span class="field__hint">Cuando el stock baje de este número, el producto aparece en Reponer.</span>
+      </div>
+      <!-- al guardar: muestra el aviso de guardado y mantiene el formulario -->
+      <button class="btn btn--primary" type="button">Guardar</button>
+      <div class="alert alert--success" data-state="guardado" role="status">Mínimo guardado: 5 unidades.</div>
+    </form>
+    <div class="card" data-state="cargando"><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div class="alert alert--danger" data-state="error" role="alert">No pudimos cargar el producto. Reintentar.</div>
+  </main>
+</body>
+</html>

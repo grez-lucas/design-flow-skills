@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Miembros · Listado</title>
+  <meta name="tickets" content="EQ-010">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, muchos-datos">
+  <header class="topbar"><strong>Equipo</strong></header>
+  <main data-frame>
+    <h1>Miembros</h1>
+    <table class="table" data-state="normal muchos-datos">
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th></tr></thead>
+      <tbody data-repeat="40">
+        <tr><td>Camila Rojas</td><td>camila@example.com</td><td><span class="badge">Admin</span></td></tr>
+        <tr><td>Tomás Fuentes</td><td>tomas.fuentes@example.com</td><td><span class="badge">Miembro</span></td></tr>
+      </tbody>
+    </table>
+    <div data-state="vacio" class="empty-state">Todavía no hay miembros.</div>
+    <div data-state="cargando"><div class="skeleton"></div></div>
+    <div data-state="error" class="alert alert--danger" role="alert">No pudimos cargar los miembros. Reintentar.</div>
+  </main>
+</body>
+</html>

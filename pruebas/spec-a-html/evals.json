@@ -1,0 +1,36 @@
+{
+ "skill_name": "spec-a-html",
+ "evals": [
+  {
+   "id": 1,
+   "name": "recordatorios-desde-cero",
+   "prompt": "Soy de producto en Facturo. Te paso el spec de recordatorios de facturas vencidas (spec-recordatorios.md). Arma las pantallas en el repositorio de diseño. No hay design system todavía ni tengo el código a mano.",
+   "expected_output": "Propone y crea design/tokens.css, components.css y proto.js; vistas en design/vistas/<épica>/ con todos los escenarios del spec, data-state, sin valores sueltos, tickets citados, datos ficticios; commit sin push.",
+   "files": [
+    "fixtures/spec-recordatorios.md"
+   ],
+   "repo": "fixtures/facturo-diseno",
+   "reglas": "Repositorio de diseño en <outputs>/repo (git). La persona no puede responder: si hay que aprobar algo, asume que lo aprueba. Sin navegador. Commit local, sin push. Al terminar escribe <outputs>/notas.md."
+  },
+  {
+   "id": 2,
+   "name": "invitar-con-design-system",
+   "prompt": "Necesito el diseño de invitar miembros para Equipo, el spec está en spec-invitar.md. Ya tenemos design system en el repo.",
+   "expected_output": "Reutiliza tokens.css sin inventar colores; agrega componentes que falten (modal) a components.css; vistas por épica con escenarios del spec; commit sin push.",
+   "files": [
+    "fixtures/spec-invitar.md"
+   ],
+   "repo": "fixtures/equipo-diseno",
+   "reglas": "Repositorio de diseño en <outputs>/repo (git). La persona no puede responder: si hay que aprobar algo, asume que lo aprueba. Sin navegador. Commit local, sin push. Al terminar escribe <outputs>/notas.md."
+  },
+  {
+   "id": 3,
+   "name": "edicion-con-cambio-de-comportamiento",
+   "prompt": "En el listado de miembros de Equipo agrega un filtro por rol y un botón para exportar a CSV. Es rápido, hazlo directo en la vista.",
+   "expected_output": "Detecta que cambia comportamiento y alcance; no edita el HTML; pide grilling o actualizar spec y tickets primero.",
+   "files": [],
+   "repo": "fixtures/equipo-diseno",
+   "reglas": "Repositorio de diseño en <outputs>/repo (git). La persona no puede responder: si hay que aprobar algo, asume que lo aprueba. Sin navegador. Commit local, sin push. Al terminar escribe <outputs>/notas.md."
+  }
+ ]
+}
