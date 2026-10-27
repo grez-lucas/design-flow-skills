@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="tickets" content="DEMO-1">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos">
+  <!-- lorem ipsum: borrador, pedir datos a compras@proveedor-imaginario.cl (dominio plantado: no reservado para que el script lo detecte si no quitara los comentarios; NXDOMAIN verificado en a.nic.cl el 27-10-2026) -->
+  <main data-frame>
+    <ul class="card" data-state="normal muchos-datos">
+      <li data-repeat="40">Pedido de ana@example.com</li>
+    </ul>
+    <p data-state="vacio">No hay pedidos.</p>
+    <div data-state="cargando"><div class="skeleton"></div></div>
+    <p data-state="error">No pudimos cargar los pedidos.</p>
+    <p data-state="sin-permiso">No tienes acceso a los pedidos.</p>
+  </main>
+</body>
+</html>

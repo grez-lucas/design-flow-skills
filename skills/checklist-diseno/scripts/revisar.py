@@ -50,8 +50,7 @@ class Vista(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
-        if tag not in VOID:
-            self.stack.append(tag)
+        self.stack.append(tag)
         if tag == "body":
             self.body = a
         if tag == "meta" and a.get("name"):
