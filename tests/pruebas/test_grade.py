@@ -100,7 +100,9 @@ class SeveridadSinFormatoFijo(unittest.TestCase):
             shutil.copytree(base / "run-1", base / f"run-{n}", symlinks=True)
             (base / f"run-{n}" / "outputs" / "informe.md").write_text(reescribir(informe, forma))
         shutil.rmtree(it / "eval-1-defectos" / "without_skill")
-        shutil.rmtree(it / "eval-2-vista-limpia")
+        for otra in it.iterdir():
+            if otra.name != "eval-1-defectos":
+                shutil.rmtree(otra)
         (base / "run-1" / "outputs" / "informe.md").write_text(informe)
         subprocess.run([sys.executable, str(PRUEBAS / "checklist-diseno" / "grade.py"), str(it)], check=True, capture_output=True)
         resultados = {}

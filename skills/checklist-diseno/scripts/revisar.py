@@ -176,8 +176,24 @@ def revisar_vista(path, repo, definidos):
         bloquea.append("Carga recursos externos (CDN, fuentes, imágenes remotas).")
 
     tickets = v.metas.get("tickets", "").strip()
-    if not tickets or "ID-DEL-TICKET" in tickets:
+    spec = v.metas.get("spec", "").strip()
+    if spec:
+        if "<" in spec:
+            bloquea.append(f"`<meta name=\"spec\">` tiene el marcador de la plantilla: `{spec}`.")
+        elif Path(spec).is_absolute() or repo not in (repo / spec).resolve().parents:
+            bloquea.append(f"El spec de `<meta name=\"spec\">`, `{spec}`, está fuera del repositorio. Va como ruta relativa a su raíz.")
+        elif not (repo / spec).is_file():
+            bloquea.append(f"El spec de `<meta name=\"spec\">`, `{spec}`, no existe en el repositorio.")
+    if tickets and "ID-DEL-TICKET" not in tickets:
+        cita = f"Tickets: {tickets}"
+    elif spec:
+        cita = f"Spec: {spec}"
+    elif "tickets" in v.metas:
+        cita = f"Tickets: {tickets or 'ninguno'}"
         bloquea.append("No cita sus tickets en `<meta name=\"tickets\">`.")
+    else:
+        cita = "Tickets: ninguno"
+        bloquea.append("No cita sus tickets en `<meta name=\"tickets\">` ni su spec en `<meta name=\"spec\">`.")
 
     visible = re.sub(r"<!--.*?-->", "", texto, flags=re.S)
     dominios = set()
@@ -197,7 +213,7 @@ def revisar_vista(path, repo, definidos):
     if len(partes) != 4 or partes[:2] != ("design", "vistas"):
         avisa.append("No está en `design/vistas/<épica>/<vista>.html`.")
 
-    return rel, escenarios, tickets, bloquea, avisa
+    return rel, escenarios, cita, bloquea, avisa
 
 
 def revisar_compartidos(design, definidos):
@@ -260,10 +276,10 @@ def main():
         print("\nNo hay vistas en `design/vistas/<épica>/`.")
         return 1
     for path in vistas:
-        rel, esc, tickets, b, a = revisar_vista(path, repo, definidos)
+        rel, esc, cita, b, a = revisar_vista(path, repo, definidos)
         total += len(b)
         print(f"\n## {rel}\n")
-        print(f"Tickets: {tickets or 'ninguno'} · Escenarios: {', '.join(esc) or 'ninguno'}\n")
+        print(f"{cita} · Escenarios: {', '.join(esc) or 'ninguno'}\n")
         for x in b:
             print(f"- BLOQUEA: {x}")
         for x in a:

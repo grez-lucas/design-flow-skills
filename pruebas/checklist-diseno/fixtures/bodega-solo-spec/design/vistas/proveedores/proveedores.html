@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proveedores</title>
+  <meta name="spec" content="specs/proveedores/spec.md">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <style>
+    .proveedores { display: grid; gap: var(--space-4); padding: var(--space-6); }
+  </style>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, muchos-datos" data-no-aplica="sin-permiso: solo el dueño usa la app">
+  <header class="topbar"><strong>Bodega</strong></header>
+  <main data-frame class="proveedores">
+    <h1>Proveedores</h1>
+    <table class="table" data-state="normal muchos-datos">
+      <thead><tr><th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Productos</th></tr></thead>
+      <tbody>
+        <tr><td>Distribuidora Los Aromos</td><td>Marta Fuentes</td><td>+56 9 5555 0101</td><td>12</td></tr>
+        <tr><td>Abarrotes del Valle Central y Alrededores Limitada</td><td>Jorge Riquelme</td><td>+56 9 5555 0102</td><td>48</td></tr>
+        <tr><td>Lácteos San Ramón</td><td>pedidos@example.com</td><td>+56 9 5555 0103</td><td>0</td></tr>
+      </tbody>
+      <tbody data-state="muchos-datos" data-repeat="40">
+        <tr><td>Panificadora La Espiga</td><td>Rosa Contreras</td><td>+56 9 5555 0104</td><td>7</td></tr>
+      </tbody>
+    </table>
+    <div class="empty-state" data-state="vacio">Todavía no tienes proveedores registrados.</div>
+    <div class="card" data-state="cargando"><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div class="alert alert--danger" data-state="error" role="alert">No pudimos cargar tus proveedores. Reintentar.</div>
+  </main>
+</body>
+</html>

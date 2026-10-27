@@ -19,6 +19,15 @@
    "expected_output": "Dice que la vista está lista, no inventa bloqueos, no revisa las otras vistas y no toca el repositorio.",
    "files": [],
    "repo": "fixtures/bodega-diseno"
+  },
+  {
+   "id": 3,
+   "name": "solo-spec",
+   "prompt": "La vista de proveedores viene del mockup y todavía no tiene ticket. ¿Está lista para la planning?",
+   "reglas": "Persona: Ana, de producto de Bodega. Repositorio de diseño en <outputs>/repo (git, sin tracker; sin tickets para esta épica). La vista es design/vistas/proveedores/proveedores.html y cita su spec en <meta name=\"spec\">. Sin navegador. No modifiques el repositorio. Escribe el informe tal como se lo entregarías a Ana en <outputs>/informe.md.",
+   "expected_output": "Dice que la vista está lista, la cruza contra el spec, cita specs/proveedores/spec.md en el informe, no la marca por no citar tickets, no inventa bloqueos y no toca el repositorio.",
+   "files": [],
+   "repo": "fixtures/bodega-solo-spec"
   }
  ]
 }

@@ -4,11 +4,14 @@ Cada fixture es una vista mínima con un caso que el script ya resolvió mal una
 Uso: python3 -m unittest discover -s tests/checklist-diseno -v
 """
 import importlib.util
+import io
 import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 RAIZ = Path(__file__).resolve().parents[2]
 SCRIPT = RAIZ / "skills" / "checklist-diseno" / "scripts" / "revisar.py"
@@ -31,11 +34,23 @@ class Revision(unittest.TestCase):
         shutil.copy(FIXTURES / "components.css", self.design / "components.css")
         shutil.copy(PROTO, self.design / "proto.js")
 
+        (self.repo / "specs" / "pedidos").mkdir(parents=True)
+        (self.repo / "specs" / "pedidos" / "spec.md").write_text("# Spec · Pedidos\n")
+
     def revisar(self, fixture):
         vista = self.design / "vistas" / "pedidos" / fixture
         shutil.copy(FIXTURES / fixture, vista)
         _, _, _, bloquea, avisa = revisar.revisar_vista(vista, self.repo, revisar.tokens_definidos(self.design))
         return bloquea, avisa
+
+    def resumen(self, fixture):
+        """La línea de resumen que imprime main() para la vista."""
+        vista = self.design / "vistas" / "pedidos" / fixture
+        shutil.copy(FIXTURES / fixture, vista)
+        salida = io.StringIO()
+        with mock.patch.object(sys, "argv", ["revisar.py", str(self.repo), str(vista)]), redirect_stdout(salida):
+            revisar.main()
+        return next(l for l in salida.getvalue().splitlines() if "Escenarios:" in l)
 
     def test_vista_limpia_sin_hallazgos(self):
         self.assertEqual(self.revisar("limpia.html"), ([], []))
@@ -107,6 +122,68 @@ class Revision(unittest.TestCase):
 
     def test_comentarios_html_no_cuentan(self):
         self.assertEqual(self.revisar("comentarios.html"), ([], []))
+
+    def test_spec_existente_sin_tickets_no_bloquea(self):
+        self.assertEqual(self.revisar("spec-sin-tickets.html"), ([], []))
+
+    def test_spec_inexistente_bloquea_nombrando_la_ruta(self):
+        bloquea, _ = self.revisar("spec-inexistente.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("`specs/envios/spec.md`", bloquea[0])
+        self.assertIn("no existe", bloquea[0])
+
+    def test_spec_marcador_de_plantilla_bloquea(self):
+        bloquea, _ = self.revisar("spec-marcador.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("specs/<épica>/spec.md", bloquea[0])
+        self.assertIn("marcador", bloquea[0])
+
+    def test_spec_fuera_del_repositorio_bloquea(self):
+        fuera = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, fuera)
+        (fuera / "spec.md").write_text("# Spec\n")
+        texto = (FIXTURES / "spec-sin-tickets.html").read_text().replace("specs/pedidos/spec.md", str(fuera / "spec.md"))
+        vista = self.design / "vistas" / "pedidos" / "spec-fuera.html"
+        vista.write_text(texto)
+        _, _, _, bloquea, _ = revisar.revisar_vista(vista, self.repo, revisar.tokens_definidos(self.design))
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("fuera del repositorio", bloquea[0])
+
+    def test_sin_tickets_ni_spec_bloquea_nombrando_las_dos_metas(self):
+        bloquea, _ = self.revisar("sin-tickets-ni-spec.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn('<meta name="tickets">', bloquea[0])
+        self.assertIn('<meta name="spec">', bloquea[0])
+
+    def test_tickets_vacio_o_marcador_sin_spec_sigue_bloqueando(self):
+        for fixture in ("tickets-vacio.html", "tickets-marcador.html"):
+            with self.subTest(fixture=fixture):
+                bloquea, _ = self.revisar(fixture)
+                self.assertEqual(bloquea, ["No cita sus tickets en `<meta name=\"tickets\">`."])
+
+    def test_tickets_y_spec_resumen_con_tickets_sin_hallazgos(self):
+        self.assertEqual(self.revisar("tickets-y-spec.html"), ([], []))
+        self.assertTrue(self.resumen("tickets-y-spec.html").startswith("Tickets: DEMO-1 · "))
+
+    def test_tickets_validos_y_spec_inexistente_bloquea(self):
+        bloquea, _ = self.revisar("tickets-y-spec-inexistente.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("`specs/envios/spec.md`", bloquea[0])
+        self.assertIn("no existe", bloquea[0])
+
+    def test_tickets_validos_y_spec_fuera_del_repositorio_bloquea(self):
+        texto = (FIXTURES / "tickets-y-spec.html").read_text().replace("specs/pedidos/spec.md", "../fuera/spec.md")
+        vista = self.design / "vistas" / "pedidos" / "tickets-y-spec-fuera.html"
+        vista.write_text(texto)
+        _, _, _, bloquea, _ = revisar.revisar_vista(vista, self.repo, revisar.tokens_definidos(self.design))
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("fuera del repositorio", bloquea[0])
+
+    def test_solo_spec_resumen_con_spec(self):
+        self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))
+
+    def test_limpia_resumen_con_tickets(self):
+        self.assertTrue(self.resumen("limpia.html").startswith("Tickets: DEMO-1 · "))
 
 
 if __name__ == "__main__":

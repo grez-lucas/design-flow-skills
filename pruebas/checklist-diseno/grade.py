@@ -159,6 +159,22 @@ def eval2(out):
     ]
 
 
+def eval3(out):
+    inf = (out / "informe.md").read_text() if (out / "informe.md").exists() else ""
+    low, its = inf.lower(), items(inf)
+    limpio, diff = sin_cambios(out / "repo")
+    lista = [l for l in low.splitlines() if re.search(r"\blista\b", l) and not re.search(NO_LISTA, l)]
+    bloqueos = [i["texto"] for i in its if i["bloquea"]]
+    por_tickets = [i["texto"] for i in its if i["bloquea"] and re.search(r"ticket", i["hallazgo"])]
+    return [
+        check("Dice que la vista está lista", lista, lista[:1]),
+        check("Cita el spec specs/proveedores/spec.md", "specs/proveedores/spec.md" in low),
+        check("No la marca por no citar tickets", not por_tickets, por_tickets[:2]),
+        check("No inventa hallazgos que bloquean", not bloqueos, bloqueos[:2]),
+        check("No modifica el repositorio", limpio, diff),
+    ]
+
+
 REQUERIDO = "informe.md"
 
 
@@ -173,7 +189,9 @@ def falta(out):
 
 
 def calificar(name, out):
-    return eval1(out) if "defectos" in name else eval2(out)
+    if "defectos" in name:
+        return eval1(out)
+    return eval3(out) if "solo-spec" in name else eval2(out)
 
 
 def main(iteration):
