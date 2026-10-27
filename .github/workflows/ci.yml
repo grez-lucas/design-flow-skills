@@ -20,6 +20,8 @@ jobs:
         run: python3 -m unittest discover -s tests/checklist-diseno -v
       - name: Tests de los grade.py
         run: python3 -m unittest discover -s tests/pruebas -v
+      - name: Tests del repositorio
+        run: python3 -m unittest discover -s tests/repositorio -v
       - name: Tests de proto.js en Chrome
         run: python3 -m unittest discover -s tests/spec-a-html -v
 

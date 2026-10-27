@@ -20,8 +20,10 @@ Trabaja en el repositorio de diseño (tiene `design/` en la raíz). Si la person
 Corre el script incluido:
 
 ```
-python3 <ruta-de-esta-skill>/scripts/revisar.py <repo-de-diseño> [vistas...]
+python3 -B <ruta-de-esta-skill>/scripts/revisar.py <repo-de-diseño> [vistas...]
 ```
+
+`-B` evita que Python deje `__pycache__/` dentro de la carpeta de la skill.
 
 Confirma cada BLOQUEA leyendo la línea antes de pasarlo al informe: el script puede equivocarse con SVG, consultas de contenedor o comentarios. Si descartas un hallazgo, dilo en una línea con el motivo.
 
