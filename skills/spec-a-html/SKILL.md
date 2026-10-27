@@ -71,7 +71,7 @@ Antes de escribir HTML, propone la lista de vistas con sus escenarios, en una ta
 | :--- | :--- | :--- | :--- |
 | Listado de alertas | `design/vistas/alertas/listado.html` | normal, vacio, cargando, error, sin-permiso, muchos-datos | US-ALERT-002 |
 
-Todas las vistas llevan los escenarios base: normal, vacío, cargando, error, sin permiso y muchos datos, más los propios del caso que pida el spec (por ejemplo, plan expirado). Si un escenario base no aplica a una vista, dilo en la tabla en vez de omitirlo en silencio. Espera la confirmación de la persona.
+Todas las vistas llevan los escenarios base: normal, vacío, cargando, error, sin permiso y muchos datos, más los propios del caso que pida el spec (por ejemplo, plan expirado). Si un escenario base no aplica a una vista, dilo en la tabla y déjalo escrito en la vista con `data-no-aplica` (ver `references/vista-html.md`), en vez de omitirlo en silencio. Espera la confirmación de la persona.
 
 ### 6. Escribir el HTML
 

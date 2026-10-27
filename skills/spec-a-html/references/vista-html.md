@@ -33,6 +33,7 @@ Parte de `assets/vista.html`. La estructura es:
 ## Escenarios
 
 - `<body data-escenarios>` lista los escenarios de la vista, separados por coma. El primero es el que se ve al abrir.
+- `<body data-no-aplica>` lista los escenarios base que no aplican, cada uno con su motivo: `data-no-aplica="sin-permiso: todos los roles ven esta vista; muchos-datos: la pantalla tiene pocas opciones fijas"`. Escenarios base: normal, vacio, cargando, error, sin-permiso, muchos-datos.
 - Un elemento con `data-state="a b"` se ve solo en los escenarios `a` o `b`. Un elemento sin `data-state` se ve siempre. Así, el header y la navegación se escriben una vez y solo cambia lo que de verdad cambia.
 - `muchos-datos` muestra la versión con volumen real: textos largos, nombres que no caben, tablas de 50 filas. Para no inflar el archivo, escribe tres o cuatro filas variadas y marca el contenedor con `data-repeat="50"`: `proto.js` clona las filas en ese escenario.
 - `cargando` usa `.skeleton`, no spinners sueltos.
