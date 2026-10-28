@@ -14,7 +14,7 @@ Quien la usa suele ser de producto o de diseño. Habla en español, sin jerga de
 Un mockup real pesa entre 50 mil y 500 mil tokens, redefine colores en cada pantalla y arma parte de su contenido con JavaScript al abrir un modal. Ningún agente lo lee entero, y `revisar.py` o un render por línea de comandos ven solo el envoltorio de un mockup compuesto. Por eso:
 
 - Un script desarma el archivo en partes y trozos chicos, con un manifiesto que dice cuánto pesa cada uno. Con eso se reparte el trabajo sin que nadie abra el mockup entero.
-- Tres olas. En la primera decides tú los tokens con `tokens.py`, y dos subagentes arman los componentes base y el marco común. En la segunda, un subagente por vista, con esos tokens ya fijados. En la tercera integras tú y un subagente que no armó ninguna vista revisa. Repartir solo por pantalla deja que cada subagente invente su design system.
+- Tres olas. En la primera decides tú los tokens con `tokens.py`, y dos subagentes arman los componentes base y los escenarios globales. En la segunda, un subagente por vista, el marco incluido, con esos tokens ya fijados. En la tercera integras tú y un subagente que no armó ninguna vista revisa. Repartir solo por pantalla deja que cada subagente invente su design system.
 - Los tokens y la integración los haces tú porque son pasos mecánicos de salida corta (scripts, copias, la tabla que producto decide en esta conversación) y necesitan la terminal, que un subagente puede no tener. Leer trozos y escribir vistas sí cuesta contexto: eso va a subagentes.
 - Cada subagente escribe en una carpeta de trabajo fuera del repositorio y devuelve solo la ruta y un resumen. Así tu contexto no crece con cada vista y el repositorio no recibe borradores.
 - Cada subagente te avisa cuando termina. Espera esos avisos y no programes recordatorios ni esperas con temporizador: un recordatorio de respaldo que nadie cancela deja la sesión abierta sin hacer nada hasta que vence.
@@ -62,25 +62,25 @@ Con `resumen.md` y el spec, arma el plan siguiendo `references/plan.md` y muést
 
 - pantallas detectadas, por parte, con el título que muestran en el mockup (el que trae `resumen.md`), para que producto las reconozca;
 - tabla pantalla a vista: pantalla con ese título, vista, archivo, épica, escenarios (con su origen: control DEMO, función, superposición), trozos de origen;
-- subagentes por ola y tokens estimados de lo que lee cada uno, con una fila por vista en la ola 2;
+- subagentes por ola y tokens estimados de lo que lee cada uno, con al menos una fila por vista en la ola 2, la del marco incluida;
 - lo que no tiene equivalente y cómo queda (`references/sin-equivalente.md`).
 
 Reglas de la tabla: una vista por pantalla, panel o ruta; modales, drawers y subvistas son escenarios de la vista que los abre, no vistas propias; un asistente de pasos es un flujo con un escenario por paso, o un archivo por paso si la vista pasaría las 300 líneas. En un mockup compuesto (shell más módulos), cada módulo es una sección del spec y una épica, y el shell es una vista propia con los escenarios globales.
 
 Espera el ok. Sin ok no lances subagentes ni escribas en el repositorio. Producto puede cambiar la tabla; rehazla y vuelve a mostrarla.
 
-### 6. Ola 1: tokens, componentes base y shell
+### 6. Ola 1: tokens, componentes base y escenarios globales
 
 Sigue `references/olas.md`, sección "Ola 1". Primero los tokens, que decides tú con `references/tokens.md`, sin subagente: la salida de `tokens.py` es corta y la tabla se decide con producto en esta conversación.
 
 - Con `design/tokens.css`: corre `python3 -B <ruta-de-esta-skill>/scripts/tokens.py mapear`. Cada valor dentro del umbral va al token más cercano. Lo que queda fuera va a una tabla con el token más cercano y la propuesta de token nuevo: muéstrala y pregunta a producto, fila por fila, si usa el token cercano o aprueba el nuevo, y espera la respuesta antes de escribir `tokens.css`. Si producto acepta tu recomendación sin elegir, o no puede decidir ahora, usa el token existente más cercano entre los del mismo uso (fondo, texto, borde, superposición) y deja ese valor marcado como pendiente de decisión en el informe; si ninguno sirve para ese uso, el valor no se aplica y el informe dice qué se pierde. Nunca agregues un token nuevo que producto no aprobó.
 - Sin `design/tokens.css`: corre `python3 -B <ruta-de-esta-skill>/scripts/tokens.py consolidar` y muestra la tabla de consolidación (valor original, ocurrencias, token propuesto) antes de escribir. Un color con uso propio entra como token, no como pendiente. Antes de escribir, `tokens.py verificar` con el `tokens.css` propuesto como único archivo encuentra los pares que se ven iguales; resuélvelos.
 
-Deja la tabla y el `tokens.css` decidido en `<trabajo>/ola-1/tokens/`. Con los tokens decididos, lanza en paralelo dos subagentes, el de componentes base y el del shell con los escenarios globales, que escriben en `<trabajo>/ola-1/`.
+Deja la tabla y el `tokens.css` decidido en `<trabajo>/ola-1/tokens/`. Con los tokens decididos, lanza en paralelo dos subagentes, el de componentes base y el de los escenarios globales, que escriben en `<trabajo>/ola-1/`. El marco no se arma aquí: es una vista más y va a la ola 2.
 
 ### 7. Ola 2: una vista por subagente
 
-Un subagente por fila de la tabla, en paralelo, con `references/olas.md`, sección "Ola 2". No juntes vistas en un subagente, aunque sean chicas o del mismo módulo: cada borrador sale de un contexto propio, su contrato es independiente y el revisor aprueba o devuelve vista por vista. Un subagente con dos vistas mezcla sus decisiones, y si una vuelve con notas, vuelven las dos. Nombra cada uno con su ola y su vista (`Ola 2: <vista>`), así se coteja con el plan. Cada uno recibe las rutas de sus trozos, los tokens y componentes de la ola 1 (no el CSS entero del mockup), los nombres de los escenarios globales y la plantilla del contrato. Escribe el borrador de su vista y su contrato en `<trabajo>/ola-2/` y devuelve solo la ruta y un resumen de cinco líneas.
+Un subagente por fila de la tabla, en paralelo, con `references/olas.md`, sección "Ola 2". El marco es una fila como las demás: tiene su subagente y su contrato, y si el revisor no lo aprueba vuelve a ese subagente. No juntes vistas en un subagente, aunque sean chicas o del mismo módulo: cada borrador sale de un contexto propio, su contrato es independiente y el revisor aprueba o devuelve vista por vista. Un subagente con dos vistas mezcla sus decisiones, y si una vuelve con notas, vuelven las dos. Nombra cada uno con su ola y su vista (`Ola 2: <vista>`), así se coteja con el plan. Cada uno recibe las rutas de sus trozos, los tokens y componentes de la ola 1 (no el CSS entero del mockup), los nombres de los escenarios globales y la plantilla del contrato. Escribe el borrador de su vista y su contrato en `<trabajo>/ola-2/` y devuelve solo la ruta y un resumen de cinco líneas.
 
 ### 8. Ola 3: integrar, inventariar y revisar
 
