@@ -150,6 +150,38 @@ class DocumentoUnico(Base):
                       "fonts.googleapis.com", "14px", "bytes/4"):
             self.assertIn(texto, resumen)
 
+    def test_titulo_visible_de_cada_pantalla_superposicion_y_marco(self):
+        m = self.manifiesto("documento.html")
+        p = m["partes"][0]
+        self.assertEqual(p["titulo"], "Huerta · Pedidos")
+        titulos = {t["id"]: t.get("titulo") for t in self.trozos(p, "markup")}
+        self.assertEqual(titulos["pedidos-page"], "Pedidos de la semana")
+        self.assertEqual(titulos["ajustes-page"], "Ajustes de entrega")
+        self.assertEqual(titulos["_resto"], "Huerta", "el marco lleva la marca de la cabecera, no el texto de un botón")
+        self.assertEqual(titulos["confirmar-modal"], "Confirmar pedido", "sin encabezado, el texto del control que la abre")
+        resumen = (self.trabajo / "resumen.md").read_text()
+        self.assertIn('`pedidos-page` "Pedidos de la semana"', resumen)
+        self.assertIn('`_resto` "Huerta"', resumen)
+        self.assertIn("Huerta · Pedidos", resumen)
+
+    def test_titulo_desde_rotulo_cuando_no_hay_encabezado(self):
+        f = self.tmp / "rotulos.html"
+        f.write_text('<!doctype html><html><body>\n<header><button>Menú</button><strong>Granja &amp; Cía</strong></header>\n'
+                     '<section id="lista-page" aria-label="Lista de proveedores"><p>Proveedor</p></section>\n'
+                     '<div id="borrar-modal" title="Borrar proveedor"><p>¿Seguro?</p></div>\n'
+                     '<section id="partida-page"><h3>Detalle</h3><div><h2> Partida <em>12</em> </h2></div><h1>Otro</h1></section>\n'
+                     '<nav><a href="#cosechas-page">Cosechas</a><button onclick="ver(\'riego-page\')">Riego <b>diario</b></button></nav>\n'
+                     '<section id="cosechas-page"><p>Sin encabezado</p></section><section id="riego-page"><p>Tampoco</p></section>\n'
+                     '<div id="aviso-modal"><p>Sin nada que lo nombre</p></div>\n'
+                     '</body></html>\n')
+        r = desarmar(f, self.trabajo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        p = json.loads((self.trabajo / "manifiesto.json").read_text())["partes"][0]
+        titulos = {t["id"]: t.get("titulo") for t in self.trozos(p, "markup")}
+        self.assertEqual(titulos, {"lista-page": "Lista de proveedores", "borrar-modal": "Borrar proveedor",
+                                   "partida-page": "Partida 12", "cosechas-page": "Cosechas", "riego-page": "Riego diario",
+                                   "aviso-modal": None, "_resto": "Granja & Cía"})
+
     def test_animaciones_y_tiempos(self):
         p = self.manifiesto("documento.html")["partes"][0]
         self.assertEqual(p["animaciones"], {"keyframes": 1, "setTimeout": 1, "setInterval": 0})
@@ -257,6 +289,19 @@ class Tope(Base):
         self.assertIn("resumen-tab", ids)
         self.assertIn("detalle-tab", ids)
         self.assertIn("app-view.marco", ids)
+        titulos = {t["id"]: t.get("titulo") for t in m["partes"][0]["trozos"] if t["tipo"] == "markup"}
+        self.assertEqual(titulos["app-view.marco"], "Marco")
+
+    def test_los_pedazos_de_una_pantalla_partida_llevan_su_titulo(self):
+        filas = "\n".join(f'<li class="fila">Producto {n} de la huerta con descripción larga</li>' for n in range(400))
+        grande = self.tmp / "grande.html"
+        grande.write_text(f"<!doctype html><html><body>\n<section id=\"catalogo-page\">\n<h1>Catálogo</h1>\n<ul>\n{filas}\n</ul>\n</section>\n</body></html>\n")
+        r = desarmar(grande, self.trabajo, "--tope", "2000")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        m = json.loads((self.trabajo / "manifiesto.json").read_text())
+        catalogo = [t for t in m["partes"][0]["trozos"] if t.get("id", "").startswith("catalogo-page")]
+        self.assertGreater(len(catalogo), 1)
+        self.assertEqual({t["titulo"] for t in catalogo}, {"Catálogo"})
 
 
 class NoDesarmable(Base):

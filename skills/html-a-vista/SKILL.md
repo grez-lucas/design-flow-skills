@@ -56,8 +56,8 @@ La conversión exige spec, como `spec-a-html`. Búscalo en `specs/<épica>/spec.
 
 Con `resumen.md` y el spec, arma el plan siguiendo `references/plan.md` y muéstralo antes de lanzar subagentes:
 
-- pantallas detectadas, por parte;
-- tabla pantalla a vista: vista, archivo, épica, escenarios (con su origen: control DEMO, función, superposición), trozos de origen;
+- pantallas detectadas, por parte, con el título que muestran en el mockup (el que trae `resumen.md`), para que producto las reconozca;
+- tabla pantalla a vista: pantalla con ese título, vista, archivo, épica, escenarios (con su origen: control DEMO, función, superposición), trozos de origen;
 - subagentes por ola y tokens estimados de lo que lee cada uno;
 - lo que no tiene equivalente y cómo queda (`references/sin-equivalente.md`).
 

@@ -10,7 +10,7 @@ Escribe en la carpeta de trabajo:
   trozos/<parte>/markup/*.html el markup por pantalla, panel o superposición con id, y el resto
   trozos/iconos.html           los SVG repetidos, una vez cada uno
   resumen.md                   lo que hace falta para el plan, en una lectura
-  manifiesto.json              partes, trozos con bytes y tokens, variables, valores, externos,
+  manifiesto.json              partes, trozos con bytes, tokens y título visible, variables, valores, externos,
                                data-state, controles de prototipo y origen de cada parte
 
 Un trozo que pasa el tope (en tokens estimados) se parte antes de escribirse. Sale con 1 y un
@@ -73,6 +73,48 @@ def kebab(s):
 
 def nombre_archivo(s):
     return re.sub(r"[^\w.-]+", "-", s).strip("-") or "sin-id"
+
+
+def texto_plano(s):
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", s)).split())
+
+
+def sin_bloques(s, etiquetas):
+    s = re.sub(r"<!--.*?-->", " ", s, flags=re.S)
+    return re.sub(rf"<({etiquetas})\b.*?</\1\s*>", " ", s, flags=re.S | re.I)
+
+
+def titulo_de(markup, attrs=None):
+    """Título que la persona ve en la pantalla: el primer h1 o h2, o el aria-label o title del elemento."""
+    for m in re.finditer(r"<h([12])\b[^>]*>(.*?)</h\1\s*>", sin_bloques(markup, "script|style|template"), flags=re.S | re.I):
+        t = texto_plano(m.group(2))
+        if t:
+            return t
+    attrs = attrs or {}
+    return next((" ".join(attrs[k].split()) for k in ("aria-label", "title") if attrs.get(k, "").strip()), None)
+
+
+def rotulo_del_control(texto, id_):
+    """Texto del botón o enlace que abre el elemento id_ (onclick, href="#id" o aria-controls), sin sus menús."""
+    cita = re.compile(rf"""(['"#]){re.escape(id_)}['"]""")
+    for m in re.finditer(r"<(button|a)\b([^>]*)>(.*?)</\1\s*>", sin_bloques(texto, "script|style|template"), flags=re.S | re.I):
+        if cita.search(m.group(2)):
+            t = texto_plano(sin_bloques(m.group(3), "svg"))
+            if re.search(r"\w", t):
+                return t
+    return None
+
+
+def marca_de(markup):
+    """Nombre del producto en el marco: el primer texto de la cabecera fuera de botones y menús, o su primer h1 o h2."""
+    limpio = sin_bloques(markup, "script|style|template|svg|button|select|nav")
+    m = re.search(r"<header\b[^>]*>(.*?)</header\s*>", limpio, flags=re.S | re.I)
+    if m:
+        for pedazo in re.split(r"<[^>]+>", m.group(1)):
+            t = texto_plano(pedazo)
+            if re.search(r"\w", t):
+                return t
+    return titulo_de(markup)
 
 
 # --- CSS ---------------------------------------------------------------------------------------
@@ -383,7 +425,7 @@ class Parte:
         self.archivos = {}
         self.trozos = []
 
-    def agregar(self, tipo, ident_, clase, contenido, lineas=None, contiene=None):
+    def agregar(self, tipo, ident_, clase, contenido, lineas=None, contiene=None, titulo=None):
         carpeta = f"trozos/{nombre_archivo(self.id)}"
         nombre = {"css": "estilos", "js": "script"}.get(tipo, ident_)
         ext = {"css": ".css", "js": ".js"}.get(tipo, ".html")
@@ -394,7 +436,7 @@ class Parte:
             archivo = f"{carpeta}/{sub}{nombre_archivo(nombre)}{sufijo}{ext}"
             t = {"tipo": tipo, "archivo": archivo}
             if tipo == "markup":
-                t.update({"id": f"{ident_}{sufijo}", "clase": clase})
+                t.update({"id": f"{ident_}{sufijo}", "clase": clase, "titulo": titulo})
                 if lineas:
                     t["lineas"] = lineas
                 if contiene:
@@ -449,14 +491,14 @@ class Parte:
                 marco = quitar(contenido, e["inicio"], [(L.elementos[h]["inicio"], L.elementos[h]["fin"], ident(L.elementos[h]))
                                                          for h in hijos[i]] + exc,
                                lambda nombre: f"<!-- trozo: {nombre} -->" if nombre else "")
-                elegidos.append((e["inicio"], e["fin"], f"{ident(e)}.marco", "marco", marco, None))
+                elegidos.append((e["inicio"], e["fin"], f"{ident(e)}.marco", "marco", marco, None, titulo_de(marco, e["attrs"])))
             else:
                 elegidos.append((e["inicio"], e["fin"], ident(e), clase_de(e), contenido,
-                                 [ident(L.elementos[h]) for h in hijos[i]] or None))
+                                 [ident(L.elementos[h]) for h in hijos[i]] or None, titulo_de(contenido, e["attrs"])))
 
         for r in raices:
             visitar(r)
-        return sorted(elegidos)
+        return sorted((*x[:6], x[6] or rotulo_del_control(self.texto, x[2].rsplit(".marco", 1)[0])) for x in elegidos)
 
     def analizar(self):
         L = self.lector
@@ -473,14 +515,15 @@ class Parte:
         exc = self.excluidos()
         elegidos = self.elegir_trozos()
         superiores = [x for x in elegidos if x[3] != "marco"]
-        for a, b, nombre, clase, contenido, contiene in elegidos:
-            self.agregar("markup", nombre, clase, contenido.strip("\n") + "\n", [linea(self.texto, a), linea(self.texto, b - 1)], contiene)
+        for a, b, nombre, clase, contenido, contiene, titulo in elegidos:
+            self.agregar("markup", nombre, clase, contenido.strip("\n") + "\n", [linea(self.texto, a), linea(self.texto, b - 1)],
+                         contiene, titulo)
         fuera = [(a, b, n) for a, b, n, c, *_ in superiores] + [(a, b, n.rsplit(".marco", 1)[0]) for a, b, n, c, *_ in elegidos if c == "marco"]
         resto = quitar(self.texto[ini:fin], ini, fuera + [(a, b, None) for a, b in exc],
                        lambda n: f"<!-- trozo: {n} -->" if n else "")
         resto = re.sub(r"\n\s*\n+", "\n", resto).strip("\n")
         if resto.strip():
-            self.agregar("markup", "_resto", "resto", resto + "\n")
+            self.agregar("markup", "_resto", "resto", resto + "\n", titulo=marca_de(resto))
 
         css_suelto = css_sin_variables(css) + "\n" + "\n".join(f"x{{{s}}}" for s in L.inline)
         conteo = {}
@@ -528,6 +571,8 @@ class Parte:
             "id": self.id,
             "tipo": self.origen.pop("tipo"),
             "archivo": f"partes/{nombre_archivo(self.id)}.html",
+            "titulo": next((texto_plano(t) for t in re.findall(r"<title\b[^>]*>(.*?)</title\s*>", self.texto, flags=re.S | re.I)
+                            if texto_plano(t)), None),
             "origen": self.origen,
             "bytes": len(self.texto.encode()),
             "tokens": tokens(self.texto),
@@ -680,23 +725,27 @@ def resumen(m):
          f"- Frameworks por CDN: {', '.join(m['frameworks']) or 'ninguno'}; requiere render: {'sí' if m['requiere_render'] else 'no'}.",
          f"- Tokens estimados con {m['estimacion']['metodo']}, tope por trozo {m['estimacion']['tope_por_trozo']}. "
          f"{m['estimacion']['margen']}", "",
-         "## Partes", "", "| Parte | Origen | Tokens | CSS | JS | Markup | Variables | Animaciones |", "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |"]
+         "## Partes", "", "| Parte | Título | Origen | Tokens | CSS | JS | Markup | Variables | Animaciones |",
+         "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |"]
     for p in m["partes"]:
         suma = {t: sum(x["tokens"] for x in p["trozos"] if x["tipo"] == t) for t in ("css", "js", "markup")}
         lin = p["origen"].get("lineas")
         origen = f"{p['origen'].get('via', p['tipo'])}, líneas {lin[0]} a {lin[1]}" if lin else p["tipo"]
         variables_ = ", ".join(f"{k} {len(v)}" for k, v in p["variables"].items()) or "ninguna"
         a = p["animaciones"]
-        l.append(f"| {p['id']} | {origen} | {p['tokens']} | {suma['css']} | {suma['js']} | {suma['markup']} | {variables_} | "
+        l.append(f"| {p['id']} | {p['titulo'] or 'sin título'} | {origen} | {p['tokens']} | {suma['css']} | {suma['js']} | {suma['markup']} | {variables_} | "
                  f"{a['keyframes']} keyframes, {a['setTimeout']} setTimeout, {a['setInterval']} setInterval |")
-    l += ["", "## Pantallas y superposiciones", ""]
+    l += ["", "## Pantallas y superposiciones", "",
+          "Entre comillas, el título que la pantalla muestra (en el resto, la marca de la cabecera): el plan y el informe "
+          "nombran cada pantalla así, para que producto la reconozca.", ""]
     for p in m["partes"]:
         l.append(f"### {p['id']}")
         l.append("")
         for t in p["trozos"]:
             if t["tipo"] == "markup":
                 extra = f", contiene {', '.join(t['contiene'])}" if t.get("contiene") else ""
-                l.append(f"- {t['clase']} `{t['id']}`: {t['tokens']} tokens, `{t['archivo']}`{extra}")
+                titulo = f" \"{t['titulo']}\"" if t.get("titulo") else ""
+                l.append(f"- {t['clase']} `{t['id']}`{titulo}: {t['tokens']} tokens, `{t['archivo']}`{extra}")
             else:
                 l.append(f"- {t['tipo']}: {t['tokens']} tokens, `{t['archivo']}`")
         if p["js_arma_markup"]:

@@ -14,7 +14,7 @@ Cómo se arma el plan que producto aprueba antes de lanzar subagentes, y cómo s
 
 ## Leer el resumen
 
-`resumen.md` trae por parte su origen (líneas del archivo original), los tokens de su CSS, JS y markup, los bloques de variables, las animaciones, las pantallas y superposiciones con su trozo, los controles candidatos a prototipo, los `data-state` existentes, los valores sueltos más frecuentes y los recursos externos.
+`resumen.md` trae por parte su origen (líneas del archivo original), su título, los tokens de su CSS, JS y markup, los bloques de variables, las animaciones, las pantallas y superposiciones con su trozo y el título que muestran, los controles candidatos a prototipo, los `data-state` existentes, los valores sueltos más frecuentes y los recursos externos.
 
 - **Pantalla**: un trozo de clase `pantalla` es candidato a vista. Uno que dice "contiene" tiene subpantallas: decide si son pestañas de una vista (escenarios) o vistas propias según el spec.
 - **Superposición**: modal, drawer, popover u overlay. Es un escenario de la vista que lo abre. Para saber cuál lo abre, busca su id en el JS y en los `onclick` con grep.
@@ -28,8 +28,9 @@ Un trozo que pasa el tope de lectura ya viene partido por el script (`.1`, `.2`,
 
 | Pantalla | Vista | Archivo | Épica | Escenarios | Origen |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Panel de riego | Panel | `design/vistas/riego/panel.html` | riego (spec) | normal, vacio, cargando, error, sin-permiso, muchos-datos, sensor-sin-senal (DEMO), confirmar-riego (modal `riego-modal`) | `documento/markup/panel-page.html`, `riego-modal.html` |
+| "Panel de riego" | Panel | `design/vistas/riego/panel.html` | riego (spec) | normal, vacio, cargando, error, sin-permiso, muchos-datos, sensor-sin-senal (DEMO), confirmar-riego (modal `riego-modal`) | `documento/markup/panel-page.html`, `riego-modal.html` |
 
+- La columna "Pantalla" lleva, entre comillas, el título que la pantalla muestra en el mockup, el que `resumen.md` pone junto a su trozo ("Inventario de semillas", no "Lista de lotes"). La fila del marco lleva el nombre del producto que muestra la cabecera, el título del `_resto`. Así producto reconoce cada fila sin abrir el mockup; un nombre inventado obliga a adivinar a qué pantalla se refiere.
 - La épica sale del spec. En un mockup compuesto, una por módulo.
 - Escenarios: los base (normal, vacio, cargando, error, sin-permiso, muchos-datos), los de controles de prototipo, uno por superposición que se muestre, y los del spec que el mockup no tiene, que la vista escribe desde el spec. Un base que no aplica se dice con su motivo.
 - Un escenario que el mockup sincroniza entre módulos (por ejemplo, el estado de una integración que el shell propaga) lleva el mismo nombre en cada vista donde aplica, y el spec lo lista una vez como global.
@@ -66,7 +67,7 @@ Sin equivalente: el pulso del indicador queda como comentario; el filtro por zon
 En el chat, en este orden. En las pruebas, el mismo texto va a `notas.md`.
 
 1. **Resultado**: vistas creadas por épica, archivos de design system que cambiaron, commit.
-2. **Plan ejecutado**: la tabla final y las olas, con cambios respecto del plan aprobado.
+2. **Plan ejecutado**: la tabla final y las olas, con cambios respecto del plan aprobado. Cada pantalla se nombra con el título que muestra el mockup, como en el plan.
 3. **Tokens**: el mapa o la consolidación, en una tabla corta. Cada valor fuera del umbral que producto no decidió va como un ítem que empieza por "Pendiente de decisión:", con el valor, el token que se usó mientras tanto y la propuesta de token nuevo.
 4. **Escenarios**: los que salieron de controles de prototipo, con su control original; los `data-state` del mockup renombrados; los del spec que el mockup no tenía.
 5. **Sin equivalente**: cómo quedó cada cosa. Cada lógica JS va como un ítem que empieza por "Criterio para el ticket:", con la regla en forma de "Dado, cuando, entonces" y la vista donde quedó el comentario.
