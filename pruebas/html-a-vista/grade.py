@@ -140,6 +140,11 @@ def palabra(valor):
     return rf"(?<![\w-]){re.escape(valor)}(?![\w-])"
 
 
+def secciones(notas):
+    """El texto de cada sección del informe, con su encabezado markdown; lo anterior al primero es una más."""
+    return re.split(r"^(?=#+\s)", notas, flags=re.M)
+
+
 PNG = re.compile(r"(?:^|[\s(`'\"\[|:])((?:[\w.-]+/)*([\w.-]*\w)\.png)\b", re.M)
 
 
@@ -206,7 +211,8 @@ def informe(out, cfg, navegador):
     for nombre, p in cfg.get("demo", {}).items():
         res.append(check(f"El informe nombra el escenario DEMO {nombre}", re.search(p, low), ""))
     if cfg.get("ajenos"):
-        faltan = [v for v in cfg["ajenos"] if not re.search(palabra(v), low)]
+        contexto = [t for t in secciones(low) if re.search(r"data-state|modificador", t)]
+        faltan = [v for v in cfg["ajenos"] if not any(re.search(palabra(v), t) for t in contexto)]
         res.append(check("El informe nombra cada data-state ajeno que renombró", not faltan, f"faltan: {faltan}"))
     criterio = con_marca(its, cfg["logica"], r"criterio|ticket")
     res.append(check("La lógica JS figura como criterio para el ticket", criterio, criterio[:1]))

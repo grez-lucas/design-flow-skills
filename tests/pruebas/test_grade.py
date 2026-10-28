@@ -289,7 +289,12 @@ class ChequeosHtmlAVista(unittest.TestCase):
     def test_el_informe_nombra_los_tres_data_state_renombrados(self):
         casos = {
             "- El chip del nivel del tanque usaba `full`, `partial` y `off`. Ahora es un modificador del chip.": True,
+            "## Escenarios\n\n**`data-state` del mockup renombrados.** Quedaron así:\n\n"
             "- `full` → `badge--lleno`, `partial` → `badge--mitad`, off → `badge--sin-agua`.": True,
+            "### Modificadores en vez de data-state\n\n- `full` → `badge--lleno`\n- `partial` → `badge--mitad`\n- `off` → `badge--sin-agua`": True,
+            "- `full` → `badge--lleno`, `partial` → `badge--mitad`, off → `badge--sin-agua`.": False,
+            "## Tokens\n\n| Valor | Token |\n| :--- | :--- |\n| full | --radius-full |\n| partial, off | --color-muted |\n\n"
+            "## Escenarios\n\n- Los data-state del mockup se renombraron.": False,
             "- Renombré el data-state del chip a data-nivel.": False,
             "- El chip usaba `full` y `partial`, renombrados a modificadores del data-state.": False,
             "- El radio --radius-full, el riego partial y el sensor off.": False,
