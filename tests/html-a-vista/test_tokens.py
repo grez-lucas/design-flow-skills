@@ -76,6 +76,21 @@ class Mapear(unittest.TestCase):
         self.assertEqual(umbral["color"], 2.0)
         self.assertIn("medida", umbral)
 
+    def test_cada_valor_dice_que_selectores_pinta(self):
+        self.assertEqual(self.fila("#7a3df0")["selectores"], [".b"])
+        self.assertEqual(self.fila("#2f7d4f")["selectores"], [".d"])
+        self.assertEqual(self.fila("#b3261f")["selectores"], ["style en línea"])
+        fuera = correr("mapear", FIX / "tokens.css", FIX / "mockup.html").stdout.split("## Fuera del umbral")[1]
+        fila = next(l for l in fuera.splitlines() if l.startswith("| #7a3df0 "))
+        self.assertIn(".b", fila)
+
+    def test_dentro_del_umbral_muestra_el_valor_del_token_cuando_no_es_igual(self):
+        dentro = correr("mapear", FIX / "tokens.css", FIX / "mockup.html").stdout.split("## Fuera del umbral")[0]
+        filas = {l.split("|")[1].strip() + " " + l.split("|")[2].strip(): l for l in dentro.splitlines() if l.startswith("| ") and "---" not in l}
+        self.assertIn("--space-3 (12px)", filas["13px space"])
+        self.assertIn("--color-primary (#2f7d4f)", filas["#2f7d50 color"])
+        self.assertNotIn("(", filas["rgb(47,125,79) color"].split("|")[4], "a distancia 0 el token basta")
+
     def test_markdown_separa_lo_que_producto_decide(self):
         r = correr("mapear", FIX / "tokens.css", FIX / "mockup.html")
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -122,6 +137,22 @@ class Verificar(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         pares = [(c["token"], c["existente"]) for c in json.loads(r.stdout)["casi_iguales"]]
         self.assertEqual(pares, [("--color-primary-2", "--color-primary"), ("--space-3b", "--space-3")])
+
+
+    def test_un_solo_archivo_se_revisa_contra_si_mismo(self):
+        r = correr("verificar", FIX / "casi-iguales-entre-si.css", "--json")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        pares = [(c["token"], c["existente"]) for c in json.loads(r.stdout)["casi_iguales"]]
+        self.assertEqual(pares, [("--color-bg", "--color-surface-alt")],
+                         "los alias de igual valor no cuentan y cada tema se compara solo consigo")
+        texto = correr("verificar", FIX / "casi-iguales-entre-si.css").stdout
+        self.assertIn("--color-bg (#f6f7f3)", texto)
+        self.assertIn("--color-surface-alt (#f0f2f5)", texto)
+
+    def test_un_solo_archivo_sin_pares_casi_iguales_pasa(self):
+        r = correr("verificar", FIX / "tokens.css", "--json")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(json.loads(r.stdout)["casi_iguales"], [])
 
 
 class Uso(unittest.TestCase):

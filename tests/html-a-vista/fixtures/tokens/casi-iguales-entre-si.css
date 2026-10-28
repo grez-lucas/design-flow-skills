@@ -1,0 +1,15 @@
+/* tokens.css creado desde un mockup: el fondo alterno quedó casi igual al fondo */
+:root {
+  --color-bg: #f6f7f3;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f0f2f5;
+  --color-primary-contrast: #ffffff;
+  --color-text: #1c2a21;
+  --space-1: 4px;
+  --space-2: 8px;
+}
+[data-theme="dark"] {
+  /* casi igual a --color-surface-alt del tema claro: otro tema, no cuenta */
+  --color-bg: #f0f2f6;
+  --color-surface: #17201a;
+}

@@ -26,10 +26,10 @@ Cómo se llevan los valores del mockup a `design/tokens.css`, con o sin un desig
 python3 -B <skill>/scripts/tokens.py mapear design/tokens.css <trabajo>/trozos/*/estilos*.css
 ```
 
-1. Lo que está dentro del umbral va al token que el script indica, sin preguntar.
-2. Lo que queda fuera va a la tabla que muestras a producto: valor, ocurrencias, token más cercano, distancia, usos y una propuesta de token nuevo con nombre de la convención. Agrupa las filas que comparten token más cercano y las variantes de opacidad de un mismo color, para que la tabla se lea de un vistazo.
+1. Lo que está dentro del umbral va al token que el script indica, sin preguntar. Cuando la distancia no es 0, la tabla del script trae el valor del token al lado: una medida de 1100 px que va a un token de 1200 px cambia la pantalla, y el informe lo muestra igual.
+2. Lo que queda fuera va a la tabla que muestras a producto: valor, ocurrencias, token más cercano, distancia, usos, selectores y una propuesta de token nuevo con nombre de la convención. Agrupa las filas por token más cercano y también por uso, y las variantes de opacidad de un mismo color, para que la tabla se lea de un vistazo. Cada fila nombra lo que ese valor pinta en el mockup, con el selector que da el script o con el texto de pantalla que lleva esa clase ("el texto de una cuota atrasada", no "texto de alerta"): dos valores que comparten token cercano pueden pintar cosas distintas, y producto decide por lo que ve.
 3. Pregunta a producto y espera: elige por fila el token cercano o el token nuevo. Escribe en `tokens.css` solo los nuevos que aprobó.
-4. Si producto acepta tu recomendación sin elegir, o no decide, usa el token existente más cercano y deja el valor como pendiente de decisión en el informe. Nunca agregues un token que producto no aprobó.
+4. Si producto acepta tu recomendación sin elegir, o no decide, usa el token más cercano entre los del mismo uso (fondo, texto, borde, superposición) y deja el valor como pendiente de decisión en el informe. El más cercano por distancia a veces cumple otro papel: el velo de un modal no es el color del texto, y un título verde no es texto secundario. Si ningún token sirve para ese uso, el valor no se aplica y el informe dice qué se pierde en pantalla. Nunca agregues un token que producto no aprobó.
 
 ## Sin tokens.css
 
@@ -42,7 +42,15 @@ El script agrupa los colores por color base dentro del umbral (las opacidades qu
 1. Nombra cada grupo por uso con los prefijos de la convención (`references/design-system.md` de `spec-a-html`): `--color-bg`, `--color-surface`, `--color-text-muted`, `--color-primary`. Los usos que lista el script (`background`, `color`, `border-color`) ayudan a decidir.
 2. Junta grupos que cumplen el mismo uso aunque estén fuera del umbral (diez grises para texto secundario son un token). Eso es una decisión de diseño: va en la tabla.
 3. Una opacidad que se repite como fondo de superposición puede ser un token propio (`--color-overlay`); las demás se resuelven con el color base.
-4. Muestra la tabla de consolidación (valor original, ocurrencias, token) antes de escribir `tokens.css`, y completa lo que el mockup no define con la plantilla `assets/tokens.css` de `spec-a-html`, diciéndolo.
+4. Un color con uso propio en pantalla (el morado de "Próximo riego") entra en la tabla como token, aunque quede lejos de los demás. "Pendiente de decisión" es solo para cuando hay un `tokens.css` previo que proteger; sin él, la tabla de consolidación es la decisión de producto, y un color que no entra en ella se pierde de la pantalla.
+5. Muestra la tabla de consolidación (valor original, ocurrencias, token) antes de escribir `tokens.css`, y completa lo que el mockup no define con la plantilla `assets/tokens.css` de `spec-a-html`, diciéndolo.
+6. Antes de escribir, revisa el archivo contra sí mismo:
+
+   ```
+   python3 -B <skill>/scripts/tokens.py verificar <trabajo>/ola-1/tokens/tokens.css
+   ```
+
+   Sale con 1 si dos tokens del mismo tema tienen valores distintos dentro del umbral, por ejemplo un fondo alterno que no se distingue del fondo (la plantilla de `spec-a-html` trae uno así). Resuelve cada par: o un token toma el valor del otro, o se separan hasta que se vean distintos. Los alias de igual valor (`--color-surface` y `--color-primary-contrast` en blanco) son intencionales y el script no los cuenta.
 
 ## Tema oscuro
 

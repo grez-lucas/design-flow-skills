@@ -5,6 +5,7 @@ Uso:
   python3 tokens.py mapear <tokens.css> <fuente.css|.html> [...] [--json]
   python3 tokens.py consolidar <fuente.css|.html> [...] [--json]
   python3 tokens.py verificar <tokens-antes.css> <tokens-después.css> [--json]
+  python3 tokens.py verificar <tokens.css> [--json]
 
 mapear      cada color al token --color-* más cercano por distancia perceptual (OKLab), y cada medida al
             token más cercano de su escala (--space-*, --font-size-*, --radius-*, --size-*, según la propiedad).
@@ -12,7 +13,9 @@ mapear      cada color al token --color-* más cercano por distancia perceptual 
 consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral, con cada opacidad
             anotada en sus miembros, lleva espacios, radios y medidas fijas a
             múltiplos de 4 px y junta tamaños de letra a 1 px o menos.
-verificar   lista los tokens nuevos que quedan dentro del umbral de uno existente; sale con 1 si hay alguno.
+verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
+            los pares de tokens del mismo tema con valores distintos dentro del umbral, que se ven iguales.
+            Sale con 1 si hay alguno.
 
 Cada valor se compara con los tokens de su tema: los de un bloque oscuro del mockup con los de
 [data-theme="dark"], los demás con los de :root. Un radio de 100 px o más es una píldora y va al
@@ -37,6 +40,7 @@ NOMBRES = {"black": "#000000", "white": "#ffffff", "red": "#ff0000", "green": "#
 COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)|(?<![\w-])(?:" + "|".join(NOMBRES) + r")(?![\w-])", re.I)
 MEDIDA = re.compile(r"(?<![\w.#-])(\d+(?:\.\d+)?)(px|rem|em|pt)\b")
 PILDORA = 100
+EN_LINEA = "style en línea"
 PREFIJO = {"space": "--space-", "font-size": "--font-size-", "radius": "--radius-", "size": "--size-"}
 
 
@@ -159,7 +163,7 @@ def css_de(path):
     if path.suffix.lower() in (".html", ".htm"):
         estilos = re.findall(r"<style\b[^>]*>(.*?)</style\s*>", texto, flags=re.S | re.I)
         inline = re.findall(r"""\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')""", texto, flags=re.I)
-        return "\n".join(estilos + [f"x{{{a or b}}}" for a, b in inline])
+        return "\n".join(estilos + [f"{EN_LINEA}{{{a or b}}}" for a, b in inline])
     return texto
 
 
@@ -169,15 +173,18 @@ def es_oscuro(contexto, selector):
 
 
 def ocurrencias(fuentes):
-    """Valores (normalizados) con su tipo, categoría, cuántas veces aparecen y en qué propiedades."""
+    """Valores (normalizados) con su tipo, categoría, cuántas veces aparecen, en qué propiedades y en qué selectores."""
     out = {}
 
-    def sumar(valor, tipo, categoria, prop, tema):
+    def sumar(valor, tipo, categoria, prop, tema, selector):
         clave = (valor, categoria, tema)
-        o = out.setdefault(clave, {"valor": valor, "tipo": tipo, "categoria": categoria, "tema": tema, "ocurrencias": 0, "usos": []})
+        o = out.setdefault(clave, {"valor": valor, "tipo": tipo, "categoria": categoria, "tema": tema, "ocurrencias": 0,
+                                   "usos": [], "selectores": []})
         o["ocurrencias"] += 1
         if prop not in o["usos"]:
             o["usos"].append(prop)
+        if selector not in o["selectores"]:
+            o["selectores"].append(selector)
 
     for f in fuentes:
         for contexto, selector, cuerpo in reglas(css_de(Path(f))):
@@ -190,13 +197,13 @@ def ocurrencias(fuentes):
                     continue
                 for c in COLOR.findall(valor):
                     if leer_color(c):
-                        sumar(c.lower().replace(" ", ""), "color", "color", prop, tema)
+                        sumar(c.lower().replace(" ", ""), "color", "color", prop, tema, selector)
                 cat = categoria_de_variable(prop) if prop.startswith("--") else categoria_de_propiedad(prop)
                 if cat:
                     for m in MEDIDA.finditer(valor):
                         px = leer_medida(m.group(0))
                         if px is not None and px > 2:
-                            sumar(m.group(0).lower(), "medida", cat, prop, tema)
+                            sumar(m.group(0).lower(), "medida", cat, prop, tema, selector)
     return sorted(out.values(), key=lambda o: -o["ocurrencias"])
 
 
@@ -280,7 +287,30 @@ def consolidar(fuentes):
             "medidas": orden}
 
 
-def verificar(antes, despues):
+def casi_iguales_entre_si(path):
+    """Pares de tokens del mismo bloque con valores distintos que quedan dentro del umbral: se ven iguales."""
+    casi, toks = [], list(tokens_de(path).items())
+    for i, ((n1, b1), v1) in enumerate(toks):
+        for (n2, b2), v2 in toks[i + 1:]:
+            if b1 != b2 or v1.lower().replace(" ", "") == v2.lower().replace(" ", ""):
+                continue
+            if n1.startswith("--color-") and n2.startswith("--color-") and leer_color(v1) and leer_color(v2):
+                d = distancia_color(leer_color(v1), leer_color(v2))
+                dentro = d <= UMBRAL_COLOR
+            else:
+                cat = next((p for p in PREFIJO.values() if n1.startswith(p)), None)
+                if not cat or not n2.startswith(cat) or leer_medida(v1) is None or leer_medida(v2) is None:
+                    continue
+                d = abs(leer_medida(v1) - leer_medida(v2))
+                dentro = d == 0
+            if dentro:
+                casi.append({"token": n1, "valor": v1, "existente": n2, "valor_existente": v2, "distancia": round(d, 2), "bloque": b1})
+    return casi
+
+
+def verificar(antes, despues=None):
+    if despues is None:
+        return {"umbral": {"color": UMBRAL_COLOR}, "entre_si": True, "casi_iguales": casi_iguales_entre_si(antes)}
     viejos, nuevos = tokens_de(antes), tokens_de(despues)
     nombres_viejos = {n for n, _ in viejos}
     casi = []
@@ -297,15 +327,22 @@ def verificar(antes, despues):
     return {"umbral": {"color": UMBRAL_COLOR}, "casi_iguales": casi}
 
 
+def token_con_valor(f):
+    """El token, con su valor cuando no es igual al del mockup: así se ve cuánto cambia la pantalla."""
+    return f"{f['token']} ({f['valor_token']})" if f["distancia"] else f["token"]
+
+
 def md_mapear(d):
     l = ["# Valores del mockup contra tokens.css", "",
          f"Umbral: color {UMBRAL_COLOR} (OKLab por 100, más opacidad); medida 1 px o 10 % del paso.", "",
          "## Dentro del umbral", "", "| Valor | Categoría | Ocurrencias | Token | Distancia |", "| :--- | :--- | :--- | :--- | :--- |"]
-    l += [f"| {f['valor']} | {f['categoria']} | {f['ocurrencias']} | {f['token']} | {f['distancia']} |" for f in d["valores"] if f["dentro"]]
+    l += [f"| {f['valor']} | {f['categoria']} | {f['ocurrencias']} | {token_con_valor(f)} | {f['distancia']} |"
+          for f in d["valores"] if f["dentro"]]
     l += ["", "## Fuera del umbral, a decidir por producto", "",
-          "| Valor | Categoría | Ocurrencias | Token más cercano | Distancia | Usos |", "| :--- | :--- | :--- | :--- | :--- | :--- |"]
+          "| Valor | Categoría | Ocurrencias | Token más cercano | Distancia | Usos | Selectores |",
+          "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |"]
     l += [f"| {f['valor']} | {f['categoria']} | {f['ocurrencias']} | {f['token'] or 'sin escala'} ({f['valor_token']}) | {f['distancia']} | "
-          f"{', '.join(f['usos'][:4])} |" for f in d["valores"] if not f["dentro"]]
+          f"{', '.join(f['usos'][:4])} | {', '.join(f['selectores'][:4])} |" for f in d["valores"] if not f["dentro"]]
     return "\n".join(l) + "\n"
 
 
@@ -325,6 +362,12 @@ def md_consolidar(d):
 
 
 def md_verificar(d):
+    if d.get("entre_si"):
+        if not d["casi_iguales"]:
+            return "Ningún par de tokens del mismo tema queda dentro del umbral.\n"
+        return "Tokens del mismo tema casi iguales entre sí (se ven iguales; deja uno o sepáralos):\n" + "".join(
+            f"- {c['token']} ({c['valor']}) y {c['existente']} ({c['valor_existente']}) en {c['bloque']}, distancia {c['distancia']}\n"
+            for c in d["casi_iguales"])
     if not d["casi_iguales"]:
         return "Ningún token nuevo queda dentro del umbral de uno existente.\n"
     return "Tokens nuevos casi iguales a uno existente:\n" + "".join(
@@ -335,7 +378,8 @@ def main(argv):
     como_json = "--json" in argv
     args = [a for a in argv[1:] if a != "--json"]
     minimo = {"mapear": 3, "consolidar": 2, "verificar": 3}
-    if not args or args[0] not in minimo or len(args) < minimo[args[0]] or (args[0] == "verificar" and len(args) != 3):
+    minimo["verificar"] = 2
+    if not args or args[0] not in minimo or len(args) < minimo[args[0]] or (args[0] == "verificar" and len(args) > 3):
         print(__doc__, file=sys.stderr)
         return 2
     faltan = [a for a in args[1:] if not Path(a).is_file()]

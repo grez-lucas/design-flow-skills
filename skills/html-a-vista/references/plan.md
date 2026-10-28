@@ -68,7 +68,7 @@ En el chat, en este orden. En las pruebas, el mismo texto va a `notas.md`.
 
 1. **Resultado**: vistas creadas por épica, archivos de design system que cambiaron, commit.
 2. **Plan ejecutado**: la tabla final y las olas, con cambios respecto del plan aprobado. Cada pantalla se nombra con el título que muestra el mockup, como en el plan.
-3. **Tokens**: el mapa o la consolidación, en una tabla corta. Cada valor fuera del umbral que producto no decidió va como un ítem que empieza por "Pendiente de decisión:", con el valor, el token que se usó mientras tanto y la propuesta de token nuevo.
+3. **Tokens**: el mapa o la consolidación, en una tabla corta. Cuando un valor va a un token que no es igual, la fila dice el valor del token (1100px a `--size-content-max`, 1200px): producto ve cuánto cambia la pantalla. Cada valor fuera del umbral que producto no decidió va como un ítem que empieza por "Pendiente de decisión:", con el valor, el token que se usó mientras tanto y la propuesta de token nuevo.
 4. **Escenarios**: los que salieron de controles de prototipo, con su control original; los `data-state` del mockup renombrados; los del spec que el mockup no tenía.
 5. **Sin equivalente**: cómo quedó cada cosa. Cada lógica JS va como un ítem que empieza por "Criterio para el ticket:", con la regla en forma de "Dado, cuando, entonces" y la vista donde quedó el comentario.
 6. **Fidelidad**: el inventario por vista (textos, controles, campos y estados presentes sobre el total, y lo que falta con su motivo), quién lo revisó, y las capturas lado a lado o la frase "la verificación se hizo sin render".
