@@ -51,6 +51,8 @@ google-chrome --headless=new --disable-gpu --window-size=1440,900 --screenshot=<
 google-chrome --headless=new --disable-gpu --window-size=1440,900 --screenshot=<trabajo>/capturas/<vista>-original.png "file://<trabajo>/partes/<parte>.html"
 ```
 
+Las dos capturas van en el mismo tema. Captura primero el original y mira en qué tema abre: si abre en oscuro, captura la vista con `&tema=oscuro` en la URL (`proto.js` lo acepta cuando `tokens.css` define el tema oscuro) y agrega `-oscuro` al nombre de sus capturas. Comparadas en temas distintos, todo color sale distinto aunque la conversión esté bien, y el revisor no distingue esas diferencias de las que sí son faltantes. Si abre en claro, las dos van en claro.
+
 El original solo se captura en su estado inicial, salvo que la sesión tenga Playwright para hacer clic en el control que abre cada estado. El informe pone las capturas lado a lado (ruta del original y de la vista por escenario) y dice qué estados del original no se capturaron.
 
 Sin navegador, el inventario es la única verificación y el informe dice "la verificación se hizo sin render".
