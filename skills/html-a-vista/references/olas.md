@@ -81,8 +81,9 @@ Campos fijos, en este orden, en `contrato.md`:
 1. Copias el repositorio de diseño en `<trabajo>/ola-3/repo/`, agregas `tokens.css` de la ola 1, armas `components.css` final (base más lo nuevo de cada contrato, sin duplicar) y copias `proto.js` de `spec-a-html` sin modificar si no existe.
 2. Pones cada borrador en `design/vistas/<épica>/<vista>.html` de la copia, unificas clases con el catálogo y los nombres de los escenarios globales.
 3. Corres, por vista, `python3 -B <skill>/scripts/inventario.py <vista> <trozos de origen> --json --salida <trabajo>/ola-3/inventario/<vista>.json`, y `python3 -B <checklist-diseno>/scripts/revisar.py <trabajo>/ola-3/repo` sobre la copia. Corriges lo que bloquea.
-4. Escribes `integracion.md` con la lista de vistas, el resultado de `revisar.py` y lo que corregiste.
+4. Con navegador, sacas las capturas por escenario de cada vista de la copia y del original (`escenarios.md`, sección "Capturas") en `<trabajo>/capturas/`, antes de lanzar al revisor.
+5. Escribes `integracion.md` con la lista de vistas, el resultado de `revisar.py` y lo que corregiste.
 
-**Revisor**, un subagente que no armó ninguna vista (`<trabajo>/ola-3/revision.md`). Por vista lee el inventario, el contrato, la vista y la sección del spec. Un faltante del inventario con motivo en el contrato (dato real reemplazado, control de prototipo hecho escenario) no bloquea; uno sin motivo, sí. Decide aprobada o no, con lo que falta.
+**Revisor**, un subagente que no armó ninguna vista (`<trabajo>/ola-3/revision.md`). Por vista lee el inventario, el contrato, la vista y la sección del spec, y con navegador las capturas del original y de la vista, cuyas rutas le pasas. Una diferencia que se ve en las capturas cuenta como un faltante del inventario. Un faltante del inventario con motivo en el contrato (dato real reemplazado, control de prototipo hecho escenario) no bloquea; uno sin motivo, sí. Decide aprobada o no, con lo que falta.
 
 **Integración, segundo paso**. Copias al repositorio de diseño solo las vistas aprobadas y los archivos de `design/` que usan, y las secciones del spec que haya que actualizar (escenarios globales, épicas del mockup compuesto). Nada de `<trabajo>` más que eso: ni contratos, ni inventarios, ni el original.

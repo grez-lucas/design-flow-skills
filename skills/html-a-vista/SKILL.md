@@ -86,11 +86,9 @@ Un subagente por fila de la tabla, en paralelo, con `references/olas.md`, secci�
 
 Con `references/olas.md`, sección "Ola 3":
 
-1. Integras tú, sin subagente: armas `components.css` final con lo nuevo de cada contrato, dejas las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corres `python3 -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia.
-2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, mira además las capturas lado a lado.
+1. Integras tú, sin subagente: armas `components.css` final con lo nuevo de cada contrato, dejas las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corres `python3 -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia. Con navegador, sacas aquí las capturas por escenario, del original y de la vista (`references/escenarios.md`, sección "Capturas"): tienen que existir antes de que el revisor empiece. Sin navegador, la verificación queda en el inventario y el informe lo dice.
+2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, le pasas las rutas de las capturas del original y de la vista por escenario, y las compara lado a lado.
 3. Mueves al repositorio solo lo aprobado. Una vista no aprobada vuelve una vez a su subagente de la ola 2 con las notas del revisor; si sigue sin aprobarse, queda fuera y va al informe como pendiente.
-
-Con navegador, saca capturas por escenario, original y vista lado a lado (`references/escenarios.md`, sección "Capturas"). Sin navegador, la verificación queda en el inventario y el informe lo dice.
 
 ### 9. Guardar
 
