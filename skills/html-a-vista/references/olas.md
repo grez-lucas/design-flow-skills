@@ -80,7 +80,7 @@ Campos fijos, en este orden, en `contrato.md`:
 
 1. Copia el repositorio de diseño en `<trabajo>/ola-3/repo/`, agrega `tokens.css` de la ola 1, arma `components.css` final (base más lo nuevo de cada contrato, sin duplicar) y copia `proto.js` de `spec-a-html` sin modificar si no existe.
 2. Pone cada borrador en `design/vistas/<épica>/<vista>.html` de la copia, unifica clases con el catálogo y los nombres de los escenarios globales.
-3. Corre, por vista, `python3 -B <skill>/scripts/inventario.py <vista> <trozos de origen> --json > inventario/<vista>.json`, y `python3 -B <checklist-diseno>/scripts/revisar.py <trabajo>/ola-3/repo` sobre la copia. Corrige lo que bloquea.
+3. Corre, por vista, `python3 -B <skill>/scripts/inventario.py <vista> <trozos de origen> --json --salida <trabajo>/ola-3/inventario/<vista>.json`, y `python3 -B <checklist-diseno>/scripts/revisar.py <trabajo>/ola-3/repo` sobre la copia. Corrige lo que bloquea.
 4. Escribe `integracion.md` con la lista de vistas, el resultado de `revisar.py` y lo que corrigió.
 
 **Revisor**, otro subagente que no armó ninguna vista (`<trabajo>/ola-3/revision.md`). Por vista lee el inventario, el contrato, la vista y la sección del spec. Un faltante del inventario con motivo en el contrato (dato real reemplazado, control de prototipo hecho escenario) no bloquea; uno sin motivo, sí. Decide aprobada o no, con lo que falta.

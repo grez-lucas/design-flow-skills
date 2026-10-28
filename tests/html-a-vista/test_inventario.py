@@ -5,6 +5,7 @@ Uso: python3 -m unittest discover -s tests/html-a-vista -v
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,7 +15,7 @@ FIX = Path(__file__).resolve().parent / "fixtures" / "inventario"
 
 
 def inventario(vista, *originales, formato="--json"):
-    args = [sys.executable, str(SCRIPT), str(FIX / vista), *(str(FIX / o) for o in originales)]
+    args = [sys.executable, str(SCRIPT), str(FIX / vista)] + [o if o.startswith("--") else str(FIX / o) for o in map(str, originales)]
     return subprocess.run(args + ([formato] if formato else []), capture_output=True, text=True)
 
 
@@ -76,6 +77,21 @@ class Inventario(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         for texto in ("## Textos", "## Controles", "## Campos", "## Estados", "Correo de contacto", "DEMO: plan vencido", "otro significado: lleno"):
             self.assertIn(texto, r.stdout)
+
+    def test_salida_a_un_archivo_sin_redireccion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            destino = Path(tmp) / "inventario" / "pedidos.json"
+            r = inventario("vista-incompleta.html", "original.html", "--salida", destino)
+            self.assertEqual(r.returncode, 1, r.stderr)
+            self.assertEqual(json.loads(destino.read_text()), json.loads(inventario("vista-incompleta.html", "original.html").stdout))
+            self.assertIn(str(destino), r.stdout)
+            self.assertNotIn('"textos"', r.stdout, "con --salida la pantalla no repite el inventario")
+            md = Path(tmp) / "pedidos.md"
+            inventario("vista-incompleta.html", "original.html", "--salida", md, formato=None)
+            self.assertIn("## Controles", md.read_text())
+
+    def test_salida_sin_ruta_es_uso_incorrecto(self):
+        self.assertEqual(inventario("vista-fiel.html", "original.html", "--salida").returncode, 2)
 
     def test_uso_incorrecto(self):
         r = subprocess.run([sys.executable, str(SCRIPT), str(FIX / "vista-fiel.html")], capture_output=True, text=True)

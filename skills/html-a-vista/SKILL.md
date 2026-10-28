@@ -16,10 +16,13 @@ Un mockup real pesa entre 50 mil y 500 mil tokens, redefine colores en cada pant
 - Un script desarma el archivo en partes y trozos chicos, con un manifiesto que dice cuánto pesa cada uno. Con eso se reparte el trabajo sin que nadie abra el mockup entero.
 - Tres olas de subagentes: primero tokens, componentes base y el marco común; después una vista por subagente, con esos tokens ya fijados; al final un integrador y un revisor. Repartir solo por pantalla deja que cada subagente invente su design system.
 - Cada subagente escribe en una carpeta de trabajo fuera del repositorio y devuelve solo la ruta y un resumen. Así tu contexto no crece con cada vista y el repositorio no recibe borradores.
+- Cada subagente te avisa cuando termina. Espera esos avisos y no programes recordatorios ni esperas con temporizador: un recordatorio de respaldo que nadie cancela deja la sesión abierta sin hacer nada hasta que vence.
 
 ## Pasos
 
 Esta skill usa archivos de sus hermanas, instaladas junto a ella: `../spec-a-html/` (convención de vista, design system, plantillas y `proto.js`) y `../checklist-diseno/scripts/revisar.py`. Si no están, pide instalar el flujo completo antes de seguir.
+
+Donde dice `<ruta-de-esta-skill>`, escribe la ruta absoluta de esta carpeta, no una variable de shell, y corre una orden por llamada. Las órdenes compuestas (`S=...; ls $S && ...`) o con variables piden un permiso aparte y la sesión suele rechazarlas, y cada rechazo es un turno perdido.
 
 ### 1. Requisitos antes de abrir nada
 
@@ -82,7 +85,7 @@ Un subagente por fila de la tabla, en paralelo, con `references/olas.md`, secci�
 
 Con `references/olas.md`, sección "Ola 3":
 
-1. Un integrador arma `components.css` final con lo nuevo de cada contrato, deja las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corre `python3 -B <ruta-de-esta-skill>/scripts/inventario.py` por vista y `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia.
+1. Un integrador arma `components.css` final con lo nuevo de cada contrato, deja las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corre `python3 -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia.
 2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, mira además las capturas lado a lado.
 3. El integrador mueve al repositorio solo lo aprobado. Una vista no aprobada vuelve una vez a su subagente de la ola 2 con las notas del revisor; si sigue sin aprobarse, queda fuera y va al informe como pendiente.
 

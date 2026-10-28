@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Inventario de fidelidad: compara textos, controles, campos y estados del original con una vista convertida.
 
-Uso: python3 inventario.py <vista.html> <original.html> [<original.html> ...] [--json]
+Uso: python3 inventario.py <vista.html> <original.html> [<original.html> ...] [--json] [--salida <archivo>]
 
 Los originales son los trozos de markup de la pantalla y de sus superposiciones (trozos/<parte>/markup/),
 la parte entera, o el DOM renderizado si la sesión tiene navegador. Imprime el inventario en markdown,
-o en JSON con --json. Sale con 1 si faltan textos, controles o campos, o si la vista conserva un control
+o en JSON con --json; con --salida lo escribe en ese archivo (crea la carpeta) y solo imprime la ruta. Sale con 1 si faltan textos, controles o campos, o si la vista conserva un control
 de prototipo o un data-state del original; con 0 si no; con 2 si el uso es incorrecto.
 """
 import json
@@ -222,6 +222,14 @@ def markdown(d, vista, originales):
 
 def main(argv):
     args = [a for a in argv[1:] if a != "--json"]
+    salida = None
+    if "--salida" in args:
+        i = args.index("--salida")
+        if i + 1 >= len(args):
+            print(__doc__, file=sys.stderr)
+            return 2
+        salida = Path(args[i + 1])
+        del args[i:i + 2]
     if len(args) < 2:
         print(__doc__, file=sys.stderr)
         return 2
@@ -230,7 +238,13 @@ def main(argv):
         print(f"No existe: {', '.join(faltan)}", file=sys.stderr)
         return 2
     d = inventario(args[0], args[1:])
-    print(json.dumps(d, ensure_ascii=False, indent=1) if "--json" in argv else markdown(d, args[0], args[1:]))
+    texto = json.dumps(d, ensure_ascii=False, indent=1) if "--json" in argv else markdown(d, args[0], args[1:])
+    if salida:
+        salida.parent.mkdir(parents=True, exist_ok=True)
+        salida.write_text(texto + "\n")
+        print(f"Inventario: {salida}")
+    else:
+        print(texto)
     return 1 if falla(d) else 0
 
 
