@@ -38,16 +38,16 @@ Un trozo que pasa el tope de lectura ya viene partido por el script (`.1`, `.2`,
 
 ## Subagentes por ola
 
-| Ola | Subagente | Lee | Tokens estimados |
+| Ola | Quién | Lee | Tokens estimados |
 | :--- | :--- | :--- | :--- |
-| 1 | Tokens | bloques de variables y valores del manifiesto, salida de `tokens.py` | suma de lo que lee |
-| 1 | Componentes base | CSS del shell o de la parte más compartida | |
-| 1 | Shell y escenarios globales | markup y JS del shell o del resto, funciones de modo | |
-| 2 | Uno por vista | sus trozos, tokens y componentes de la ola 1 | |
-| 3 | Integrador | contratos, borradores de vista, salida de `inventario.py` y `revisar.py` | |
-| 3 | Revisor | inventario, contrato y spec de cada vista | |
+| 1 | Tokens: tú, con `tokens.py` | salida de `tokens.py` | suma de lo que lee |
+| 1 | Subagente de componentes base | CSS del shell o de la parte más compartida | |
+| 1 | Subagente del shell y escenarios globales | markup y JS del shell o del resto, funciones de modo | |
+| 2 | Subagente de la vista `<vista>`, una fila por vista | sus trozos, tokens y componentes de la ola 1 | |
+| 3 | Integración: tú | salida de `inventario.py` y `revisar.py`, capturas | |
+| 3 | Subagente revisor | inventario, contrato, capturas y spec de cada vista | |
 
-Los tokens estimados salen del manifiesto (bytes/4, con el margen que declara). Ningún subagente debería pasar unos 50 mil tokens de lectura; si pasa, parte su trabajo.
+La ola 2 tiene tantas filas como vistas tiene la tabla pantalla a vista: así producto ve que nadie arma dos vistas a la vez. Los tokens estimados salen del manifiesto (bytes/4, con el margen que declara). Ningún subagente debería pasar unos 50 mil tokens de lectura; si una vista pasa, se parte en dos subagentes.
 
 ## Ejemplo de plan
 
@@ -56,7 +56,7 @@ Mockup: panel-riego.html, 1 parte, 2 pantallas, 1 modal, 3 controles DEMO.
 
 | Pantalla | Vista | ... |
 
-Olas: 1) tokens, componentes, marco (3 subagentes); 2) panel, historial (2); 3) integrador y revisor.
+Olas: 1) tokens (yo, con el script), componentes y marco (2 subagentes); 2) panel e historial (2 subagentes, uno por vista); 3) integración (yo) y revisor (1 subagente).
 Tokens: el mockup tiene 41 colores; 30 van a tokens existentes, 11 quedan para que elijas.
 Sin equivalente: el pulso del indicador queda como comentario; el filtro por zona, como criterio para SEM-14.
 ¿Sigo?
