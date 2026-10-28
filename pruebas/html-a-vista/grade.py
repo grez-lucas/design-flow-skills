@@ -310,6 +310,48 @@ def chequeo_ola2(out, nombres):
                   f"sin subagente propio: {faltan}; subagentes de la ola 2: {ola2[:10]}")]
 
 
+VEREDICTO = re.compile(r"(?:^|[:|·(-])\s*(no\s+)?aprobada\b")
+SIN_NOMBRE = re.compile(r"[\s#|>-]*(?:veredicto|decisi[oó]n)?(?:\s+final)?\s*")
+
+
+def veredictos(revision, nombres):
+    """Último veredicto del revisor por vista ("aprobada", "no aprobada" o None) en revision.md. Un veredicto es
+    "aprobada" o "no aprobada" tras dos puntos, guion, barra o paréntesis, en singular, para no leer un resumen
+    ("6 aprobadas") ni una frase ("la tabla de tokens aprobada"). Va a la vista que la línea nombra antes del
+    veredicto; un "Veredicto:" sin vista, a la del último encabezado que nombró una, o a la única vista. Vale el
+    último en el archivo, salvo que diga "primera revisión": esa pierde contra cualquier otra."""
+    patrones = {v: re.compile(palabra(v.lower())) for v in nombres}
+    mejor, contexto, encabezado = {}, [], ""
+    for n, linea in enumerate(revision.splitlines()):
+        plano = re.sub(r"[*_`]", "", linea).strip().lower()
+        if plano.startswith("#"):
+            encabezado = plano
+            contexto = [v for v, p in patrones.items() if p.search(plano)] or contexto
+        m = VEREDICTO.search(plano)
+        if not m:
+            continue
+        antes = plano[:m.start()]
+        vistas_ = [v for v, p in patrones.items() if p.search(antes)]
+        if not vistas_ and SIN_NOMBRE.fullmatch(antes):
+            vistas_ = contexto or (list(nombres) if len(nombres) == 1 else [])
+        rango = (0 if "primera" in plano or "primera" in encabezado else 1, n)
+        for v in vistas_:
+            if v not in mejor or rango > mejor[v][0]:
+                mejor[v] = (rango, "no aprobada" if m.group(1) else "aprobada")
+    return {v: mejor[v][1] if v in mejor else None for v in nombres}
+
+
+def chequeo_revisor(out, nombres):
+    """Toda vista que llegó al repositorio tiene "aprobada" como último veredicto en trabajo/ola-3/revision.md."""
+    revision = out / "trabajo" / "ola-3" / "revision.md"
+    texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
+    if not revision.is_file():
+        return [check(texto, False, "sin trabajo/ola-3/revision.md")]
+    v = veredictos(revision.read_text(errors="ignore"), nombres)
+    malas = {n: x for n, x in v.items() if x != "aprobada"}
+    return [check(texto, nombres and not malas, malas or v)]
+
+
 def chequeos_parada(out, mockup, motivo):
     """En el transcript: ningún subagente y ninguna lectura del mockup entero; sin subagentes, ni siquiera lo abre ni lo desarma."""
     usos = usos_de_herramientas(out)
@@ -392,6 +434,7 @@ def calificar(name, out, iteracion):
     rep, htmls, tok = repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo)
     res += rep
     res += chequeo_ola2(out, [v.stem for v in htmls])
+    res += chequeo_revisor(out, [v.stem for v in htmls])
     if mockup == "grande":
         res += extra_grande(out, htmls, tok)
     if mockup == "chico" and not con_ds:

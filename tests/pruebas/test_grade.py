@@ -432,5 +432,111 @@ class ChequeosHtmlAVista(unittest.TestCase):
         (self.out / "transcript.jsonl").unlink()
         self.assertFalse(self.paso(self.grade.chequeo_ola2(self.out, ["semana"]), "La ola 2 tiene un subagente por vista"))
 
+REVISION_SIN_SEGUNDA = """# Revisión ola 3
+
+## Hallazgo transversal (no bloquea por sí solo cada vista)
+- El menú lateral del marco no llega al alto de la pantalla.
+
+## marco - no aprobada
+- Falta: menú lateral a altura completa.
+
+## lista - aprobada
+- Inventario: textos 74/443, faltantes con motivo en el contrato.
+
+## ajustes - no aprobada
+- Falta: el contenido queda desplazado frente a cuotas. Sin motivo en el contrato.
+"""
+REVISION_CON_SEGUNDA_VUELTA = """# Revisión de la ola 3
+
+Resultado: 2 aprobadas (marco, lista) y 1 no aprobadas (detalle-lote).
+
+## marco: Aprobada
+
+## lista: Aprobada
+- Los encabezados siguen la tabla de tokens aprobada.
+
+## detalle-lote: No aprobada
+- "Dar de baja" no lleva btn--primary.
+
+## Segunda vuelta
+
+- detalle-lote: Aprobada. "Dar de baja" lleva btn--primary.
+"""
+REVISION_FORMATO_FIJO = """# Revisión · ola 3
+
+## panel: aprobada
+
+## historial: no aprobada
+- Falta el escenario vacío.
+
+## historial, segunda revisión: aprobada
+"""
+REVISION_PRIMERA_DESPUES = """# Revisión
+
+| Vista | Veredicto |
+| :--- | :--- |
+| panel | aprobada (segunda revisión) |
+
+## Panel, segunda revisión: aprobada
+
+## Panel, primera revisión: no aprobada (lo que sigue es lo que se pidió corregir)
+"""
+REVISION_UNA_VISTA = """# Revisión · ola 3
+
+## semana (`design/vistas/cosechas/semana.html`)
+
+**Veredicto: no aprobada.** Los encabezados de la tabla. Todo lo demás está aprobado.
+
+## Segunda revisión
+
+**Veredicto: aprobada.**
+"""
+REVISION_SIN_NOMBRE = """# Revisión · ola 3 · chico.html
+
+Veredicto: **aprobada**
+"""
+
+
+class VeredictoDelRevisor(unittest.TestCase):
+    def setUp(self):
+        self.grade = cargar("html-a-vista")
+        self.out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.out)
+
+    def test_ultimo_veredicto_de_cada_vista(self):
+        casos = {
+            "sin segunda revisión": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"],
+                                     {"marco": "no aprobada", "lista": "aprobada", "ajustes": "no aprobada"}),
+            "con segunda vuelta en viñetas": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"],
+                                              {"marco": "aprobada", "lista": "aprobada", "detalle-lote": "aprobada"}),
+            "formato fijo de la skill": (REVISION_FORMATO_FIJO, ["panel", "historial"], {"panel": "aprobada", "historial": "aprobada"}),
+            "primera revisión escrita después": (REVISION_PRIMERA_DESPUES, ["panel"], {"panel": "aprobada"}),
+            "una vista, segunda revisión sin nombrarla": (REVISION_UNA_VISTA, ["semana"], {"semana": "aprobada"}),
+            "una vista que el archivo no nombra": (REVISION_SIN_NOMBRE, ["reservas"], {"reservas": "aprobada"}),
+            "vista que el revisor no nombra": (REVISION_FORMATO_FIJO, ["panel", "historial", "ajustes"],
+                                               {"panel": "aprobada", "historial": "aprobada", "ajustes": None}),
+            "detalle no es detalle-lote": (REVISION_CON_SEGUNDA_VUELTA, ["detalle"], {"detalle": None}),
+        }
+        for caso, (revision, nombres, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                self.assertEqual(self.grade.veredictos(revision, nombres), esperado)
+
+    def test_toda_vista_del_repositorio_tiene_aprobada_como_ultimo_veredicto(self):
+        texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
+        revision = self.out / "trabajo" / "ola-3" / "revision.md"
+        casos = {"vistas no aprobadas en el repositorio": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"], False),
+                 "solo lo aprobado en el repositorio": (REVISION_SIN_SEGUNDA, ["lista"], True),
+                 "aprobada en la segunda revisión": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"], True),
+                 "vista sin veredicto": (REVISION_FORMATO_FIJO, ["panel", "ajustes"], False)}
+        for caso, (texto_revision, nombres, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                revision.parent.mkdir(parents=True, exist_ok=True)
+                revision.write_text(texto_revision)
+                res = self.grade.chequeo_revisor(self.out, nombres)
+                self.assertEqual(next(r["passed"] for r in res if r["text"] == texto), esperado)
+        revision.unlink()
+        res = self.grade.chequeo_revisor(self.out, ["lista"])
+        self.assertFalse(next(r["passed"] for r in res if r["text"] == texto))
+
 if __name__ == "__main__":
     unittest.main()
