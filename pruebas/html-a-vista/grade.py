@@ -94,6 +94,16 @@ def visible(html):
     return " ".join(re.sub(r"<[^>]+>", " ", s).split()).lower()
 
 
+COMENTARIO = re.compile(r"/\*.*?\*/|<!--.*?-->", re.S)
+KEYFRAMES = re.compile(r"@(?:-webkit-)?keyframes\s+([^\s{]+)\s*\{")
+
+
+def keyframes(texto):
+    """Nombres de las reglas @keyframes reales del texto. Un comentario que menciona @keyframes no cuenta: el criterio
+    pide justamente el comentario de intención junto al elemento que en el mockup se animaba."""
+    return KEYFRAMES.findall(COMENTARIO.sub(" ", texto))
+
+
 def escenarios(html):
     m = re.search(r"""data-escenarios\s*=\s*["']([^"']*)""", html)
     return [e.strip() for e in m.group(1).split(",") if e.strip()] if m else []
@@ -249,7 +259,7 @@ def repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo):
         con = [v.name for v, h in htmls.items() if any(re.search(p, e) for e in escenarios(h))]
         res.append(check(f"El escenario DEMO {nombre} está en data-escenarios", con, con[:2]))
     css = [p for p in archivos(repo / "design", "*.css")]
-    sucio = [str(p.relative_to(repo)) for p in list(htmls) + css if "@keyframes" in p.read_text(errors="ignore")]
+    sucio = [str(p.relative_to(repo)) for p in list(htmls) + css if keyframes(p.read_text(errors="ignore"))]
     cdn = [str(v.relative_to(repo)) for v, h in htmls.items() if re.search(r"""(?:src|href)\s*=\s*["'](?:https?:)?//|@import|url\(\s*["']?(?:https?:)?//""", h)]
     js = [str(v.relative_to(repo)) for v, h in htmls.items()
           if [s for s in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", h, flags=re.S | re.I) if not re.search(r"src\s*=\s*[\"'][^\"']*proto\.js", s[0])]]

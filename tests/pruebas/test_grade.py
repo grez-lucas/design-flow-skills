@@ -388,6 +388,20 @@ class ChequeosHtmlAVista(unittest.TestCase):
                 self.assertTrue(self.paso(res, "Crea tokens.css con las medidas en escala de 4 px"))
                 self.assertEqual(self.paso(res, "tokens.css no tiene dos tokens del mismo tema que se vean iguales"), esperado)
 
+    def test_keyframes_cuenta_reglas_y_no_comentarios(self):
+        casos = {
+            "comentario CSS": ("/* Sin @keyframes, sin @import, sin fuentes externas. */\n.badge { color: var(--color-text); }\n", []),
+            "comentario HTML": ('<!-- el valor "58 °C" late (@keyframes latir, 1.4s, infinito) -->\n<p>58 °C</p>\n', []),
+            "regla en CSS": ("@keyframes latir { from { opacity: 1; } to { opacity: .5; } }\n", ["latir"]),
+            "regla con prefijo": ("@-webkit-keyframes girar{to{transform:rotate(1turn)}}\n", ["girar"]),
+            "regla después de un comentario": ("/* @keyframes en el comentario */\n@keyframes pulso {\n  50% { opacity: .5; }\n}\n", ["pulso"]),
+            "regla en <style> de una vista": ("<html><head><!-- sin @keyframes -->\n<style>\n  @keyframes latir { to { opacity: .5; } }\n</style></head>"
+                                              "<body><p>58 °C</p></body></html>\n", ["latir"]),
+        }
+        for caso, (texto, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                self.assertEqual(self.grade.keyframes(texto), esperado)
+
     def test_ola_2_con_un_subagente_por_vista(self):
         def agentes(*descripciones):
             return [uso("Agent", description=d, prompt="...") for d in descripciones]
