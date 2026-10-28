@@ -80,10 +80,21 @@ Campos fijos, en este orden, en `contrato.md`:
 
 1. Copias el repositorio de diseño en `<trabajo>/ola-3/repo/`, agregas `tokens.css` de la ola 1, armas `components.css` final (base más lo nuevo de cada contrato, sin duplicar) y copias `proto.js` de `spec-a-html` sin modificar si no existe.
 2. Pones cada borrador en `design/vistas/<épica>/<vista>.html` de la copia, unificas clases con el catálogo y los nombres de los escenarios globales.
-3. Corres, por vista, `python3 -B <skill>/scripts/inventario.py <vista> <trozos de origen> --json --salida <trabajo>/ola-3/inventario/<vista>.json`, y `python3 -B <checklist-diseno>/scripts/revisar.py <trabajo>/ola-3/repo` sobre la copia. Corriges lo que bloquea.
+3. Corres, por vista, `python3 -B <skill>/scripts/inventario.py <vista> <trozos de origen> --json --salida <trabajo>/ola-3/inventario/<vista>.json`, y `python3 -B <checklist-diseno>/scripts/revisar.py <trabajo>/ola-3/repo` sobre la copia. Lo que bloquea lo corriges tú antes de lanzar al revisor, porque la vista todavía va a pasar por él; lo que el revisor no aprobó ya no lo corriges tú (ver "Vuelta de una vista no aprobada").
 4. Con navegador, sacas las capturas por escenario de cada vista de la copia y del original (`escenarios.md`, sección "Capturas") en `<trabajo>/capturas/`, antes de lanzar al revisor.
 5. Escribes `integracion.md` con la lista de vistas, el resultado de `revisar.py` y lo que corregiste.
 
-**Revisor**, un subagente que no armó ninguna vista (`<trabajo>/ola-3/revision.md`). Por vista lee el inventario, el contrato, la vista y la sección del spec, y con navegador las capturas del original y de la vista, cuyas rutas le pasas. Una diferencia que se ve en las capturas cuenta como un faltante del inventario. Un faltante del inventario con motivo en el contrato (dato real reemplazado, control de prototipo hecho escenario) no bloquea; uno sin motivo, sí. Decide aprobada o no, con lo que falta.
+**Revisor**, un subagente que no armó ninguna vista (`<trabajo>/ola-3/revision.md`). Por vista lee el inventario, el contrato, la vista y la sección del spec, y con navegador las capturas del original y de la vista, cuyas rutas le pasas. Una diferencia que se ve en las capturas cuenta como un faltante del inventario. Un faltante del inventario con motivo en el contrato (dato real reemplazado, control de prototipo hecho escenario) no bloquea; uno sin motivo, sí. Decide aprobada o no, con lo que falta, y escribe un encabezado por vista con el nombre de su archivo sin `.html`:
 
-**Integración, segundo paso**. Copias al repositorio de diseño solo las vistas aprobadas y los archivos de `design/` que usan, y las secciones del spec que haya que actualizar (escenarios globales, épicas del mockup compuesto). Nada de `<trabajo>` más que eso: ni contratos, ni inventarios, ni el original.
+```markdown
+## <vista>: aprobada
+
+## <vista>: no aprobada
+- <lo que falta>
+```
+
+En la segunda revisión agrega al final del mismo archivo `## <vista>, segunda revisión: aprobada` (o `no aprobada`), sin borrar la primera. Vale el último veredicto de cada vista, y quien lea el archivo ve el recorrido completo.
+
+**Vuelta de una vista no aprobada**. No la corriges tú, aunque sea una línea: el revisor es la única mirada que no armó la vista, y lo que arregla quien integra entra sin que nadie independiente lo vea. Vuelve a su subagente de la ola 2 con las notas del revisor (`SendMessage`, o un subagente nuevo `Ola 2: <vista>` con el borrador, el contrato y las notas si la sesión no puede continuar el primero), la integras de nuevo con los pasos 2 a 4 y lanzas al revisor para la segunda revisión. Una vuelta por vista; si sigue sin aprobarse, queda fuera y va al informe como pendiente.
+
+**Integración, segundo paso**. Copias al repositorio de diseño solo las vistas cuyo último veredicto en `revision.md` es "aprobada" y los archivos de `design/` que usan, y las secciones del spec que haya que actualizar (escenarios globales, épicas del mockup compuesto). Nada de `<trabajo>` más que eso: ni contratos, ni inventarios, ni el original.
