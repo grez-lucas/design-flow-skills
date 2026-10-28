@@ -254,5 +254,155 @@ class SeveridadHtmlAVista(unittest.TestCase):
                 self.assertEqual(self.marcas(notas), dict.fromkeys(MARCAS, False))
 
 
+PANTALLAS_GRANDE = ("Inventario de semillas, Detalle del lote, Movimientos de semillas, Resumen de compostaje, "
+                    "Pilas de compost, Socios del huerto, Cuotas y Ajustes del huerto.")
+
+
+def uso(nombre, **entrada):
+    return {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": nombre, "input": entrada}]}}
+
+
+class ChequeosHtmlAVista(unittest.TestCase):
+    def setUp(self):
+        self.grade = cargar("html-a-vista")
+        self.out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.out)
+
+    def paso(self, res, texto):
+        return next(r["passed"] for r in res if r["text"].startswith(texto))
+
+    def informe(self, mockup, notas, navegador=False):
+        (self.out / "notas.md").write_text(notas)
+        return self.grade.informe(self.out, self.grade.MOCKUPS[mockup], navegador)[0]
+
+    def transcript(self, *usos):
+        (self.out / "transcript.jsonl").write_text("".join(json.dumps(u) + "\n" for u in usos))
+
+    def test_el_marco_se_nombra_con_el_titulo_que_muestra_el_mockup(self):
+        casos = {"Semilla · Huerto Los Aromos": True, "Semilla · Integrado": True, "Marco (cabecera + menú)": False,
+                 "Semilla, el marco común": False}
+        for marco, esperado in casos.items():
+            with self.subTest(marco=marco):
+                res = self.informe("grande", f"Pantallas: {marco}, {PANTALLAS_GRANDE}\n")
+                self.assertEqual(self.paso(res, "El informe nombra cada pantalla"), esperado)
+
+    def test_el_informe_nombra_los_tres_data_state_renombrados(self):
+        casos = {
+            "- El chip del nivel del tanque usaba `full`, `partial` y `off`. Ahora es un modificador del chip.": True,
+            "- `full` → `badge--lleno`, `partial` → `badge--mitad`, off → `badge--sin-agua`.": True,
+            "- Renombré el data-state del chip a data-nivel.": False,
+            "- El chip usaba `full` y `partial`, renombrados a modificadores del data-state.": False,
+            "- El radio --radius-full, el riego partial y el sensor off.": False,
+        }
+        for notas, esperado in casos.items():
+            with self.subTest(notas=notas):
+                res = self.informe("demo", "Panel de riego e Historial de riego, sin render.\n" + notas + "\n")
+                self.assertEqual(self.paso(res, "El informe nombra cada data-state ajeno"), esperado)
+
+    def test_capturas_con_ruta_del_original_y_de_la_vista(self):
+        casos = {
+            "Capturas lado a lado: `trabajo/capturas/semana-original.png` y `trabajo/capturas/semana-normal.png`.": True,
+            "Original en capturas/original-shell.png; la vista, en capturas/semana-vacio.png.": True,
+            "No se capturó nada: faltó el navegador.": False,
+            "Capturas en `<vista>-<escenario>.png` y el original en `original-shell.png`.": False,
+            "Capturas de la vista: `trabajo/capturas/semana-normal.png`.": False,
+        }
+        for notas, esperado in casos.items():
+            with self.subTest(notas=notas):
+                res = self.informe("react", "Cosechas de la semana.\n" + notas + "\n", navegador=True)
+                self.assertEqual(self.paso(res, "El informe trae capturas lado a lado"), esperado)
+
+    def test_el_informe_describe_las_tres_olas(self):
+        casos = {
+            "En la ola 1 fijé los tokens, en la ola 2 armé las vistas y en la ola 3 integré y revisé.": True,
+            "Olas:\n\n1. Tokens, componentes y marco.\n2. Un subagente por vista.\n3. Integración y revisión.": True,
+            "## Olas\n\n1. Tokens.\n\n2. Vistas.\n\n3. Revisión.": True,
+            "La ola de cambios llegó al inventario.": False,
+            "Olas:\n\n1. Tokens.\n2. Vistas.\n\n## Tokens\n\n3. Otra cosa.": False,
+        }
+        for notas, esperado in casos.items():
+            with self.subTest(notas=notas):
+                (self.out / "notas.md").write_text(notas + "\n")
+                res = self.grade.extra_grande(self.out, {}, self.out / "sin-tokens.css")
+                self.assertEqual(self.paso(res, "El informe describe las tres olas"), esperado)
+
+    def test_el_valor_fuera_de_umbral_del_grande_va_con_su_uso(self):
+        cfg = self.grade.MOCKUPS["grande"]
+        casos = {"- Pendiente de decisión: #e07a1f, el naranja de las cuotas atrasadas; se usó --color-warning.\n": True,
+                 "- Pendiente de decisión: #e07a1f, el ámbar del aviso de báscula; se usó --color-warning.\n": False}
+        for notas, esperado in casos.items():
+            with self.subTest(notas=notas):
+                res = self.grade.chequeos_fuera(cfg, notas.lower(), self.grade.hallazgos(notas), self.out / "repo", True)
+                self.assertEqual(self.paso(res, "El valor fuera de umbral figura como pendiente"), esperado)
+
+    def test_parada_sin_navegador_sin_subagentes_ni_lectura_del_mockup(self):
+        base = [uso("Skill", skill="html-a-vista"),
+                uso("Bash", command="python3 -B /skills/html-a-vista/scripts/desarmar.py /it/insumos/react.html trabajo"),
+                uso("Bash", command="head -60 trabajo/trozos/documento/script.js"), uso("Write", file_path="notas.md", content="react.html")]
+        casos = {"base": (base, True, True),
+                 "con subagente": (base + [uso("Agent", description="Ola 1: componentes", prompt="...")], False, True),
+                 "con Task": (base + [uso("Task", description="algo", prompt="...")], False, True),
+                 "lee el mockup": (base + [uso("Read", file_path="/it/insumos/react.html")], True, False),
+                 "cat del mockup": (base + [uso("Bash", command="cat /it/insumos/react.html | wc -l")], True, False)}
+        for caso, (usos, sin_agentes, sin_lectura) in casos.items():
+            with self.subTest(caso=caso):
+                self.transcript(*usos)
+                res = self.grade.chequeos_parada(self.out, "react", "navegador")
+                self.assertEqual(self.paso(res, "No lanza subagentes"), sin_agentes)
+                self.assertEqual(self.paso(res, "No lee el mockup entero"), sin_lectura)
+
+    def test_parada_sin_subagentes_no_abre_ni_desarma_el_mockup(self):
+        casos = {"solo Skill y Write": ([uso("Skill", skill="html-a-vista"), uso("Write", file_path="notas.md", content="chico.html")], True),
+                 "desarma": ([uso("Bash", command="python3 -B desarmar.py /it/insumos/chico.html trabajo")], False),
+                 "busca en el mockup": ([uso("Grep", pattern="reservas", path="/it/insumos/chico.html")], False)}
+        for caso, (usos, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                self.transcript(*usos)
+                res = self.grade.chequeos_parada(self.out, "chico", "subagentes")
+                self.assertEqual(self.paso(res, "No abre ni desarma el mockup"), esperado)
+
+    def test_parada_sin_transcript_no_se_puede_verificar(self):
+        res = self.grade.chequeos_parada(self.out, "react", "navegador")
+        self.assertEqual([r["passed"] for r in res], [False, False])
+
+    def test_tokens_con_design_system_detecta_un_color_casi_igual(self):
+        fixture = PRUEBAS / "html-a-vista" / "fixtures" / "con-ds"
+        original = (fixture / "design" / "tokens.css").read_text()
+        tok = self.out / "tokens.css"
+        casos = {"sin cambios": (original, True),
+                 "casi igual": (original.replace("--color-primary: #2f7d4f;", "--color-primary: #2f7d4f;\n  --color-primary-2: #2f7d50;"), False)}
+        for caso, (texto, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                tok.write_text(texto)
+                res = self.grade.chequeo_tokens(tok, fixture, True)
+                self.assertEqual(self.paso(res, "tokens.css no tiene colores nuevos dentro del umbral"), esperado)
+
+    def test_tokens_sin_design_system_sin_pares_que_se_vean_iguales(self):
+        tok = self.out / "tokens.css"
+        casos = {"#f0f2f5": False, "#e3e8dd": True}
+        for alterno, esperado in casos.items():
+            with self.subTest(alterno=alterno):
+                tok.write_text(":root { --color-bg: #f6f7f3; --color-surface: #ffffff; --color-primary-contrast: #ffffff; "
+                               f"--color-surface-alt: {alterno}; --space-1: 4px; --space-2: 8px; }}\n")
+                res = self.grade.chequeo_tokens(tok, None, False)
+                self.assertTrue(self.paso(res, "Crea tokens.css con las medidas en escala de 4 px"))
+                self.assertEqual(self.paso(res, "tokens.css no tiene dos tokens del mismo tema que se vean iguales"), esperado)
+
+    def test_ola_2_con_un_subagente_por_vista(self):
+        def agentes(*descripciones):
+            return [uso("Agent", description=d, prompt="...") for d in descripciones]
+        vistas = [f"Ola 2: vista {n}" for n in range(8)]
+        casos = {"una por vista": (agentes("Ola 1: componentes", "Ola 1: marco", *vistas, "Ola 3: revisor"), True),
+                 "agrupadas": (agentes("Ola 1: componentes", *vistas[:5], "Ola 3: revisor"), False),
+                 "por módulo": (agentes("Ola 2 vistas inventario", "Ola 2 vistas compostaje", "Ola 2 vistas socios"), False)}
+        for caso, (usos, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                self.transcript(*usos)
+                res = self.grade.chequeo_ola2(self.out, 9, marco=True)
+                self.assertEqual(self.paso(res, "La ola 2 tiene un subagente por vista"), esperado)
+        (self.out / "transcript.jsonl").unlink()
+        self.assertFalse(self.paso(self.grade.chequeo_ola2(self.out, 1, marco=False), "La ola 2 tiene un subagente por vista"))
+
+
 if __name__ == "__main__":
     unittest.main()

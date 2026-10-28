@@ -4,7 +4,8 @@
 Regla: el contenido esperado del informe (notas.md) se busca en todo el texto, sin depender de una sección
 ni de un formato, y la severidad (pendiente de decisión, criterio para el ticket) se verifica en un chequeo
 aparte, solo sobre la primera oración de cada hallazgo. El repositorio y la carpeta de trabajo se revisan
-con chequeos propios: revisar.py, commits, archivos, vistas, tokens y contratos.
+con chequeos propios: revisar.py, commits, archivos, vistas, tokens y contratos; el transcript, con los suyos:
+subagentes de la ola 2 y, en las corridas que se detienen, subagentes y lecturas del mockup.
 """
 import hashlib
 import json
@@ -32,7 +33,7 @@ MOCKUPS = {
         "ticket": "SEM-11",
     },
     "grande": {
-        "pantallas": {"Marco": r"huerto los aromos", "Inventario de semillas": r"inventario de semillas",
+        "pantallas": {"Marco": r"huerto los aromos|semilla\s*[·-]\s*integrado", "Inventario de semillas": r"inventario de semillas",
                       "Detalle del lote": r"detalle del lote", "Movimientos de semillas": r"movimientos de semillas",
                       "Resumen de compostaje": r"resumen de compostaje", "Pilas de compost": r"pilas de compost",
                       "Socios del huerto": r"socios del huerto", "Cuotas": r"\bcuotas\b", "Ajustes del huerto": r"ajustes del huerto"},
@@ -40,8 +41,10 @@ MOCKUPS = {
                             "Invitar socio": r"invitar socio", "Registrar pago de cuota": r"registrar pago", "Notificaciones": r"notificaciones",
                             "Centro de ayuda": r"centro de ayuda"},
         "fuera": r"#e07a1f",
+        "uso_fuera": r"cuota|atrasad",
         "logica": r"mayor que cero|cantidad",
         "global": r"b[aá]scula",
+        "marco": True,
     },
     "demo": {
         "pantallas": {"Panel de riego": r"panel de riego", "Historial de riego": r"historial de riego"},
@@ -122,6 +125,59 @@ def con_marca(its, contenido, marca):
     return [h for h, e in its if re.search(contenido, h) and (re.search(marca, h) or re.search(marca, e))]
 
 
+def palabra(valor):
+    """El valor como palabra suelta o entre comillas invertidas, no como parte de otro nombre (--radius-full)."""
+    return rf"(?<![\w-]){re.escape(valor)}(?![\w-])"
+
+
+PNG = re.compile(r"(?:^|[\s(`'\"\[|:])((?:[\w.-]+/)*([\w.-]*\w)\.png)\b", re.M)
+
+
+def capturas_lado_a_lado(notas):
+    """Rutas concretas de capturas: al menos una del original y una de una vista, no la plantilla <vista>-<escenario>.png."""
+    nombres = [m.group(2).lower() for m in PNG.finditer(notas)]
+    original = [n for n in nombres if re.search(r"original|mockup", n)]
+    vista = [n for n in nombres if not re.search(r"original|mockup", n)]
+    return bool(original and vista), {"original": original[:2], "vista": vista[:2]}
+
+
+def tres_olas(notas):
+    """Las tres olas por nombre (ola 1, ola 2, ola 3), o 1., 2. y 3. en una lista bajo un encabezado de olas."""
+    low = notas.lower()
+    if all(re.search(rf"\bola\s*{n}\b", low) for n in (1, 2, 3)):
+        return True
+    numeros, en_olas = set(), False
+    for linea in low.splitlines():
+        plano = re.sub(r"[*_`]", "", linea).strip()
+        encabezado = plano.startswith("#") or (plano.endswith(":") and len(plano) < 80 and not re.match(r"\d+[.)]", plano))
+        if encabezado:
+            if en_olas and numeros >= {1, 2, 3}:
+                return True
+            en_olas, numeros = bool(re.search(r"\bolas\b", plano)), set()
+            continue
+        m = re.match(r"(\d+)[.)]\s", plano)
+        if en_olas and m:
+            numeros.add(int(m.group(1)))
+    return en_olas and numeros >= {1, 2, 3}
+
+
+def usos_de_herramientas(out):
+    """(nombre, entrada) de cada herramienta que llamó el agente principal, o None si no hay transcript."""
+    t = out / "transcript.jsonl"
+    if not t.is_file():
+        return None
+    usos = []
+    for linea in t.read_text(errors="ignore").splitlines():
+        try:
+            d = json.loads(linea)
+        except ValueError:
+            continue
+        if d.get("type") == "assistant":
+            usos += [(c.get("name"), c.get("input") or {}) for c in d.get("message", {}).get("content", [])
+                     if isinstance(c, dict) and c.get("type") == "tool_use"]
+    return usos
+
+
 def md5(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
 
@@ -133,13 +189,15 @@ def informe(out, cfg, navegador):
     faltan = [n for n, p in cfg["pantallas"].items() if not re.search(p, low)]
     res.append(check("El informe nombra cada pantalla del mockup", not faltan, f"faltan: {faltan}"))
     if navegador:
-        res.append(check("El informe trae capturas lado a lado", re.search(r"captura", low), ""))
+        ok, rutas = capturas_lado_a_lado(notas)
+        res.append(check("El informe trae capturas lado a lado, con ruta del original y de la vista", ok, rutas))
     else:
         res.append(check("El informe dice que la verificación se hizo sin render", re.search(r"sin render|sin navegador", low), ""))
     for nombre, p in cfg.get("demo", {}).items():
         res.append(check(f"El informe nombra el escenario DEMO {nombre}", re.search(p, low), ""))
     if cfg.get("ajenos"):
-        res.append(check("El informe dice que renombró el data-state ajeno", re.search(r"data-state", low) and re.search(r"renombr", low), ""))
+        faltan = [v for v in cfg["ajenos"] if not re.search(palabra(v), low)]
+        res.append(check("El informe nombra cada data-state ajeno que renombró", not faltan, f"faltan: {faltan}"))
     criterio = con_marca(its, cfg["logica"], r"criterio|ticket")
     res.append(check("La lógica JS figura como criterio para el ticket", criterio, criterio[:1]))
     return res, low, its
@@ -148,7 +206,7 @@ def informe(out, cfg, navegador):
 def chequeos_fuera(cfg, low, its, repo, con_ds):
     if not (con_ds and cfg["fuera"]):
         return []
-    pend = con_marca(its, cfg["fuera"], PENDIENTE)
+    pend = [h for h in con_marca(its, cfg["fuera"], PENDIENTE) if not cfg.get("uso_fuera") or re.search(cfg["uso_fuera"], h)]
     tok = (repo / "design" / "tokens.css").read_text(errors="ignore").lower() if (repo / "design" / "tokens.css").exists() else ""
     return [
         check("El informe menciona el valor fuera de umbral", re.search(cfg["fuera"], low), ""),
@@ -197,13 +255,7 @@ def repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo):
           if [s for s in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", h, flags=re.S | re.I) if not re.search(r"src\s*=\s*[\"'][^\"']*proto\.js", s[0])]]
     res.append(check("Sin @keyframes, CDN ni JS fuera de proto.js", vs and not (sucio or cdn or js), {"keyframes": sucio[:2], "cdn": cdn[:2], "js": js[:2]}))
     tok = repo / "design" / "tokens.css"
-    if con_ds:
-        v = T.verificar(fixture_repo / "design" / "tokens.css", tok) if tok.exists() else {"casi_iguales": ["sin tokens.css"]}
-        res.append(check("tokens.css no tiene colores nuevos dentro del umbral de uno existente", not v["casi_iguales"], v["casi_iguales"][:2]))
-    else:
-        espacios = re.findall(r"(--space-[\w-]+)\s*:\s*([^;]+);", tok.read_text()) if tok.exists() else []
-        malos = [(n, x) for n, x in espacios if (T.leer_medida(x.strip()) or 1) % 4]
-        res.append(check("Crea tokens.css con las medidas en escala de 4 px", espacios and not malos, malos[:3] or f"{len(espacios)} espacios"))
+    res += chequeo_tokens(tok, fixture_repo, con_ds)
     contratos = [p for p in archivos(trabajo, "*.md") if "contrato" in p.name.lower() or p.read_text(errors="ignore").lstrip().lower().startswith("# contrato")]
     res.append(check("Hay un contrato por vista en la carpeta de trabajo", vs and len(contratos) >= len(vs), f"{len(contratos)} contratos, {len(vs)} vistas"))
     res.append(check("El manifiesto del script está en la carpeta de trabajo", archivos(trabajo, "manifiesto.json"), ""))
@@ -214,6 +266,47 @@ def repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo):
         sin = [v.name for v, h in htmls.items() if not re.search(r"""<meta\s+name=["'](spec|tickets)["']""", h)]
         res.append(check("Las vistas sin ticket citan su spec en <meta name=\"spec\">", vs and not sin, sin[:3]))
     return res, htmls, tok
+
+
+def chequeo_tokens(tok, fixture_repo, con_ds):
+    """Con design system, ningún token nuevo casi igual a uno existente; sin él, escala de 4 px y ningún par que se vea igual."""
+    if con_ds:
+        v = T.verificar(fixture_repo / "design" / "tokens.css", tok) if tok.exists() else {"casi_iguales": ["sin tokens.css"]}
+        return [check("tokens.css no tiene colores nuevos dentro del umbral de uno existente", not v["casi_iguales"], v["casi_iguales"][:2])]
+    espacios = re.findall(r"(--space-[\w-]+)\s*:\s*([^;]+);", tok.read_text()) if tok.exists() else []
+    malos = [(n, x) for n, x in espacios if (T.leer_medida(x.strip()) or 1) % 4]
+    pares = T.verificar(tok)["casi_iguales"] if tok.exists() else ["sin tokens.css"]
+    return [check("Crea tokens.css con las medidas en escala de 4 px", espacios and not malos, malos[:3] or f"{len(espacios)} espacios"),
+            check("tokens.css no tiene dos tokens del mismo tema que se vean iguales", not pares,
+                  [(c["token"], c["existente"], c["distancia"]) if isinstance(c, dict) else c for c in pares[:3]])]
+
+
+def chequeo_ola2(out, n_vistas, marco=False):
+    """Un subagente de la ola 2 por vista, sin contar la del marco, que arma la ola 1."""
+    usos = usos_de_herramientas(out)
+    esperados = n_vistas - (1 if marco else 0)
+    ola2 = [e.get("description", "") for n, e in usos or [] if n in ("Agent", "Task") and re.search(r"\bola\s*2\b", e.get("description", ""), re.I)]
+    return [check("La ola 2 tiene un subagente por vista", usos is not None and esperados > 0 and len(ola2) >= esperados,
+                  f"{len(ola2)} subagentes de la ola 2 para {esperados} vistas" if usos is not None else "sin transcript")]
+
+
+def chequeos_parada(out, mockup, motivo):
+    """En el transcript: ningún subagente y ninguna lectura del mockup entero; sin subagentes, ni siquiera lo abre ni lo desarma."""
+    usos = usos_de_herramientas(out)
+    if usos is None:
+        return [check("No lanza subagentes", False, "sin transcript"),
+                check("No abre ni desarma el mockup" if motivo == "subagentes" else "No lee el mockup entero", False, "sin transcript")]
+    archivo = re.escape(f"{mockup}.html")
+    agentes = [e.get("description", n) for n, e in usos if n in ("Agent", "Task")]
+    if motivo == "subagentes":
+        toca = [n for n, e in usos if (n in ("Read", "Grep", "Glob") and re.search(archivo, json.dumps(e)))
+                or (n == "Bash" and re.search(archivo, e.get("command", "")))]
+        lectura = check("No abre ni desarma el mockup", not toca, toca[:3])
+    else:
+        lee = [n for n, e in usos if (n == "Read" and re.search(archivo + "$", e.get("file_path", "")) and not e.get("limit"))
+               or (n == "Bash" and re.search(rf"\b(cat|less|more|bat)\b[^|;&]*{archivo}", e.get("command", "")))]
+        lectura = check("No lee el mockup entero", not lee, lee[:3])
+    return [check("No lanza subagentes", not agentes, agentes[:3]), lectura]
 
 
 def extra_grande(out, htmls, tok):
@@ -239,12 +332,12 @@ def extra_grande(out, htmls, tok):
         check("El escenario de la báscula tiene el mismo nombre en vistas de dos módulos o más", compartido, globales),
         check("El spec lista el escenario global", compartido and any(e in spec for e in compartido), compartido),
         check("El gráfico de temperatura es un SVG estático", svg, svg[:2]),
-        check("El informe describe las tres olas", re.search(r"\bola", notas), ""),
+        check("El informe describe las tres olas", tres_olas(notas), ""),
         check("Hay capturas en la carpeta de trabajo", pngs, f"{len(pngs)} png"),
     ]
 
 
-def sin_conversion(out, fixture_repo, motivo):
+def sin_conversion(out, fixture_repo, motivo, mockup):
     repo, trabajo = out / "repo", out / "trabajo"
     notas = (out / "notas.md").read_text(errors="ignore").lower()
     estado = git(repo, "status", "--porcelain").strip()
@@ -258,6 +351,8 @@ def sin_conversion(out, fixture_repo, motivo):
         res.append(check("Deriva a grilling-es", "grilling" in notas, ""))
     else:
         res.append(check("Dice que se detiene por falta de subagentes", re.search(r"subagente", notas), ""))
+    if motivo in ("navegador", "subagentes"):
+        res += chequeos_parada(out, mockup, motivo)
     return res
 
 
@@ -265,17 +360,18 @@ def calificar(name, out, iteracion):
     prueba = next(p for p in json.loads((PRUEBAS / "evals.json").read_text())["evals"] if f"eval-{p['id']}-{p['name']}" == name)
     mockup, fixture_repo, reglas = prueba["mockup"], PRUEBAS / prueba["repo"], prueba["reglas"]
     if prueba["name"].endswith("sin-navegador"):
-        return sin_conversion(out, fixture_repo, "navegador")
+        return sin_conversion(out, fixture_repo, "navegador", mockup)
     if prueba["name"].endswith("sin-spec"):
-        return sin_conversion(out, fixture_repo, "spec")
+        return sin_conversion(out, fixture_repo, "spec", mockup)
     if prueba["name"].endswith("sin-subagentes"):
-        return sin_conversion(out, fixture_repo, "subagentes")
+        return sin_conversion(out, fixture_repo, "subagentes", mockup)
     cfg, con_ds = MOCKUPS[mockup], prueba["repo"].endswith("con-ds")
     navegador = "Con navegador" in reglas
     res, low, its = informe(out, cfg, navegador)
     res += chequeos_fuera(cfg, low, its, out / "repo", con_ds)
     rep, htmls, tok = repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo)
     res += rep
+    res += chequeo_ola2(out, len(htmls), cfg.get("marco", False))
     if mockup == "grande":
         res += extra_grande(out, htmls, tok)
     if mockup == "chico" and not con_ds:
