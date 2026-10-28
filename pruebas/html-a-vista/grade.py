@@ -44,7 +44,6 @@ MOCKUPS = {
         "uso_fuera": r"cuota|atrasad",
         "logica": r"mayor que cero|cantidad",
         "global": r"b[aá]scula",
-        "marco": True,
     },
     "demo": {
         "pantallas": {"Panel de riego": r"panel de riego", "Historial de riego": r"historial de riego"},
@@ -297,13 +296,18 @@ def chequeo_tokens(tok, fixture_repo, con_ds):
                   [(c["token"], c["existente"], c["distancia"]) if isinstance(c, dict) else c for c in pares[:3]])]
 
 
-def chequeo_ola2(out, n_vistas, marco=False):
-    """Un subagente de la ola 2 por vista, sin contar la del marco, que arma la ola 1."""
+def chequeo_ola2(out, nombres):
+    """Cada vista del repositorio, el marco incluido, con su subagente "Ola 2: <vista>" por el nombre de su archivo.
+    Una vista partida puede tener varios, "<vista> (parte 1)"; reintentos de otra vista no cubren a esta."""
     usos = usos_de_herramientas(out)
-    esperados = n_vistas - (1 if marco else 0)
-    ola2 = [e.get("description", "") for n, e in usos or [] if n in ("Agent", "Task") and re.search(r"\bola\s*2\b", e.get("description", ""), re.I)]
-    return [check("La ola 2 tiene un subagente por vista", usos is not None and esperados > 0 and len(ola2) >= esperados,
-                  f"{len(ola2)} subagentes de la ola 2 para {esperados} vistas" if usos is not None else "sin transcript")]
+    if usos is None:
+        return [check("La ola 2 tiene un subagente por vista", False, "sin transcript")]
+    ola2 = [m.group(1).strip().lower() for n, e in usos if n in ("Agent", "Task")
+            for m in [re.match(r"\s*ola\s*2\b\s*:?\s*(.*)", e.get("description", ""), re.I)] if m]
+    faltan = [v for v in nombres
+              if not any(re.fullmatch(rf"(?:vista\s+)?{re.escape(v.lower())}(?:\s*\(parte\s*\d+\))?", d) for d in ola2)]
+    return [check("La ola 2 tiene un subagente por vista", nombres and not faltan,
+                  f"sin subagente propio: {faltan}; subagentes de la ola 2: {ola2[:10]}")]
 
 
 def chequeos_parada(out, mockup, motivo):
@@ -387,7 +391,7 @@ def calificar(name, out, iteracion):
     res += chequeos_fuera(cfg, low, its, out / "repo", con_ds)
     rep, htmls, tok = repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo)
     res += rep
-    res += chequeo_ola2(out, len(htmls), cfg.get("marco", False))
+    res += chequeo_ola2(out, [v.stem for v in htmls])
     if mockup == "grande":
         res += extra_grande(out, htmls, tok)
     if mockup == "chico" and not con_ds:

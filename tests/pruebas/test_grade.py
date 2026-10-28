@@ -407,21 +407,30 @@ class ChequeosHtmlAVista(unittest.TestCase):
             with self.subTest(caso=caso):
                 self.assertEqual(self.grade.keyframes(texto), esperado)
 
-    def test_ola_2_con_un_subagente_por_vista(self):
+    def test_ola_2_con_un_subagente_por_vista_cotejado_por_nombre(self):
         def agentes(*descripciones):
             return [uso("Agent", description=d, prompt="...") for d in descripciones]
-        vistas = [f"Ola 2: vista {n}" for n in range(8)]
-        casos = {"una por vista": (agentes("Ola 1: componentes", "Ola 1: marco", *vistas, "Ola 3: revisor"), True),
-                 "agrupadas": (agentes("Ola 1: componentes", *vistas[:5], "Ola 3: revisor"), False),
-                 "por módulo": (agentes("Ola 2 vistas inventario", "Ola 2 vistas compostaje", "Ola 2 vistas socios"), False)}
+        nombres = ["marco", "lista", "detalle-lote", "movimientos", "resumen", "pilas", "socios", "cuotas", "ajustes"]
+        ola2 = [f"Ola 2: {n}" for n in nombres]
+        casos = {
+            "una por vista, el marco incluido": (agentes("Ola 1: componentes base", "Ola 1: escenarios globales", *ola2, "Ola 3: revisor"), True),
+            "con el prefijo vista": (agentes(*[f"Ola 2: vista {n}" for n in nombres]), True),
+            "vista partida en dos": (agentes(*[d for d in ola2 if d != "Ola 2: detalle-lote"], "Ola 2: detalle-lote (parte 1)",
+                                             "Ola 2: detalle-lote (parte 2)"), True),
+            "el marco sin subagente de la ola 2": (agentes("Ola 1: marco y escenarios globales", *ola2[1:]), False),
+            "reintentos de una sola vista": (agentes(*["Ola 2: lista"] * 9), False),
+            "otro nombre para la vista": (agentes(*[d for d in ola2 if d != "Ola 2: detalle-lote"], "Ola 2: detalle"), False),
+            "dos vistas en uno": (agentes(*ola2[:4], "Ola 2: resumen y pilas", *ola2[6:]), False),
+            "agrupadas": (agentes("Ola 1: componentes", *ola2[:5], "Ola 3: revisor"), False),
+            "por módulo": (agentes("Ola 2 vistas inventario", "Ola 2 vistas compostaje", "Ola 2 vistas socios"), False),
+        }
         for caso, (usos, esperado) in casos.items():
             with self.subTest(caso=caso):
                 self.transcript(*usos)
-                res = self.grade.chequeo_ola2(self.out, 9, marco=True)
+                res = self.grade.chequeo_ola2(self.out, nombres)
                 self.assertEqual(self.paso(res, "La ola 2 tiene un subagente por vista"), esperado)
         (self.out / "transcript.jsonl").unlink()
-        self.assertFalse(self.paso(self.grade.chequeo_ola2(self.out, 1, marco=False), "La ola 2 tiene un subagente por vista"))
-
+        self.assertFalse(self.paso(self.grade.chequeo_ola2(self.out, ["semana"]), "La ola 2 tiene un subagente por vista"))
 
 if __name__ == "__main__":
     unittest.main()
