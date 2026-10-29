@@ -113,6 +113,27 @@ class Veredictos(unittest.TestCase):
             with self.subTest(caso=caso):
                 self.assertEqual(aprobadas.veredictos(revision, nombres), esperado)
 
+    def test_cualquier_linea_fuera_de_formato_que_nombra_la_vista_anula_la_aprobacion(self):
+        """Un rechazo posterior escrito en viñeta, en negrita, como encabezado con sangría o dentro de un bloque de código
+        no se puede leer sin interpretar: cuenta como "fuera de formato" y la vista no entra. Ante la duda, bloquea."""
+        aprobada = f"## lista: aprobada {HUELLA}\n"
+        casos = {"viñeta": "- lista: no aprobada, el revisor cambió de opinión\n",
+                 "encabezado con sangría": "   ## lista: no aprobada\n",
+                 "negrita sin encabezado": "**lista: no aprobada**\n",
+                 "cita": "> lista: no aprobada\n",
+                 "frase": "Al final la lista queda no aprobada.\n",
+                 "veredicto exacto dentro de un bloque de código": f"```\n## lista: aprobada {HUELLA}\n```\n",
+                 "aprobación en viñeta": "- lista: aprobada\n"}
+        for caso, despues in casos.items():
+            with self.subTest(caso=caso):
+                self.assertEqual(aprobadas.veredictos(aprobada + despues, ["lista", "ajustes"]),
+                                 {"lista": "fuera de formato", "ajustes": None})
+
+    def test_lineas_que_no_nombran_la_vista_o_no_dicen_aprobada_no_cuentan(self):
+        revision = (f"## lista: aprobada {HUELLA}\n- lista: los encabezados de la tabla siguen el original.\n"
+                    "- Los tokens de la tabla aprobada por producto.\n## Segunda revisión\n")
+        self.assertEqual(aprobadas.veredictos(revision, ["lista"]), {"lista": "aprobada"})
+
     def test_la_huella_es_la_del_ultimo_veredicto(self):
         leidos = aprobadas.leer(REVISION_CON_HUELLA, ["panel", "historial"])
         self.assertEqual({v: (x.estado, x.huella) for v, x in leidos.items()},
@@ -372,6 +393,19 @@ class MoverAprobadas(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertEqual(self.en_repo(), set())
         self.assertIn("quedan fuera sin nombrar: lista", r.stdout)
+
+    def test_rechazo_posterior_fuera_de_formato_no_mueve_nada(self):
+        """Los tres casos con que la revisión final movía una vista que el revisor rechazó después de aprobarla."""
+        for caso, despues in {"viñeta": "- panel: no aprobada\n", "encabezado con sangría": "   ## panel: no aprobada\n",
+                              "negrita": "**panel: no aprobada**\n"}.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.vistas("riego/panel.html")
+                self.revision("## panel: aprobada\n\n## Segunda revisión\n" + despues)
+                r = self.correr()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertEqual(self.en_repo(), set())
+                self.assertRegex(r.stdout.split("Fuera del repositorio")[1], r"design/vistas/riego/panel\.html: .*no sigue el formato")
 
     def test_vista_fuera_de_vistas_epica_vista_sale_con_2_sin_mover(self):
         """Una vista sin épica o anidada de más no tiene huella ni lugar en el repositorio: error claro, sin traceback."""

@@ -40,6 +40,7 @@ from pathlib import Path
 COMPARTIDOS = ("tokens.css", "components.css", "proto.js")
 FORMATO = re.compile(r"## (?P<vista>[^\s:,]+)(?:, segunda revisión)?: (?:(?P<no>no aprobada)|aprobada(?: (?P<huella>sha256:[0-9a-f]{64}))?)")
 VEREDICTO = re.compile(r"(?:^|[:|·(-])\s*(no\s+)?aprobada\b")
+CERCO = re.compile(r"\s*(?:```|~~~)")
 SIN_NOMBRE = re.compile(r"[\s#|>-]*(?:veredicto|decisi[oó]n)?(?:\s+final)?\s*")
 Veredicto = namedtuple("Veredicto", "estado huella")
 Resultado = namedtuple("Resultado", "movidos pendientes fuera problema")
@@ -55,21 +56,25 @@ def leer(revision, nombres, historico=False):
 
     Por defecto lee solo el formato fijo, un encabezado por vista: `## <vista>: aprobada sha256:<huella>`,
     `## <vista>: no aprobada`, y la segunda revisión al final como `## <vista>, segunda revisión: ...`. Vale el último
-    en el archivo. Un encabezado que nombra una vista y dice "aprobada" sin seguir el formato cuenta como veredicto
-    "fuera de formato": no aprueba, y tampoco deja en pie una aprobación anterior.
+    en el archivo. Cualquier otra línea que nombra una vista y dice "aprobada" o "no aprobada" (una viñeta, una negrita,
+    un encabezado con sangría, una frase, o el formato exacto dentro de un bloque de código) cuenta como veredicto
+    "fuera de formato": no aprueba, y tampoco deja en pie una aprobación anterior. Ante la duda, la vista no entra.
 
     historico=True lee además lo que escribieron los revisores de las iteraciones 1 y 2, antes del formato fijo; lo
     usa solo el calificador de esas corridas (pruebas/html-a-vista/grade.py --historico)."""
     if historico:
         return {v: Veredicto(e, None) if e else None for v, e in _historico(revision, nombres).items()}
     patrones = {v: re.compile(palabra(v.lower())) for v in nombres}
-    ultimo = {}
+    ultimo, en_codigo = {}, False
     for linea in revision.splitlines():
         linea = linea.rstrip()
-        m = FORMATO.fullmatch(linea)
+        if CERCO.match(linea):
+            en_codigo = not en_codigo
+            continue
+        m = None if en_codigo else FORMATO.fullmatch(linea)
         if m and m.group("vista") in patrones:
             ultimo[m.group("vista")] = Veredicto("no aprobada" if m.group("no") else "aprobada", m.group("huella"))
-        elif linea.startswith("#") and re.search(r"aprobad", linea, re.I):
+        elif re.search(r"aprobad", linea, re.I):
             for v, p in patrones.items():
                 if p.search(linea.lower()):
                     ultimo[v] = Veredicto("fuera de formato", None)
@@ -183,8 +188,10 @@ def mover(trabajo, repo, pendientes=()):
             sin_aprobar.append((v, f"hay otra vista con el mismo nombre, `{v.stem}`, y el veredicto no dice de cuál es"))
         elif veredicto[v.stem] != "aprobada":
             sin_aprobar.append((v, {None: "sin veredicto en revision.md",
-                                    "fuera de formato": f"su último encabezado en revision.md no sigue el formato `## {v.stem}: "
-                                                        "aprobada sha256:<huella>` o `## <vista>: no aprobada`"}.get(veredicto[v.stem], veredicto[v.stem])))
+                                    "fuera de formato": f"su último veredicto en revision.md no sigue el formato `## {v.stem}: "
+                                                        "aprobada sha256:<huella>` o `## <vista>: no aprobada` (una "
+                                                        "línea que la nombra y dice aprobada o no aprobada de otra forma "
+                                                        "no se lee) y vuelve al revisor"}.get(veredicto[v.stem], veredicto[v.stem])))
         elif not leidos[v.stem].huella:
             sin_aprobar.append((v, "aprobada sin huella: el veredicto no dice qué versión de la vista vio el revisor"))
         elif leidos[v.stem].huella != (actual := huella(copia / v)):
