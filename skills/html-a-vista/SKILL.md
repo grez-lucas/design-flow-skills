@@ -103,7 +103,7 @@ Con `references/olas.md`, sección "Ola 3":
    python3 -B <ruta-de-esta-skill>/scripts/aprobadas.py mover <trabajo> <repo-de-diseño> --pendientes <épica>/<vista>[,<épica>/<vista>...]
    ```
 
-   Con `--pendientes` mueve las aprobadas solo si las vistas que quedan fuera son exactamente las nombradas; si sobra o falta una, no mueve nada y dice cuál. Nunca nombres una vista que no tuvo su segunda revisión. Cada pendiente va al informe con lo que el revisor dijo que falta. Las secciones del spec que haya que actualizar las copias tú.
+   Con `--pendientes` mueve las aprobadas solo si las vistas que quedan fuera son exactamente las nombradas; si sobra o falta una, no mueve nada y dice cuál. Tampoco mueve nada si una nombrada no tiene su veredicto de segunda revisión (`## <épica>/<vista>, segunda revisión: no aprobada`) o si su último veredicto no es `no aprobada`: esa vista vuelve a su subagente, o al revisor si su huella cambió. Cada pendiente va al informe con lo que el revisor dijo que falta. Las secciones del spec que haya que actualizar las copias tú.
 
 ### 9. Guardar
 

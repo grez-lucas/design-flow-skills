@@ -20,7 +20,9 @@ mover   lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/rep
         Si alguna vista queda fuera (no aprobada, sin veredicto, sin huella o con otra, sin contrato o inventario), no
         mueve nada. Con --pendientes, que nombra las vistas que ya tuvieron su segunda
         revisión y siguen sin aprobarse, mueve las aprobadas solo si las que quedan fuera son exactamente esas; si no
-        coinciden, no mueve nada y dice cuáles sobran o faltan. Cualquier otro archivo de la copia (contratos,
+        coinciden, no mueve nada y dice cuáles sobran o faltan. Cada nombrada tiene que tener un veredicto
+        `## <épica>/<vista>, segunda revisión: ...` y `no aprobada` como último veredicto; si no, no mueve nada y dice
+        cuál vuelve a su subagente o al revisor. Cualquier otro archivo de la copia (contratos,
         inventarios) no entra y se lista.
 
         Sale con 0 si entró todo lo que no es pendiente, 1 si no movió nada o dejó fuera un archivo, y 2, sin mover
@@ -38,11 +40,11 @@ from collections import namedtuple
 from pathlib import Path
 
 COMPARTIDOS = ("tokens.css", "components.css", "proto.js")
-FORMATO = re.compile(r"## (?P<vista>[^\s:,]+)(?:, segunda revisión)?: (?:(?P<no>no aprobada)|aprobada(?: (?P<huella>sha256:[0-9a-f]{64}))?)")
+FORMATO = re.compile(r"## (?P<vista>[^\s:,]+)(?P<segunda>, segunda revisión)?: (?:(?P<no>no aprobada)|aprobada(?: (?P<huella>sha256:[0-9a-f]{64}))?)")
 VEREDICTO = re.compile(r"(?:^|[:|·(-])\s*(no\s+)?aprobada\b")
 CERCO = re.compile(r"\s*(?:```|~~~)")
 SIN_NOMBRE = re.compile(r"[\s#|>-]*(?:veredicto|decisi[oó]n)?(?:\s+final)?\s*")
-Veredicto = namedtuple("Veredicto", "estado huella")
+Veredicto = namedtuple("Veredicto", "estado huella segunda", defaults=(False,))
 Resultado = namedtuple("Resultado", "movidos pendientes fuera problema")
 
 
@@ -64,7 +66,8 @@ def nombra(vista):
 
 
 def leer(revision, vistas, historico=False):
-    """Último veredicto del revisor por vista en revision.md: {<épica>/<vista>: Veredicto(estado, huella) o None}.
+    """Último veredicto del revisor por vista en revision.md: {<épica>/<vista>: Veredicto(estado, huella, segunda) o None},
+    donde segunda dice si la vista tuvo un veredicto de segunda revisión en el formato fijo.
 
     Por defecto lee solo el formato fijo, un encabezado por vista con su ruta: `## <épica>/<vista>: aprobada
     sha256:<huella>`, `## <épica>/<vista>: no aprobada`, y la segunda revisión al final como
@@ -83,7 +86,7 @@ def leer(revision, vistas, historico=False):
         leidos = _historico(revision, unicos)
         return {v: Veredicto(leidos[n], None) if leidos.get(n) else None for v, n in nombres.items()}
     patrones = {v: nombra(v) for v in vistas}
-    ultimo, en_codigo = {}, False
+    ultimo, segundas, en_codigo = {}, set(), False
     for linea in revision.splitlines():
         linea = linea.rstrip()
         if CERCO.match(linea):
@@ -91,12 +94,15 @@ def leer(revision, vistas, historico=False):
             continue
         m = None if en_codigo else FORMATO.fullmatch(linea)
         if m and m.group("vista") in patrones:
-            ultimo[m.group("vista")] = Veredicto("no aprobada" if m.group("no") else "aprobada", m.group("huella"))
+            v = m.group("vista")
+            if m.group("segunda"):
+                segundas.add(v)
+            ultimo[v] = Veredicto("no aprobada" if m.group("no") else "aprobada", m.group("huella"))
         elif re.search(r"aprobad", linea, re.I):
             for v, p in patrones.items():
                 if p.search(linea.lower()):
                     ultimo[v] = Veredicto("fuera de formato", None)
-    return {v: ultimo.get(v) for v in vistas}
+    return {v: ultimo[v]._replace(segunda=v in segundas) if v in ultimo else None for v in vistas}
 
 
 def veredictos(revision, vistas, historico=False):
@@ -228,6 +234,19 @@ def mover(trabajo, repo, pendientes=()):
                        f"nombradas que no quedan fuera: {', '.join(sorted(nombradas - afuera))}" if nombradas - afuera else ""]
             problema = ("No se movió nada: `--pendientes` tiene que nombrar exactamente las vistas que quedan fuera; "
                         + "; ".join(d for d in detalle if d) + ".")
+    elif nombradas:
+        motivos = {k: m for v, m in sin_aprobar if (k := clave(v)) in nombradas}
+        no_pendientes = []
+        for k in sorted(nombradas):
+            if not leidos[k] or not leidos[k].segunda:
+                no_pendientes.append(f"{k}: no tuvo segunda revisión (`## {k}, segunda revisión: ...`); vuelve a su subagente "
+                                     "de la ola 2 con las notas del revisor y después al revisor")
+            elif leidos[k].estado != "no aprobada":
+                no_pendientes.append(f"{k}: tuvo segunda revisión, pero su último veredicto no es `no aprobada` ({motivos[k]})")
+        if no_pendientes:
+            problema = ("No se movió nada: `--pendientes` solo nombra vistas que tuvieron su segunda revisión y siguen sin "
+                        "aprobarse.\n" + "".join(f"- {x}\n" for x in no_pendientes).rstrip("\n"))
+    if problema:
         entran = []
     for p in otros:
         if str(p) not in COMPARTIDOS:

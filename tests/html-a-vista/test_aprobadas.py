@@ -198,6 +198,7 @@ class Veredictos(unittest.TestCase):
                          {"compostaje/resumen": None, "socios/resumen": None})
 
 
+SEGUNDA_DEL_MARCO = "\n## semilla/marco, segunda revisión: no aprobada\n- El menú lateral sigue sin llegar al alto de la pantalla.\n"
 VISTAS_ITERACION_3 = {"semilla/marco.html", "inventario/lista.html", "inventario/detalle.html", "inventario/movimientos.html",
                       "compostaje/resumen.html", "compostaje/pilas.html", "socios/socios.html", "socios/cuotas.html",
                       "socios/ajustes.html"}
@@ -270,9 +271,23 @@ class MoverAprobadas(unittest.TestCase):
         fuera = r.stdout.split("Fuera del repositorio")[1]
         self.assertRegex(fuera, r"design/vistas/semilla/marco\.html: no aprobada")
 
-    def test_la_revision_de_la_iteracion_3_con_el_marco_pendiente_mueve_las_8(self):
+    def test_la_revision_de_la_iteracion_3_con_el_marco_pendiente_no_mueve_nada(self):
+        """En la iteración 3 el marco solo tuvo la primera revisión: no volvió a su subagente. --pendientes acepta solo
+        una vista que tuvo su segunda revisión y sigue sin aprobarse; el marco vuelve a su subagente."""
         self.vistas(*VISTAS_ITERACION_3)
         self.revision((FIX / "revision-por-ruta.md").read_text())
+        r = self.correr("--pendientes", "semilla/marco")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(self.en_repo(), set())
+        self.assertEqual((self.repo / "design" / "components.css").read_text(), "/* components.css del repositorio */\n")
+        aviso = r.stdout.split("No se movió nada")[1].split("\n\n")[0]
+        self.assertRegex(aviso, r"semilla/marco: no tuvo segunda revisión")
+        self.assertIn("vuelve a su subagente", aviso)
+        self.assertNotIn("## Pendientes", r.stdout)
+
+    def test_con_el_marco_no_aprobado_en_la_segunda_revision_mueve_las_8(self):
+        self.vistas(*VISTAS_ITERACION_3)
+        self.revision((FIX / "revision-por-ruta.md").read_text() + SEGUNDA_DEL_MARCO)
         r = self.correr("--pendientes", "semilla/marco")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.en_repo(), APROBADAS_ITERACION_3)
@@ -315,9 +330,24 @@ class MoverAprobadas(unittest.TestCase):
         self.assertEqual(self.en_repo(), set())
         self.assertRegex(r.stdout, r"design/vistas/riego/calendario\.html.*sin veredicto")
         r = self.correr("--pendientes", "riego/calendario")
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertEqual(self.en_repo(), {"riego/panel.html"})
-        self.assertRegex(r.stdout.split("## Pendientes")[1], r"design/vistas/riego/calendario\.html.*sin veredicto")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual(self.en_repo(), set())
+        self.assertRegex(r.stdout, r"riego/calendario: no tuvo segunda revisión")
+
+    def test_pendientes_exige_que_el_ultimo_veredicto_de_la_segunda_revision_sea_no_aprobada(self):
+        """Una vista que tuvo su segunda revisión pero cuyo último veredicto no es "no aprobada" no es pendiente: si está
+        fuera de formato o su huella cambió, vuelve al revisor."""
+        casos = {"fuera de formato después de la segunda": "## riego/historial, segunda revisión: no aprobada\n- historial: aprobada\n",
+                 "aprobada en la segunda con otra huella": f"## riego/historial, segunda revisión: aprobada {HUELLA}\n"}
+        for caso, segunda in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.vistas("riego/panel.html", "riego/historial.html")
+                self.revision("## riego/panel: aprobada\n## riego/historial: no aprobada\n" + segunda)
+                r = self.correr("--pendientes", "riego/historial")
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertEqual(self.en_repo(), set())
+                self.assertRegex(r.stdout, r"riego/historial: tuvo segunda revisión, pero su último veredicto no es `no aprobada`")
 
     def test_vista_que_ya_estaba_igual_en_el_repositorio_no_necesita_veredicto(self):
         self.vistas("pedidos/listado.html", carpeta=self.repo / "design")
@@ -338,7 +368,7 @@ class MoverAprobadas(unittest.TestCase):
 
     def test_sin_ninguna_aprobada_no_mueve_los_compartidos(self):
         self.vistas("semilla/marco.html")
-        self.revision((FIX / "revision-por-ruta.md").read_text())
+        self.revision((FIX / "revision-por-ruta.md").read_text() + SEGUNDA_DEL_MARCO)
         for extra in ([], ["--pendientes", "semilla/marco"]):
             with self.subTest(extra=extra):
                 r = self.correr(*extra)
@@ -430,7 +460,7 @@ class MoverAprobadas(unittest.TestCase):
 
     def test_con_el_marco_pendiente_y_una_huella_que_no_coincide_no_mueve_nada(self):
         self.vistas(*VISTAS_ITERACION_3)
-        self.revision((FIX / "revision-por-ruta.md").read_text())
+        self.revision((FIX / "revision-por-ruta.md").read_text() + SEGUNDA_DEL_MARCO)
         (self.copia / "vistas" / "inventario" / "lista.html").write_text("<!doctype html><title>lista cambiada</title>\n")
         r = self.correr("--pendientes", "semilla/marco")
         self.assertEqual(r.returncode, 1, r.stdout)
