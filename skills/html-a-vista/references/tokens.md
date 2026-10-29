@@ -37,14 +37,15 @@ python3 -B <skill>/scripts/tokens.py mapear design/tokens.css <trabajo>/trozos/*
 python3 -B <skill>/scripts/tokens.py consolidar <trabajo>/trozos/*/estilos*.css
 ```
 
-El script agrupa los colores por color base dentro del umbral (las opacidades quedan anotadas en cada grupo), lleva espacios, radios y medidas fijas a múltiplos de 4 px y junta tamaños de letra a 1 px o menos. Es la base mecánica; sobre ella:
+El script agrupa los colores por color base dentro del umbral y dentro de su tema (las opacidades quedan anotadas en cada grupo), lleva espacios, radios y medidas fijas a múltiplos de 4 px y junta tamaños de letra a 1 px o menos. Cada grupo dice su tema: `:root` (el tema por defecto, reglas que ningún selector de tema elige), `[data-theme="dark"]`, `[data-theme="light"]`, `.dark`, `@media (prefers-color-scheme: dark)`, o los dos cuando un bloque vale para dos (`:root, [data-theme="dark"]`, un mockup que abre en oscuro). El mismo valor en dos temas va en dos grupos: un blanco de fondo en el claro y un blanco de texto en el oscuro no son el mismo token. La sección "Un token con un valor por tema" lista cada rol del mockup (una variable, o un selector y su propiedad) que cambia de valor entre temas. Es la base mecánica; sobre ella:
 
 1. Nombra cada grupo por uso con los prefijos de la convención (`references/design-system.md` de `spec-a-html`): `--color-bg`, `--color-surface`, `--color-text-muted`, `--color-primary`. Los usos que lista el script (`background`, `color`, `border-color`) ayudan a decidir.
 2. Junta grupos que cumplen el mismo uso aunque estén fuera del umbral (diez grises para texto secundario son un token). Eso es una decisión de diseño: va en la tabla.
 3. Una opacidad que se repite como fondo de superposición puede ser un token propio (`--color-overlay`); las demás se resuelven con el color base.
 4. Un color con uso propio en pantalla (el morado de "Próximo riego") entra en la tabla como token, aunque quede lejos de los demás. "Pendiente de decisión" es solo para cuando hay un `tokens.css` previo que proteger; sin él, la tabla de consolidación es la decisión de producto, y un color que no entra en ella se pierde de la pantalla.
-5. Muestra la tabla de consolidación (valor original, ocurrencias, token) antes de escribir `tokens.css`, y completa lo que el mockup no define con la plantilla `assets/tokens.css` de `spec-a-html`, diciéndolo.
-6. Antes de escribir, revisa el archivo contra sí mismo:
+5. Cada fila de "Un token con un valor por tema" es un solo token con su valor en cada tema (`--color-bg` con el valor claro en `:root` y el oscuro en `[data-theme="dark"]`), no un token por tema. Si un rol tiene dos valores en el mismo tema (cada módulo con su fondo oscuro), el grupo de colores dice si se ven iguales.
+6. Muestra la tabla de consolidación (tema, valor original, ocurrencias, token, y su valor en cada tema) antes de escribir `tokens.css`, y completa lo que el mockup no define con la plantilla `assets/tokens.css` de `spec-a-html`, diciéndolo.
+7. Antes de escribir, revisa el archivo contra sí mismo:
 
    ```
    python3 -B <skill>/scripts/tokens.py verificar <trabajo>/ola-1/tokens/tokens.css
@@ -54,7 +55,7 @@ El script agrupa los colores por color base dentro del umbral (las opacidades qu
 
 ## Tema oscuro
 
-Si el mockup tiene tema claro y oscuro (bloques `[data-theme="dark"]`, `.dark` o `prefers-color-scheme` en el manifiesto), el claro va en `:root` y el oscuro en `[data-theme="dark"]`, que redefine solo `--color-*`. Mapea los valores del tema oscuro contra los tokens del bloque oscuro. Si el mockup abre en oscuro, igual el claro va en `:root`: `proto.js` abre en claro y suma el control de tema cuando `tokens.css` define el oscuro.
+Si el mockup tiene tema claro y oscuro (bloques `[data-theme="dark"]`, `.dark` o `prefers-color-scheme` en el manifiesto), el claro va en `:root` y el oscuro en `[data-theme="dark"]`, que redefine solo `--color-*`. El tema que trae cada valor en la salida de `tokens.py` dice a qué bloque va: uno con "dark" u "oscuro" al oscuro, los demás al claro. Mapea los valores del tema oscuro contra los tokens del bloque oscuro. Si el mockup abre en oscuro, igual el claro va en `:root`: `proto.js` abre en claro y suma el control de tema cuando `tokens.css` define el oscuro.
 
 ## Verificar antes de escribir
 

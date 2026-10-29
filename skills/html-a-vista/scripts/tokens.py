@@ -10,15 +10,18 @@ Uso:
 mapear      cada color al token --color-* más cercano por distancia perceptual (OKLab), y cada medida al
             token más cercano de su escala (--space-*, --font-size-*, --radius-*, --size-*, según la propiedad).
             Lo que queda fuera del umbral va a una tabla aparte, para que producto elija.
-consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral, con cada opacidad
-            anotada en sus miembros, lleva espacios, radios y medidas fijas a
+consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral y dentro de su tema, con cada
+            opacidad anotada en sus miembros; lista como un token con un valor por tema cada rol (una variable, o
+            un selector y su propiedad) que cambia de valor entre temas; lleva espacios, radios y medidas fijas a
             múltiplos de 4 px y junta tamaños de letra a 1 px o menos.
 verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
             los pares de tokens del mismo tema con valores distintos dentro del umbral, que se ven iguales.
             Sale con 1 si hay alguno.
 
-Cada valor se compara con los tokens de su tema: los de un bloque oscuro del mockup con los de
-[data-theme="dark"], los demás con los de :root. Un radio de 100 px o más es una píldora y va al
+Cada valor lleva su tema: la marca del selector que lo elige ([data-theme="dark"], .dark, .theme-x), el
+@media (prefers-color-scheme: ...) que lo envuelve, los dos si el selector vale para dos temas
+(:root, [data-theme="dark"]), o :root, el tema por defecto, si nada lo elige. Al mapear, cada valor se compara
+con los tokens de su tema: los de un tema oscuro con los de [data-theme="dark"], los demás con los de :root. Un radio de 100 px o más es una píldora y va al
 radio mayor. Umbral de color: distancia OKLab por 100, más la diferencia de opacidad por 100, de 2,0 o menos, que es
 del orden de la diferencia mínima perceptible. Umbral de medida: 1 px o el 10 % del paso, lo que sea mayor.
 Sale con 2 si el uso es incorrecto.
@@ -42,6 +45,8 @@ MEDIDA = re.compile(r"(?<![\w.#-])(\d+(?:\.\d+)?)(px|rem|em|pt)\b")
 PILDORA = 100
 EN_LINEA = "style en línea"
 PREFIJO = {"space": "--space-", "font-size": "--font-size-", "radius": "--radius-", "size": "--size-"}
+TEMA_ATRIBUTO = re.compile(r"""\[data-(theme|tema|mode|modo|color-scheme)\s*=\s*["']?([\w-]+)["']?\s*\]""", re.I)
+TEMA_CLASE = re.compile(r"\.(dark|light|oscuro|claro|(?:theme|tema)-[\w-]+|(?:dark|light)-mode|modo-(?:oscuro|claro))(?![\w-])")
 
 
 # --- Colores -----------------------------------------------------------------------------------
@@ -172,39 +177,81 @@ def es_oscuro(contexto, selector):
     return "dark" in texto or "oscuro" in texto
 
 
+def marcas_de_tema(sub):
+    """Lo que en un selector simple elige un tema: [data-theme="dark"], .dark, .theme-x, normalizado."""
+    marcas = [f'[data-{a.lower()}="{v}"]' for a, v in TEMA_ATRIBUTO.findall(sub)]
+    return marcas + [f".{c}" for c in TEMA_CLASE.findall(sub)]
+
+
+def tema_de(contexto, selector):
+    """El tema de una regla: :root si nada lo elige, la marca del selector ([data-theme="dark"], .dark) o el
+    @media (prefers-color-scheme: ...) que la envuelve. Un selector que vale para dos temas lleva los dos."""
+    media = next((re.sub(r"\s+", " ", c.strip()) for c in contexto if "prefers-color-scheme" in c), None)
+    media = media and re.sub(r"\(\s*prefers-color-scheme\s*:\s*(\w+)\s*\)", r"(prefers-color-scheme: \1)", media)
+    temas = []
+    for sub in selector.split(","):
+        t = " ".join(marcas_de_tema(sub)) or ":root"
+        temas.append(t if not media else media if t == ":root" else f"{media} {t}")
+    return ", ".join(dict.fromkeys(temas))
+
+
+def sin_tema(selector):
+    """El selector sin lo que elige el tema ni la raíz: [data-theme="dark"] .card es .card, :root queda vacío."""
+    bases = []
+    for sub in selector.split(","):
+        limpio = TEMA_CLASE.sub("", TEMA_ATRIBUTO.sub("", sub)).split()
+        while limpio and limpio[0] in ("html", "body", ":root"):
+            limpio.pop(0)
+        bases.append(" ".join(limpio))
+    return ", ".join(b for b in dict.fromkeys(bases) if b)
+
+
 def ocurrencias(fuentes):
     """Valores (normalizados) con su tipo, categoría, cuántas veces aparecen, en qué propiedades y en qué selectores."""
     out = {}
 
-    def sumar(valor, tipo, categoria, prop, tema, selector):
+    def sumar(valor, tipo, categoria, prop, tema, selector, rol):
         clave = (valor, categoria, tema)
         o = out.setdefault(clave, {"valor": valor, "tipo": tipo, "categoria": categoria, "tema": tema, "ocurrencias": 0,
-                                   "usos": [], "selectores": []})
+                                   "usos": [], "selectores": [], "roles": []})
         o["ocurrencias"] += 1
-        if prop not in o["usos"]:
-            o["usos"].append(prop)
-        if selector not in o["selectores"]:
-            o["selectores"].append(selector)
+        for lista, x in ((o["usos"], prop), (o["selectores"], selector), (o["roles"], rol)):
+            if x not in lista:
+                lista.append(x)
 
     for f in fuentes:
         for contexto, selector, cuerpo in reglas(css_de(Path(f))):
             if any(c.lstrip("@").startswith(("keyframes", "-webkit-keyframes")) for c in contexto):
                 continue
             variables = es_bloque_de_variables(contexto, selector)
-            tema = "oscuro" if es_oscuro(contexto, selector) else "claro"
+            tema, base = tema_de(contexto, selector), sin_tema(selector)
             for prop, valor in declaraciones(cuerpo):
                 if prop.startswith("--") and not variables:
                     continue
+                rol = prop if prop.startswith("--") or not base else f"{base} {prop}"
                 for c in COLOR.findall(valor):
                     if leer_color(c):
-                        sumar(c.lower().replace(" ", ""), "color", "color", prop, tema, selector)
+                        sumar(c.lower().replace(" ", ""), "color", "color", prop, tema, selector, rol)
                 cat = categoria_de_variable(prop) if prop.startswith("--") else categoria_de_propiedad(prop)
                 if cat:
                     for m in MEDIDA.finditer(valor):
                         px = leer_medida(m.group(0))
                         if px is not None and px > 2:
-                            sumar(m.group(0).lower(), "medida", cat, prop, tema, selector)
+                            sumar(m.group(0).lower(), "medida", cat, prop, tema, selector, rol)
     return sorted(out.values(), key=lambda o: -o["ocurrencias"])
+
+
+def temas_en_orden(fuentes):
+    """Los temas de las reglas con algún color, en el orden en que aparecen en las fuentes."""
+    temas = []
+    for f in fuentes:
+        for contexto, selector, cuerpo in reglas(css_de(Path(f))):
+            if not any(c.lstrip("@").startswith(("keyframes", "-webkit-keyframes")) for c in contexto) \
+                    and any(leer_color(c) for _, v in declaraciones(cuerpo) for c in COLOR.findall(v)):
+                tema = tema_de(contexto, selector)
+                if tema not in temas:
+                    temas.append(tema)
+    return temas
 
 
 def tokens_de(path):
@@ -221,7 +268,7 @@ def tokens_de(path):
 
 
 def mas_cercano(o, toks):
-    mismo_tema = {k: v for k, v in toks.items() if es_oscuro([], k[1]) == (o.get("tema") == "oscuro")}
+    mismo_tema = {k: v for k, v in toks.items() if es_oscuro([], k[1]) == es_oscuro([], o.get("tema") or "")}
     toks = mismo_tema or toks
     if o["tipo"] == "color":
         c = leer_color(o["valor"])
@@ -256,13 +303,18 @@ def mapear(tokens_css, fuentes):
 
 def consolidar(fuentes):
     ocs = ocurrencias(fuentes)
-    grupos = []
+    grupos, temas, por_rol = [], temas_en_orden(fuentes), {}
     for o in [x for x in ocs if x["tipo"] == "color"]:
+        for rol in o["roles"]:
+            valores = por_rol.setdefault(rol, {}).setdefault(o["tema"], [])
+            if o["valor"] not in valores:
+                valores.append(o["valor"])
         c = leer_color(o["valor"])
         base = c[:3] + (1.0,)
-        g = next((g for g in grupos if distancia_color(base, leer_color(g["representante"])[:3] + (1.0,)) <= UMBRAL_COLOR), None)
+        g = next((g for g in grupos if g["tema"] == o["tema"]
+                  and distancia_color(base, leer_color(g["representante"])[:3] + (1.0,)) <= UMBRAL_COLOR), None)
         if g is None:
-            g = {"representante": o["valor"], "miembros": [], "ocurrencias": 0, "usos": []}
+            g = {"tema": o["tema"], "representante": o["valor"], "miembros": [], "ocurrencias": 0, "usos": []}
             grupos.append(g)
         g["miembros"].append({"valor": o["valor"], "ocurrencias": o["ocurrencias"], "opacidad": round(c[3], 3)})
         g["ocurrencias"] += o["ocurrencias"]
@@ -283,8 +335,11 @@ def consolidar(fuentes):
         g["miembros"].append({"valor": o["valor"], "ocurrencias": o["ocurrencias"]})
         g["ocurrencias"] += o["ocurrencias"]
     orden = sorted(medidas.values(), key=lambda g: (g["categoria"], leer_medida(g["propuesta"]))) + letras
-    return {"umbral": {"color": UMBRAL_COLOR, "medida": UMBRAL_MEDIDA}, "colores": sorted(grupos, key=lambda g: -g["ocurrencias"]),
-            "medidas": orden}
+    orden_temas = {t: i for i, t in enumerate(temas)}
+    por_tema = [{"rol": rol, "valores": dict(sorted(v.items(), key=lambda x: orden_temas[x[0]]))}
+                for rol, v in por_rol.items() if len(v) > 1]
+    return {"umbral": {"color": UMBRAL_COLOR, "medida": UMBRAL_MEDIDA}, "temas": temas,
+            "colores": sorted(grupos, key=lambda g: -g["ocurrencias"]), "por_tema": por_tema, "medidas": orden}
 
 
 def casi_iguales_entre_si(path):
@@ -352,9 +407,17 @@ def miembros(g):
 
 def md_consolidar(d):
     l = ["# Consolidación de valores del mockup", "", "## Colores", "",
-         "| Representante | Ocurrencias | Miembros | Usos |", "| :--- | :--- | :--- | :--- |"]
-    l += [f"| {g['representante']} | {g['ocurrencias']} | {miembros(g)} | "
+         "Agrupados por color base dentro de cada tema: el mismo valor en dos temas va en dos grupos.", "",
+         "| Tema | Representante | Ocurrencias | Miembros | Usos |", "| :--- | :--- | :--- | :--- | :--- |"]
+    l += [f"| {g['tema']} | {g['representante']} | {g['ocurrencias']} | {miembros(g)} | "
           f"{', '.join(g['usos'][:4])} |" for g in d["colores"]]
+    if d["por_tema"]:
+        columnas = [t for t in d["temas"] if any(t in x["valores"] for x in d["por_tema"])]
+        l += ["", "## Un token con un valor por tema", "",
+              "Cada fila es un rol del mockup (una variable, o un selector y su propiedad) con otro valor en cada tema: "
+              "un solo token, con su valor en cada bloque de tema.", "",
+              "| Rol | " + " | ".join(columnas) + " |", "| :--- |" + " :--- |" * len(columnas)]
+        l += [f"| {x['rol']} | " + " | ".join(", ".join(x["valores"].get(t, [])) for t in columnas) + " |" for x in d["por_tema"]]
     l += ["", "## Medidas", "", "| Categoría | Propuesta | Ocurrencias | Valores originales |", "| :--- | :--- | :--- | :--- |"]
     l += [f"| {g['categoria']} | {g['propuesta']} | {g['ocurrencias']} | {miembros(g)} |"
           for g in d["medidas"]]

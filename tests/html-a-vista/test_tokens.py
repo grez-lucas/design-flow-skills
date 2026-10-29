@@ -119,6 +119,10 @@ class Consolidar(unittest.TestCase):
         lejano = next(g for g in self.d["colores"] if "#7a3df0" in [m["valor"] for m in g["miembros"]])
         self.assertEqual(len(lejano["miembros"]), 1)
 
+    def test_cada_grupo_lleva_su_tema(self):
+        tema = {m["valor"]: g["tema"] for g in self.d["colores"] for m in g["miembros"]}
+        self.assertEqual((tema["#2f7d50"], tema["#131916"]), (":root", '[data-theme="dark"]'))
+
     def test_agrupa_por_color_base_y_conserva_cada_opacidad(self):
         negro = next(g for g in self.d["colores"] if "#000" in [m["valor"] for m in g["miembros"]])
         self.assertEqual(sorted(m["valor"] for m in negro["miembros"]), ["#000", "rgba(0,0,0,0.4)"])
@@ -129,6 +133,57 @@ class Consolidar(unittest.TestCase):
         self.assertEqual(espacios, {"14px": "16px", "13px": "12px", "10px": "12px"})
         radios = {m["valor"]: g["propuesta"] for g in self.d["medidas"] if g["categoria"] == "radius" for m in g["miembros"]}
         self.assertEqual(radios, {"10px": "12px", "999px": "9999px"})
+
+
+class ConsolidarPorTema(unittest.TestCase):
+    """Cada valor va con su tema, y un mismo rol con otro valor en otro tema es un solo token con un valor por tema."""
+
+    OSCURO, MEDIA = '[data-theme="dark"]', "@media (prefers-color-scheme: dark)"
+
+    def setUp(self):
+        r = correr("consolidar", FIX / "temas.html", "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.d = json.loads(r.stdout)
+
+    def test_cada_grupo_de_color_es_de_un_tema(self):
+        self.assertEqual(self.d["temas"], [":root", self.OSCURO, self.MEDIA, ".dark"])
+        temas = {m["valor"]: g["tema"] for g in self.d["colores"] for m in g["miembros"] if m["valor"] != "#ffffff"}
+        self.assertEqual(temas, {"#1d2b21": ":root", "#f4f4f4": ":root", "#333333": ":root", "#b26b00": ":root", "#000000": ":root",
+                                 "#121212": self.OSCURO, "#fafafa": self.OSCURO, "#1e1e1e": self.OSCURO,
+                                 "#ffcc00": self.MEDIA})
+        blancos = sorted(g["tema"] for g in self.d["colores"] if "#ffffff" in [m["valor"] for m in g["miembros"]])
+        self.assertEqual(blancos, [".dark", ":root"], "el mismo blanco en dos temas no se mezcla en un grupo")
+
+    def test_un_token_con_un_valor_por_tema(self):
+        por_tema = {t["rol"]: t["valores"] for t in self.d["por_tema"]}
+        self.assertEqual(por_tema, {
+            "--fondo": {":root": ["#ffffff"], self.OSCURO: ["#121212"]},
+            "--texto": {":root": ["#1d2b21"], self.OSCURO: ["#fafafa"]},
+            ".card background": {":root": ["#f4f4f4"], self.OSCURO: ["#1e1e1e"]},
+            ".aviso color": {self.MEDIA: ["#ffcc00"], ":root": ["#b26b00"]},
+            ".titulo color": {".dark": ["#ffffff"], ":root": ["#000000"]},
+        })
+
+    def test_la_tabla_muestra_el_tema_y_los_tokens_por_tema(self):
+        md = correr("consolidar", FIX / "temas.html").stdout
+        colores, por_tema = md.split("## Colores")[1].split("## Medidas")[0], md.split("## Un token con un valor por tema")[1]
+        self.assertIn("| Tema | Representante |", colores)
+        self.assertRegex(colores, r"\| \[data-theme=\"dark\"\] \| #121212 \|")
+        fila = next(l for l in por_tema.splitlines() if l.startswith("| --fondo "))
+        self.assertEqual([c.strip() for c in fila.strip("|").split("|")], ["--fondo", "#ffffff", "#121212", "", ""])
+
+    def test_el_grande_tiene_el_fondo_con_un_valor_por_tema(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        subprocess.run([sys.executable, "-B", str(PRUEBAS / "generar.py"), str(tmp)], check=True, capture_output=True)
+        d = json.loads(correr("consolidar", tmp / "grande.html", "--json").stdout)
+        oscuro, claro = ':root, [data-theme="dark"]', '[data-theme="light"]'
+        self.assertEqual(d["temas"], [oscuro, claro, ":root"], "las reglas sin selector de tema van en :root, el tema por defecto")
+        bg = next(t["valores"] for t in d["por_tema"] if t["rol"] == "--bg")
+        self.assertEqual(set(bg), {oscuro, claro})
+        self.assertIn("#0e1410", bg[oscuro])
+        self.assertIn("#f6f7f2", bg[claro])
+        self.assertEqual([g for g in d["colores"] if "#0e1410" in [m["valor"] for m in g["miembros"]]][0]["tema"], oscuro)
 
 
 class Verificar(unittest.TestCase):
@@ -222,12 +277,14 @@ class MockupsDeLasEvals(unittest.TestCase):
         fondo = next(g for g in d["colores"] if "#0e1410" in [m["valor"] for m in g["miembros"]])
         self.assertEqual({"#111814", "#101712", "#0f1511"} - {m["valor"] for m in fondo["miembros"]}, set(),
                          "el fondo oscuro de cada módulo es un solo color")
-        lineas = [f"  --color-{n}: {g['representante']};" for n, g in enumerate(d["colores"], start=1)]
+        # Un bloque por tema, como en tokens.css: verificar compara cada tema solo consigo.
+        bloques = {t: [f"  --color-{n}: {g['representante']};" for n, g in enumerate(d["colores"], start=1) if g["tema"] == t]
+                   for t in d["temas"]}
         for categoria, prefijo in (("space", "--space"), ("radius", "--radius"), ("size", "--size"), ("font-size", "--font-size")):
             grupos = [g for g in d["medidas"] if g["categoria"] == categoria]
-            lineas += [f"  {prefijo}-{n}: {g['propuesta']};" for n, g in enumerate(grupos, start=1)]
+            bloques[":root"] += [f"  {prefijo}-{n}: {g['propuesta']};" for n, g in enumerate(grupos, start=1)]
         tokens = self.tmp / "tokens.css"
-        tokens.write_text(":root {\n" + "\n".join(lineas) + "\n}\n")
+        tokens.write_text("".join(f"{t} {{\n" + "\n".join(l) + "\n}\n" for t, l in bloques.items()))
         r = correr("verificar", tokens, "--json")
         self.assertEqual(json.loads(r.stdout)["casi_iguales"], [])
         self.assertEqual(r.returncode, 0, r.stdout)
