@@ -160,7 +160,7 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 | `grilling-es` | borrador, probado con specs ficticios y revisado por un subagente |
 | `spec-a-tickets` | borrador, probado con specs ficticios |
 | `checklist-diseno` | borrador, probado con vistas con defectos plantados y revisado por un subagente |
-| `html-a-vista` | borrador, scripts probados con fixtures ficticios y con mockups reales en local; la skill todavía sin corridas |
+| `html-a-vista` | borrador, probado con 11 evals con `claude -p` en tres iteraciones (mockups chico, demo, React y uno grande compuesto, con y sin design system, y las paradas sin navegador, sin spec y sin subagentes), con gates y tests deterministas sobre los mockups de las evals y salidas grabadas, y revisado por subagentes en cada iteración y al final |
 
 ---
 
