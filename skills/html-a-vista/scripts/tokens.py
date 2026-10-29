@@ -11,11 +11,13 @@ mapear      cada color al token --color-* más cercano por distancia perceptual 
             token más cercano de su escala (--space-*, --font-size-*, --radius-*, --size-*, según la propiedad).
             Lo que queda fuera del umbral va a una tabla aparte, para que producto elija.
 consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral y dentro de su tema, con cada
-            opacidad anotada en sus miembros; lista como un token con un valor por tema cada rol (una variable, o
-            un selector y su propiedad) que cambia de valor entre temas; lleva espacios, radios y medidas fijas a
+            opacidad anotada en sus miembros; lista los grupos de reglas sin tema (:root) dentro del umbral de un
+            grupo de otro tema, porque se ven juntos en ese tema; lista como un token con un valor por tema cada
+            rol (una variable, o un selector y su propiedad) que cambia de valor entre temas; lleva espacios, radios y medidas fijas a
             múltiplos de 4 px y junta tamaños de letra a 1 px o menos.
 verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
-            los pares de tokens del mismo tema con valores distintos dentro del umbral, que se ven iguales.
+            los pares de tokens que se ven a la vez con valores distintos dentro del umbral, que se ven iguales:
+            los de un mismo bloque, y los de un bloque de tema con los de :root que ese bloque no redefine.
             Sale con 1 si hay alguno.
 
 Cada valor lleva su tema: la marca del selector que lo elige ([data-theme="dark"], .dark, .theme-x), el
@@ -338,28 +340,70 @@ def consolidar(fuentes):
     orden_temas = {t: i for i, t in enumerate(temas)}
     por_tema = [{"rol": rol, "valores": dict(sorted(v.items(), key=lambda x: orden_temas[x[0]]))}
                 for rol, v in por_rol.items() if len(v) > 1]
-    return {"umbral": {"color": UMBRAL_COLOR, "medida": UMBRAL_MEDIDA}, "temas": temas,
-            "colores": sorted(grupos, key=lambda g: -g["ocurrencias"]), "por_tema": por_tema, "medidas": orden}
+    colores = sorted(grupos, key=lambda g: -g["ocurrencias"])
+    return {"umbral": {"color": UMBRAL_COLOR, "medida": UMBRAL_MEDIDA}, "temas": temas, "colores": colores,
+            "conviven": conviven(colores), "por_tema": por_tema, "medidas": orden}
+
+
+def conviven(grupos):
+    """Grupos de las reglas sin tema (:root) que quedan dentro del umbral, por color base, de un grupo de otro tema. Las
+    reglas sin tema se ven en todos los temas, así que esos dos grupos se ven juntos e iguales en pantalla (o son el
+    mismo color con otra opacidad), aunque la consolidación los haya separado por tema."""
+    def base(g):
+        return leer_color(g["representante"])[:3] + (1.0,)
+    sin_tema = [g for g in grupos if g["tema"] == ":root"]
+    pares = []
+    for g in grupos:
+        if g["tema"] == ":root":
+            continue
+        for r in sin_tema:
+            d = distancia_color(base(g), base(r))
+            if d <= UMBRAL_COLOR:
+                pares.append({"tema": g["tema"], "grupo": g["representante"], "sin_tema": r["representante"], "distancia": d})
+    return pares
+
+
+def par_casi_igual(n1, v1, n2, v2):
+    """La distancia entre dos tokens de la misma categoría con valores distintos si se ven iguales, o None."""
+    if v1.lower().replace(" ", "") == v2.lower().replace(" ", ""):
+        return None
+    if n1.startswith("--color-") and n2.startswith("--color-") and leer_color(v1) and leer_color(v2):
+        d = distancia_color(leer_color(v1), leer_color(v2))
+        return d if d <= UMBRAL_COLOR else None
+    cat = next((p for p in PREFIJO.values() if n1.startswith(p)), None)
+    if not cat or not n2.startswith(cat) or leer_medida(v1) is None or leer_medida(v2) is None:
+        return None
+    d = abs(leer_medida(v1) - leer_medida(v2))
+    return d if d == 0 else None
 
 
 def casi_iguales_entre_si(path):
-    """Pares de tokens del mismo bloque con valores distintos que quedan dentro del umbral: se ven iguales."""
-    casi, toks = [], list(tokens_de(path).items())
-    for i, ((n1, b1), v1) in enumerate(toks):
-        for (n2, b2), v2 in toks[i + 1:]:
-            if b1 != b2 or v1.lower().replace(" ", "") == v2.lower().replace(" ", ""):
-                continue
-            if n1.startswith("--color-") and n2.startswith("--color-") and leer_color(v1) and leer_color(v2):
-                d = distancia_color(leer_color(v1), leer_color(v2))
-                dentro = d <= UMBRAL_COLOR
-            else:
-                cat = next((p for p in PREFIJO.values() if n1.startswith(p)), None)
-                if not cat or not n2.startswith(cat) or leer_medida(v1) is None or leer_medida(v2) is None:
-                    continue
-                d = abs(leer_medida(v1) - leer_medida(v2))
-                dentro = d == 0
-            if dentro:
-                casi.append({"token": n1, "valor": v1, "existente": n2, "valor_existente": v2, "distancia": round(d, 2), "bloque": b1})
+    """Pares de tokens que se ven a la vez con valores distintos dentro del umbral: se ven iguales. Se ven a la vez los
+    de un mismo bloque, y los de un bloque de tema con los de :root que ese bloque no redefine."""
+    por_bloque = {}
+    for (n, b), v in tokens_de(path).items():
+        por_bloque.setdefault(b, {})[n] = v
+    casi = []
+
+    def sumar(n1, v1, b1, n2, v2, b2):
+        d = par_casi_igual(n1, v1, n2, v2)
+        if d is not None:
+            casi.append({"token": n1, "valor": v1, "existente": n2, "valor_existente": v2, "distancia": round(d, 2),
+                         "bloque": b1, "bloque_existente": b2})
+
+    for b, toks in por_bloque.items():
+        lista = list(toks.items())
+        for i, (n1, v1) in enumerate(lista):
+            for n2, v2 in lista[i + 1:]:
+                sumar(n1, v1, b, n2, v2, b)
+    raiz = por_bloque.get(":root", {})
+    for b, toks in por_bloque.items():
+        if b == ":root":
+            continue
+        for n1, v1 in toks.items():
+            for n2, v2 in raiz.items():
+                if n2 not in toks:
+                    sumar(n1, v1, b, n2, v2, ":root")
     return casi
 
 
@@ -411,6 +455,13 @@ def md_consolidar(d):
          "| Tema | Representante | Ocurrencias | Miembros | Usos |", "| :--- | :--- | :--- | :--- | :--- |"]
     l += [f"| {g['tema']} | {g['representante']} | {g['ocurrencias']} | {miembros(g)} | "
           f"{', '.join(g['usos'][:4])} |" for g in d["colores"]]
+    if d["conviven"]:
+        l += ["", "## Colores que conviven con las reglas sin tema", "",
+              "Las reglas sin selector de tema (`:root`) se ven en todos los temas. Cada fila es un grupo sin tema dentro del "
+              "umbral, por color base, de un grupo de ese tema: en pantalla se ven juntos e iguales, o son el mismo color con "
+              "otra opacidad. Junta los dos en un token (o en un token y su opacidad), o sepáralos hasta que se distingan.", "",
+              "| Tema | Grupo del tema | Grupo sin tema | Distancia |", "| :--- | :--- | :--- | :--- |"]
+        l += [f"| {c['tema']} | {c['grupo']} | {c['sin_tema']} | {c['distancia']} |" for c in d["conviven"]]
     if d["por_tema"]:
         columnas = [t for t in d["temas"] if any(t in x["valores"] for x in d["por_tema"])]
         l += ["", "## Un token con un valor por tema", "",
@@ -427,9 +478,14 @@ def md_consolidar(d):
 def md_verificar(d):
     if d.get("entre_si"):
         if not d["casi_iguales"]:
-            return "Ningún par de tokens del mismo tema queda dentro del umbral.\n"
-        return "Tokens del mismo tema casi iguales entre sí (se ven iguales; deja uno o sepáralos):\n" + "".join(
-            f"- {c['token']} ({c['valor']}) y {c['existente']} ({c['valor_existente']}) en {c['bloque']}, distancia {c['distancia']}\n"
+            return "Ningún par de tokens que se ven a la vez queda dentro del umbral.\n"
+
+        def donde(c):
+            if c["bloque"] == c["bloque_existente"]:
+                return f"en {c['bloque']}"
+            return f"en {c['bloque']}, con {c['existente']} de :root, que {c['bloque']} no redefine: en ese tema se ven los dos"
+        return "Tokens que se ven a la vez y casi iguales entre sí (se ven iguales; deja uno o sepáralos):\n" + "".join(
+            f"- {c['token']} ({c['valor']}) y {c['existente']} ({c['valor_existente']}) {donde(c)}, distancia {c['distancia']}\n"
             for c in d["casi_iguales"])
     if not d["casi_iguales"]:
         return "Ningún token nuevo queda dentro del umbral de uno existente.\n"

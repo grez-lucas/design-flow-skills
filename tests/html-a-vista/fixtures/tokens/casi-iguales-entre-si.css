@@ -9,7 +9,7 @@
   --space-2: 8px;
 }
 [data-theme="dark"] {
-  /* casi igual a --color-surface-alt del tema claro: otro tema, no cuenta */
+  /* casi igual a --color-surface-alt, que este bloque no redefine: en oscuro se ven los dos, cuenta */
   --color-bg: #f0f2f6;
   --color-surface: #17201a;
 }

@@ -202,12 +202,23 @@ class Verificar(unittest.TestCase):
     def test_un_solo_archivo_se_revisa_contra_si_mismo(self):
         r = correr("verificar", FIX / "casi-iguales-entre-si.css", "--json")
         self.assertEqual(r.returncode, 1, r.stdout)
-        pares = [(c["token"], c["existente"]) for c in json.loads(r.stdout)["casi_iguales"]]
-        self.assertEqual(pares, [("--color-bg", "--color-surface-alt")],
-                         "los alias de igual valor no cuentan y cada tema se compara solo consigo")
+        pares = [(c["token"], c["bloque"], c["existente"], c["bloque_existente"]) for c in json.loads(r.stdout)["casi_iguales"]]
+        self.assertEqual(pares, [("--color-bg", ":root", "--color-surface-alt", ":root"),
+                                 ("--color-bg", '[data-theme="dark"]', "--color-surface-alt", ":root")],
+                         "los alias de igual valor no cuentan; el oscuro se compara consigo y con los tokens de :root que no "
+                         "redefine, que también se ven en oscuro")
         texto = correr("verificar", FIX / "casi-iguales-entre-si.css").stdout
         self.assertIn("--color-bg (#f6f7f3)", texto)
         self.assertIn("--color-surface-alt (#f0f2f5)", texto)
+
+    def test_un_token_de_root_que_el_tema_redefine_no_convive_con_el_tema(self):
+        tokens = Path(tempfile.mkdtemp()) / "tokens.css"
+        self.addCleanup(shutil.rmtree, tokens.parent)
+        tokens.write_text(":root { --color-bg: #0d1410; --color-text: #1c2a21; }\n"
+                          '[data-theme="dark"] { --color-bg: #f6f7f3; --color-surface: #0e1410; }\n')
+        r = correr("verificar", tokens, "--json")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(json.loads(r.stdout)["casi_iguales"], [], "en oscuro --color-bg es #f6f7f3: el #0d1410 de :root no se ve")
 
     def test_un_solo_archivo_sin_pares_casi_iguales_pasa(self):
         r = correr("verificar", FIX / "tokens.css", "--json")
@@ -260,7 +271,7 @@ class MockupsDeLasEvals(unittest.TestCase):
         f = self.mapeo(self.grande)[("#101712", "color")]
         self.assertEqual((f["token"], f["bloque"], f["distancia"], f["dentro"]), ("--color-bg", '[data-theme="dark"]', 0, True))
 
-    def test_la_consolidacion_del_grande_queda_en_escala_de_4_px_y_verificar_sale_con_0(self):
+    def test_la_consolidacion_del_grande_queda_en_escala_de_4_px(self):
         r = correr("consolidar", self.grande, "--json")
         self.assertEqual(r.returncode, 0, r.stderr)
         d = json.loads(r.stdout)
@@ -277,17 +288,48 @@ class MockupsDeLasEvals(unittest.TestCase):
         fondo = next(g for g in d["colores"] if "#0e1410" in [m["valor"] for m in g["miembros"]])
         self.assertEqual({"#111814", "#101712", "#0f1511"} - {m["valor"] for m in fondo["miembros"]}, set(),
                          "el fondo oscuro de cada módulo es un solo color")
-        # Un bloque por tema, como en tokens.css: verificar compara cada tema solo consigo.
-        bloques = {t: [f"  --color-{n}: {g['representante']};" for n, g in enumerate(d["colores"], start=1) if g["tema"] == t]
-                   for t in d["temas"]}
+
+    POR_DEFECTO = ':root, [data-theme="dark"]'
+
+    def test_la_consolidacion_del_grande_reporta_los_colores_que_conviven_con_las_reglas_sin_tema(self):
+        """Las reglas sin selector de tema (:root) se ven en todos los temas: en el grande conviven con el tema por defecto,
+        el oscuro. Un grupo sin tema dentro del umbral de uno del tema, por color base, se ve igual en pantalla."""
+        d = json.loads(correr("consolidar", self.grande, "--json").stdout)
+        self.assertEqual({(c["tema"], c["grupo"], c["sin_tema"], c["distancia"]) for c in d["conviven"]}, {
+            (self.POR_DEFECTO, "#0e1410", "#0d1410", 0.17),
+            (self.POR_DEFECTO, "#e0a21f", "#e0a21f", 0.0),
+            (self.POR_DEFECTO, "#6cc28e", "rgba(108,194,142,0.14)", 0.0),
+            (self.POR_DEFECTO, "#e8743b", "rgba(232,116,59,0.16)", 0.0),
+        })
+        md = correr("consolidar", self.grande).stdout
+        seccion = md.split("## Colores que conviven con las reglas sin tema")[1].split("## Medidas")[0]
+        self.assertRegex(seccion, r"\| :root, \[data-theme=\"dark\"\] \| #0e1410 \| #0d1410 \| 0\.17 \|")
+
+    def test_verificar_reporta_el_par_del_grande_con_el_tokens_css_que_manda_tokens_md(self):
+        """tokens.css armado con la regla de tokens.md: el tema con "dark" en [data-theme="dark"], los demás en :root.
+        En el oscuro se ven los tokens del bloque oscuro y los de :root que ese bloque no redefine: #0e1410 y #0d1410
+        quedan a 0,17. #e0a21f en los dos es un alias de igual valor, y los tintes rgba difieren en opacidad."""
+        d = json.loads(correr("consolidar", self.grande, "--json").stdout)
+        bloques = {":root": [], '[data-theme="dark"]': []}
+        for n, g in enumerate(d["colores"], start=1):
+            bloque = '[data-theme="dark"]' if "dark" in g["tema"] else ":root"
+            bloques[bloque].append(f"  --color-{n}: {g['representante']};")
         for categoria, prefijo in (("space", "--space"), ("radius", "--radius"), ("size", "--size"), ("font-size", "--font-size")):
             grupos = [g for g in d["medidas"] if g["categoria"] == categoria]
             bloques[":root"] += [f"  {prefijo}-{n}: {g['propuesta']};" for n, g in enumerate(grupos, start=1)]
-        tokens = self.tmp / "tokens.css"
-        tokens.write_text("".join(f"{t} {{\n" + "\n".join(l) + "\n}\n" for t, l in bloques.items()))
+        css = "".join(f"{t} {{\n" + "\n".join(l) + "\n}\n" for t, l in bloques.items())
+        tokens = self.tmp / "tokens-segun-tokens-md.css"
+        tokens.write_text(css)
         r = correr("verificar", tokens, "--json")
-        self.assertEqual(json.loads(r.stdout)["casi_iguales"], [])
-        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual([(c["valor"], c["bloque"], c["valor_existente"], c["bloque_existente"], c["distancia"])
+                          for c in json.loads(r.stdout)["casi_iguales"]],
+                         [("#0e1410", '[data-theme="dark"]', "#0d1410", ":root", 0.17)])
+        self.assertIn("que [data-theme=\"dark\"] no redefine", correr("verificar", tokens).stdout)
+        tokens.write_text(css.replace(": #0d1410;", ": #0e1410;"))
+        r = correr("verificar", tokens, "--json")
+        self.assertEqual((r.returncode, json.loads(r.stdout)["casi_iguales"]), (0, []),
+                         "con el texto del botón al mismo valor que el fondo oscuro, el par es un alias")
 
 
 class Uso(unittest.TestCase):
