@@ -184,7 +184,13 @@ Las pruebas de cada skill viven en `pruebas/<skill>/`, fuera de `evals/`, que es
 python3 pruebas/preparar.py checklist-diseno iteraciones/checklist-diseno/iteration-1
 ```
 
-Eso deja un repositorio de diseño con su commit inicial en `eval-<id>-<nombre>/{with_skill,without_skill}/run-1/outputs/repo`, y los archivos de entrada de cada prueba (`files`) en `<iteración>/insumos/`. Si la skill tiene `pruebas/<skill>/generar.py`, `preparar.py` lo corre antes para los insumos que no se versionan: el mockup grande de `html-a-vista` pasa los 256 KB y se genera de forma determinista. Un agente corre cada prompt con sus reglas, con `<outputs>` en `outputs/` e `<insumos>` en `<iteración>/insumos`, con y sin la skill, y deja lo que produce en `outputs/`. Después:
+Eso deja un repositorio de diseño con su commit inicial en `eval-<id>-<nombre>/{with_skill,without_skill}/run-1/outputs/repo`, y los archivos de entrada de cada prueba (`files`) en `<iteración>/insumos/`. Si la skill tiene `pruebas/<skill>/generar.py`, `preparar.py` lo corre antes para los insumos que no se versionan: el mockup grande de `html-a-vista` pasa los 256 KB y se genera de forma determinista. Un agente corre cada prompt con sus reglas, con `<outputs>` en `outputs/` e `<insumos>` en `<iteración>/insumos`, con y sin la skill, y deja lo que produce en `outputs/`. `pruebas/lanzar.py` lo hace con `claude -p`, una corrida a la vez: salta las que ya terminaron bien, no pasa un `--tope` en USD sumado entre iteraciones, espera a que se reinicie la ventana de uso de 5 horas si la corrida no entra en lo que queda, corre las pruebas con la skill sobre una copia fija del plugin en `<iteración>/plugin` y aplica las restricciones de `arnes` de `evals.json` (sin subagentes, sin navegador):
+
+```
+python3 pruebas/lanzar.py html-a-vista iteraciones/html-a-vista/iteration-4 --evals 3,4 --configs with_skill --tope 120
+```
+
+Después:
 
 ```
 python3 pruebas/checklist-diseno/grade.py iteraciones/checklist-diseno/iteration-1

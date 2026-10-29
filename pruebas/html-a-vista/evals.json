@@ -107,7 +107,10 @@
     "fixtures/mockups/react.html"
    ],
    "repo": "fixtures/con-ds",
-   "mockup": "react"
+   "mockup": "react",
+   "arnes": [
+    "sin-navegador"
+   ]
   },
   {
    "id": 10,
@@ -131,7 +134,10 @@
     "fixtures/mockups/chico.html"
    ],
    "repo": "fixtures/con-ds",
-   "mockup": "chico"
+   "mockup": "chico",
+   "arnes": [
+    "sin-subagentes"
+   ]
   }
  ]
 }
