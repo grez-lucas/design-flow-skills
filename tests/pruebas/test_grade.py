@@ -483,15 +483,18 @@ class VeredictoDelRevisor(unittest.TestCase):
     def test_toda_vista_del_repositorio_tiene_aprobada_como_ultimo_veredicto(self):
         texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
         revision = self.out / "trabajo" / "ola-3" / "revision.md"
-        casos = {"vistas no aprobadas en el repositorio": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"], False),
-                 "solo lo aprobado en el repositorio": (REVISION_SIN_SEGUNDA, ["lista"], True),
-                 "aprobada en la segunda revisión": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"], True),
-                 "vista sin veredicto": (REVISION_FORMATO_FIJO, ["panel", "ajustes"], False)}
-        for caso, (texto_revision, nombres, esperado) in casos.items():
+        casos = {"vistas no aprobadas en el repositorio": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"], True, False),
+                 "solo lo aprobado en el repositorio": (REVISION_SIN_SEGUNDA, ["lista"], True, True),
+                 "aprobada en la segunda revisión": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"], True, True),
+                 "formato fijo": (REVISION_FORMATO_FIJO, ["panel", "historial"], False, True),
+                 "vista sin veredicto": (REVISION_FORMATO_FIJO, ["panel", "ajustes"], False, False),
+                 "formato informal sin --historico": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"], False, False),
+                 "formato informal sin --historico, solo lo aprobado": (REVISION_SIN_SEGUNDA, ["lista"], False, False)}
+        for caso, (texto_revision, nombres, historico, esperado) in casos.items():
             with self.subTest(caso=caso):
                 revision.parent.mkdir(parents=True, exist_ok=True)
                 revision.write_text(texto_revision)
-                res = self.grade.chequeo_revisor(self.out, nombres)
+                res = self.grade.chequeo_revisor(self.out, nombres, historico=historico)
                 self.assertEqual(next(r["passed"] for r in res if r["text"] == texto), esperado)
         revision.unlink()
         res = self.grade.chequeo_revisor(self.out, ["lista"])
@@ -528,12 +531,13 @@ def agregar(archivo, texto):
 class CorridaDeReferencia(unittest.TestCase):
     """La corrida con skill de la eval 5 de la iteración 2 (demo con design system), recortada a lo que grade.py lee:
     el informe, los archivos del commit, el manifiesto, los contratos, la revisión de la ola 3 y los subagentes del
-    transcript. El repositorio se arma de nuevo: fixtures/con-ds como estado inicial y los archivos del commit encima."""
+    transcript. El repositorio se arma de nuevo: fixtures/con-ds como estado inicial y los archivos del commit encima.
+    Su revision.md es anterior al formato fijo ("## panel: APROBADA"), así que se califica en modo histórico."""
 
     def setUp(self):
         self.grade = cargar("html-a-vista")
 
-    def calificar(self, mutar=None):
+    def armar(self, mutar=None):
         it = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, it)
         out = it / "eval-5-demo-con-ds" / "with_skill" / "run-1" / "outputs"
@@ -550,7 +554,23 @@ class CorridaDeReferencia(unittest.TestCase):
         git(repo, "commit", "-q", "-m", "diseno(riego): convierte el mockup del panel de riego")
         (it / "insumos").mkdir()
         shutil.copy(PRUEBAS / "html-a-vista" / "fixtures" / "mockups" / "demo.html", it / "insumos")
-        return self.grade.calificar("eval-5-demo-con-ds", out, it)
+        return it, out
+
+    def calificar(self, mutar=None):
+        it, out = self.armar(mutar)
+        return self.grade.calificar("eval-5-demo-con-ds", out, it, historico=True)
+
+    def test_el_veredicto_informal_pasa_solo_con_historico(self):
+        it, out = self.armar()
+        revisor = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
+        resultados = {}
+        for extra in ([], ["--historico"]):
+            r = subprocess.run([sys.executable, "-B", str(PRUEBAS / "html-a-vista" / "grade.py"), str(it), *extra],
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            nota = json.loads((out.parent / "grading.json").read_text())
+            resultados[" ".join(extra)] = next(e for e in nota["expectations"] if e["text"] == revisor)["passed"]
+        self.assertEqual(resultados, {"": False, "--historico": True})
 
     def fallan(self, res):
         return {r["text"]: r["evidence"] for r in res if not r["passed"]}

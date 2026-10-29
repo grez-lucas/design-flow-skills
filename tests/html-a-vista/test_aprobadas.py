@@ -74,29 +74,75 @@ Veredicto: **aprobada**
 """
 
 
-class Veredictos(unittest.TestCase):
-    """Un solo lector de veredictos: lo usan el paso que mueve las vistas y el calificador de pruebas/html-a-vista."""
+HUELLA = "sha256:" + "0123456789abcdef" * 4
+REVISION_CON_HUELLA = f"""# Revisión · ola 3
 
-    def test_ultimo_veredicto_de_cada_vista(self):
+## panel: aprobada {HUELLA}
+
+## historial: no aprobada
+- Falta el escenario vacío.
+
+## historial, segunda revisión: aprobada {HUELLA}
+"""
+REVISION_RECHAZO_FUERA_DE_FORMATO = f"""## lista: aprobada {HUELLA}
+
+## lista - no aprobada
+- El revisor cambió de opinión, pero escribió el encabezado fuera del formato.
+"""
+
+
+class Veredictos(unittest.TestCase):
+    """Un solo lector de veredictos: lo usan el paso que mueve las vistas y el calificador de pruebas/html-a-vista.
+    Por defecto lee solo el formato fijo; los formatos de las iteraciones 1 y 2 se leen con historico=True."""
+
+    def test_formato_fijo_ultimo_veredicto_de_cada_vista(self):
         formato_fijo = (FIX / "revision-segunda.md").read_text()
         casos = {
             "formato fijo de la skill": (formato_fijo, ["panel", "historial"], {"panel": "aprobada", "historial": "aprobada"}),
             "revisión de eval-3, iteración 3": ((FIX / "revision-iteracion-3.md").read_text(), ["marco", "lista", "ajustes"],
                                                 {"marco": "no aprobada", "lista": "aprobada", "ajustes": "aprobada"}),
-            "sin segunda revisión": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"],
-                                     {"marco": "no aprobada", "lista": "aprobada", "ajustes": "no aprobada"}),
-            "con segunda vuelta en viñetas": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"],
-                                              {"marco": "aprobada", "lista": "aprobada", "detalle-lote": "aprobada"}),
-            "primera revisión escrita después": (REVISION_PRIMERA_DESPUES, ["panel"], {"panel": "aprobada"}),
-            "una vista, segunda revisión sin nombrarla": (REVISION_UNA_VISTA, ["semana"], {"semana": "aprobada"}),
-            "una vista que el archivo no nombra": (REVISION_SIN_NOMBRE, ["reservas"], {"reservas": "aprobada"}),
+            "con huella": (REVISION_CON_HUELLA, ["panel", "historial"], {"panel": "aprobada", "historial": "aprobada"}),
             "vista que el revisor no nombra": (formato_fijo, ["panel", "historial", "ajustes"],
                                                {"panel": "aprobada", "historial": "aprobada", "ajustes": None}),
-            "detalle no es detalle-lote": (REVISION_CON_SEGUNDA_VUELTA, ["detalle"], {"detalle": None}),
+            "un rechazo fuera de formato no deja en pie la aprobación anterior": (
+                REVISION_RECHAZO_FUERA_DE_FORMATO, ["lista"], {"lista": "fuera de formato"}),
         }
         for caso, (revision, nombres, esperado) in casos.items():
             with self.subTest(caso=caso):
                 self.assertEqual(aprobadas.veredictos(revision, nombres), esperado)
+
+    def test_la_huella_es_la_del_ultimo_veredicto(self):
+        leidos = aprobadas.leer(REVISION_CON_HUELLA, ["panel", "historial"])
+        self.assertEqual({v: (x.estado, x.huella) for v, x in leidos.items()},
+                         {"panel": ("aprobada", HUELLA), "historial": ("aprobada", HUELLA)})
+        sin = aprobadas.leer((FIX / "revision-segunda.md").read_text(), ["panel"])
+        self.assertEqual((sin["panel"].estado, sin["panel"].huella), ("aprobada", None))
+
+    def test_formatos_informales_solo_en_modo_historico(self):
+        """Los revisores de las iteraciones 1 y 2 escribieron el veredicto a su manera. El modo histórico los lee para
+        calificar esas corridas; el modo por defecto no aprueba ninguno, y marca el encabezado que no sigue el formato."""
+        casos = {
+            "sin segunda revisión": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"],
+                                     {"marco": "no aprobada", "lista": "aprobada", "ajustes": "no aprobada"},
+                                     {"marco": "fuera de formato", "lista": "fuera de formato", "ajustes": "fuera de formato"}),
+            "con segunda vuelta en viñetas": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"],
+                                              {"marco": "aprobada", "lista": "aprobada", "detalle-lote": "aprobada"},
+                                              {"marco": "fuera de formato", "lista": "fuera de formato",
+                                               "detalle-lote": "fuera de formato"}),
+            "primera revisión escrita después": (REVISION_PRIMERA_DESPUES, ["panel"], {"panel": "aprobada"},
+                                                 {"panel": "fuera de formato"}),
+            "una vista, segunda revisión sin nombrarla": (REVISION_UNA_VISTA, ["semana"], {"semana": "aprobada"}, {"semana": None}),
+            "una vista que el archivo no nombra": (REVISION_SIN_NOMBRE, ["reservas"], {"reservas": "aprobada"}, {"reservas": None}),
+            "detalle no es detalle-lote": (REVISION_CON_SEGUNDA_VUELTA, ["detalle"], {"detalle": None}, {"detalle": None}),
+        }
+        for caso, (revision, nombres, historico, estricto) in casos.items():
+            with self.subTest(caso=caso):
+                self.assertEqual(aprobadas.veredictos(revision, nombres, historico=True), historico)
+                self.assertEqual(aprobadas.veredictos(revision, nombres), estricto)
+
+    def test_el_modo_historico_lee_tambien_el_formato_fijo(self):
+        self.assertEqual(aprobadas.veredictos((FIX / "revision-iteracion-3.md").read_text(), ["marco", "lista"], historico=True),
+                         {"marco": "no aprobada", "lista": "aprobada"})
 
 
 VISTAS_ITERACION_3 = {"semilla/marco.html", "inventario/lista.html", "socios/ajustes.html"}

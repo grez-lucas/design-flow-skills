@@ -6,6 +6,11 @@ ni de un formato, y la severidad (pendiente de decisión, criterio para el ticke
 aparte, solo sobre la primera oración de cada hallazgo. El repositorio y la carpeta de trabajo se revisan
 con chequeos propios: revisar.py, commits, archivos, vistas, tokens y contratos; el transcript, con los suyos:
 subagentes de la ola 2 y, en las corridas que se detienen, subagentes y lecturas del mockup.
+
+Uso: python3 grade.py <iteración> [--historico]
+
+--historico lee el veredicto del revisor también en los formatos de antes del formato fijo de la skill; es solo para
+las iteraciones 1 y 2. Sin él, el veredicto se lee como lo lee aprobadas.py.
 """
 import hashlib
 import json
@@ -298,13 +303,14 @@ def chequeo_ola2(out, nombres):
                   f"sin subagente propio: {faltan}; subagentes de la ola 2: {ola2[:10]}")]
 
 
-def chequeo_revisor(out, nombres):
-    """Toda vista que llegó al repositorio tiene "aprobada" como último veredicto en trabajo/ola-3/revision.md."""
+def chequeo_revisor(out, nombres, historico=False):
+    """Toda vista que llegó al repositorio tiene "aprobada" como último veredicto en trabajo/ola-3/revision.md. Con
+    historico, también en los formatos que escribieron los revisores antes del formato fijo (iteraciones 1 y 2)."""
     revision = out / "trabajo" / "ola-3" / "revision.md"
     texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
     if not revision.is_file():
         return [check(texto, False, "sin trabajo/ola-3/revision.md")]
-    v = veredictos(revision.read_text(errors="ignore"), nombres)
+    v = veredictos(revision.read_text(errors="ignore"), nombres, historico=historico)
     malas = {n: x for n, x in v.items() if x != "aprobada"}
     return [check(texto, nombres and not malas, malas or v)]
 
@@ -376,7 +382,7 @@ def sin_conversion(out, fixture_repo, motivo, mockup):
     return res
 
 
-def calificar(name, out, iteracion):
+def calificar(name, out, iteracion, historico=False):
     prueba = next(p for p in json.loads((PRUEBAS / "evals.json").read_text())["evals"] if f"eval-{p['id']}-{p['name']}" == name)
     mockup, fixture_repo, reglas = prueba["mockup"], PRUEBAS / prueba["repo"], prueba["reglas"]
     if prueba["name"].endswith("sin-navegador"):
@@ -392,7 +398,7 @@ def calificar(name, out, iteracion):
     rep, htmls, tok = repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo)
     res += rep
     res += chequeo_ola2(out, [v.stem for v in htmls])
-    res += chequeo_revisor(out, [v.stem for v in htmls])
+    res += chequeo_revisor(out, [v.stem for v in htmls], historico)
     if mockup == "grande":
         res += extra_grande(out, htmls, tok)
     if mockup == "chico" and not con_ds:
@@ -415,7 +421,7 @@ def falta(out):
     return None
 
 
-def main(iteration):
+def main(iteration, historico=False):
     iteracion = Path(iteration)
     runs = sorted(iteracion.glob("eval-*/*/run-*"))
     if not runs:
@@ -430,7 +436,7 @@ def main(iteration):
             g = {"error": error, "expectations": [], "summary": {"passed": 0, "failed": 0, "total": 0, "pass_rate": 0.0}}
             print(f"{name}/{config}: ERROR, {error}")
         else:
-            res = calificar(name, out, iteracion)
+            res = calificar(name, out, iteracion, historico)
             passed = sum(r["passed"] for r in res)
             g = {"expectations": res, "summary": {"passed": passed, "failed": len(res) - passed, "total": len(res),
                                                   "pass_rate": round(passed / len(res), 2)}}
@@ -440,4 +446,8 @@ def main(iteration):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1]))
+    args = [a for a in sys.argv[1:] if a != "--historico"]
+    if len(args) != 1:
+        print("Uso: python3 grade.py <iteración> [--historico]", file=sys.stderr)
+        sys.exit(2)
+    sys.exit(main(args[0], historico="--historico" in sys.argv[1:]))

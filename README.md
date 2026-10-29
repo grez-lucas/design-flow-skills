@@ -196,7 +196,7 @@ Después:
 python3 pruebas/checklist-diseno/grade.py iteraciones/checklist-diseno/iteration-1
 ```
 
-`grade.py` escribe un `grading.json` por corrida. Regla de los `grade.py`: el contenido esperado se busca en todo el informe, sin depender de una sección ni de un formato, y la severidad o la ubicación se verifican en un chequeo aparte, solo sobre la primera oración de cada hallazgo para no contar menciones dentro de otro.
+`grade.py` escribe un `grading.json` por corrida. El de `html-a-vista` lee el veredicto del revisor como `aprobadas.py`, solo en el formato fijo de la skill; las iteraciones 1 y 2, anteriores a ese formato, se califican con `--historico`. Regla de los `grade.py`: el contenido esperado se busca en todo el informe, sin depender de una sección ni de un formato, y la severidad o la ubicación se verifican en un chequeo aparte, solo sobre la primera oración de cada hallazgo para no contar menciones dentro de otro.
 
 El workflow `.github/workflows/ci.yml` corre los tests y `claude plugin validate . --strict` en cada push a `main` y en cada pull request. `--strict` falla si `plugin.json` o la entrada de `marketplace.json` pierden su `version`; al publicar cambios para quien ya tiene el plugin, la versión sube en los dos, y `tests/repositorio/` verifica que coincidan.
 

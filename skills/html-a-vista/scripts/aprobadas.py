@@ -15,11 +15,14 @@ Sale con 0 si todo entró, 1 si algo quedó fuera (lo aprobado ya se movió) y 2
 import re
 import shutil
 import sys
+from collections import namedtuple
 from pathlib import Path
 
 COMPARTIDOS = ("tokens.css", "components.css", "proto.js")
+FORMATO = re.compile(r"## (?P<vista>[^\s:,]+)(?:, segunda revisión)?: (?:(?P<no>no aprobada)|aprobada(?: (?P<huella>sha256:[0-9a-f]{64}))?)")
 VEREDICTO = re.compile(r"(?:^|[:|·(-])\s*(no\s+)?aprobada\b")
 SIN_NOMBRE = re.compile(r"[\s#|>-]*(?:veredicto|decisi[oó]n)?(?:\s+final)?\s*")
+Veredicto = namedtuple("Veredicto", "estado huella")
 
 
 def palabra(valor):
@@ -27,13 +30,40 @@ def palabra(valor):
     return rf"(?<![\w-]){re.escape(valor)}(?![\w-])"
 
 
-def veredictos(revision, nombres):
-    """Último veredicto del revisor por vista ("aprobada", "no aprobada" o None) en revision.md.
+def leer(revision, nombres, historico=False):
+    """Último veredicto del revisor por vista en revision.md: {vista: Veredicto(estado, huella) o None}.
 
-    El formato fijo es un encabezado por vista, `## <vista>: aprobada` o `## <vista>: no aprobada`, y la segunda
-    revisión al final como `## <vista>, segunda revisión: aprobada`. También lee lo que escribieron los revisores
-    antes de fijarlo: un veredicto es "aprobada" o "no aprobada" tras dos puntos, guion, barra o paréntesis, en
-    singular, para no leer un resumen ("6 aprobadas") ni una frase ("la tabla de tokens aprobada"). Va a la vista que
+    Por defecto lee solo el formato fijo, un encabezado por vista: `## <vista>: aprobada sha256:<huella>`,
+    `## <vista>: no aprobada`, y la segunda revisión al final como `## <vista>, segunda revisión: ...`. Vale el último
+    en el archivo. Un encabezado que nombra una vista y dice "aprobada" sin seguir el formato cuenta como veredicto
+    "fuera de formato": no aprueba, y tampoco deja en pie una aprobación anterior.
+
+    historico=True lee además lo que escribieron los revisores de las iteraciones 1 y 2, antes del formato fijo; lo
+    usa solo el calificador de esas corridas (pruebas/html-a-vista/grade.py --historico)."""
+    if historico:
+        return {v: Veredicto(e, None) if e else None for v, e in _historico(revision, nombres).items()}
+    patrones = {v: re.compile(palabra(v.lower())) for v in nombres}
+    ultimo = {}
+    for linea in revision.splitlines():
+        linea = linea.rstrip()
+        m = FORMATO.fullmatch(linea)
+        if m and m.group("vista") in patrones:
+            ultimo[m.group("vista")] = Veredicto("no aprobada" if m.group("no") else "aprobada", m.group("huella"))
+        elif linea.startswith("#") and re.search(r"aprobad", linea, re.I):
+            for v, p in patrones.items():
+                if p.search(linea.lower()):
+                    ultimo[v] = Veredicto("fuera de formato", None)
+    return {v: ultimo.get(v) for v in nombres}
+
+
+def veredictos(revision, nombres, historico=False):
+    """Último veredicto por vista: "aprobada", "no aprobada", "fuera de formato" o None. Ver leer()."""
+    return {v: x.estado if x else None for v, x in leer(revision, nombres, historico).items()}
+
+
+def _historico(revision, nombres):
+    """Los veredictos de antes del formato fijo: "aprobada" o "no aprobada" tras dos puntos, guion, barra o paréntesis,
+    en singular, para no leer un resumen ("6 aprobadas") ni una frase ("la tabla de tokens aprobada"). Va a la vista que
     la línea nombra antes del veredicto; un "Veredicto:" sin vista, a la del último encabezado que nombró una, o a la
     única vista. Vale el último en el archivo, salvo que diga "primera revisión": esa pierde contra cualquier otra."""
     patrones = {v: re.compile(palabra(v.lower())) for v in nombres}
@@ -86,7 +116,9 @@ def mover(trabajo, repo):
         if len(por_nombre[v.stem]) > 1:
             fuera.append((v, f"hay otra vista con el mismo nombre, `{v.stem}`, y el veredicto no dice de cuál es"))
         elif veredicto[v.stem] != "aprobada":
-            fuera.append((v, veredicto[v.stem] or "sin veredicto en revision.md"))
+            fuera.append((v, {None: "sin veredicto en revision.md",
+                              "fuera de formato": f"su último encabezado en revision.md no sigue el formato `## {v.stem}: aprobada "
+                                                  "sha256:<huella>` o `## <vista>: no aprobada`"}.get(veredicto[v.stem], veredicto[v.stem])))
         elif falta := sin_evidencia(trabajo, v.stem):
             fuera.append((v, f"aprobada, pero sin {falta}: el revisor aprueba leyendo el contrato y el inventario"))
         else:
