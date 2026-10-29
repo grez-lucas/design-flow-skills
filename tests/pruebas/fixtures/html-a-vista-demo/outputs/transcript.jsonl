@@ -1,0 +1,5 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {"description": "Ola 1: componentes base"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {"description": "Ola 1: marco y escenarios globales"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {"description": "Ola 2: panel"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {"description": "Ola 2: historial"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {"description": "Ola 3: revisor"}}]}}

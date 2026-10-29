@@ -1,0 +1,395 @@
+{
+ "version": 1,
+ "origen": {
+  "archivo": "demo.html",
+  "bytes": 7152,
+  "lineas": 145,
+  "md5": "7cec487421a325c0960b0aa3656913d3"
+ },
+ "estimacion": {
+  "metodo": "bytes/4",
+  "margen": "Estimación sin tokenizador. En un mockup real de 1,7 MB dio un 14 % menos que o200k_base, y los tokenizadores de Claude cuentan hasta 1,35 veces más que o200k_base para el mismo texto: el tope por defecto deja ese margen bajo los 25.000 tokens de una lectura.",
+  "tope_por_trozo": 15000
+ },
+ "compuesto": false,
+ "frameworks": [],
+ "requiere_render": false,
+ "externos": [],
+ "partes": [
+  {
+   "id": "documento",
+   "tipo": "documento",
+   "archivo": "partes/documento.html",
+   "titulo": "Semilla · Panel de riego (prototipo v3)",
+   "origen": {
+    "lineas": [
+     1,
+     145
+    ]
+   },
+   "bytes": 7152,
+   "tokens": 1788,
+   "lineas": 145,
+   "trozos": [
+    {
+     "tipo": "css",
+     "archivo": "trozos/documento/estilos.css",
+     "bytes": 2746,
+     "tokens": 687
+    },
+    {
+     "tipo": "js",
+     "archivo": "trozos/documento/script.js",
+     "bytes": 1079,
+     "tokens": 270
+    },
+    {
+     "tipo": "markup",
+     "archivo": "trozos/documento/markup/panel-page.html",
+     "id": "panel-page",
+     "clase": "pantalla",
+     "titulo": "Zonas",
+     "lineas": [
+      67,
+      94
+     ],
+     "bytes": 1370,
+     "tokens": 343
+    },
+    {
+     "tipo": "markup",
+     "archivo": "trozos/documento/markup/historial-page.html",
+     "id": "historial-page",
+     "clase": "pantalla",
+     "titulo": "Historial de riego",
+     "lineas": [
+      96,
+      105
+     ],
+     "bytes": 510,
+     "tokens": 128
+    },
+    {
+     "tipo": "markup",
+     "archivo": "trozos/documento/markup/regar-modal.html",
+     "id": "regar-modal",
+     "clase": "superposicion",
+     "titulo": "Regar ahora",
+     "lineas": [
+      108,
+      117
+     ],
+     "bytes": 478,
+     "tokens": 120
+    },
+    {
+     "tipo": "markup",
+     "archivo": "trozos/documento/markup/_resto.html",
+     "id": "_resto",
+     "clase": "resto",
+     "titulo": "Panel de riego",
+     "bytes": 798,
+     "tokens": 200
+    }
+   ],
+   "variables": {
+    ":root": {
+     "--fondo": "#f6f7f2",
+     "--papel": "#ffffff",
+     "--texto": "#1c2a21",
+     "--suave": "#5b6b60",
+     "--agua": "#1f6f8b",
+     "--linea": "#d6dccf",
+     "--alerta": "#c62828"
+    }
+   },
+   "valores": [
+    {
+     "valor": "8px",
+     "css": 6,
+     "js": 0
+    },
+    {
+     "valor": "12px",
+     "css": 5,
+     "js": 0
+    },
+    {
+     "valor": "10px",
+     "css": 4,
+     "js": 0
+    },
+    {
+     "valor": "16px",
+     "css": 4,
+     "js": 0
+    },
+    {
+     "valor": "6px",
+     "css": 4,
+     "js": 0
+    },
+    {
+     "valor": "#9a5b00",
+     "css": 3,
+     "js": 0
+    },
+    {
+     "valor": "14px",
+     "css": 3,
+     "js": 0
+    },
+    {
+     "valor": "#fde2e2",
+     "css": 2,
+     "js": 0
+    },
+    {
+     "valor": "30px",
+     "css": 2,
+     "js": 0
+    },
+    {
+     "valor": "4px",
+     "css": 2,
+     "js": 0
+    },
+    {
+     "valor": "#7b4fd6",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "#e6f0f3",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "#fff1d6",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "#fff8e8",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "#ffffff",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "1180px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "13px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "17px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "18px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "20px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "220px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "24px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "380px",
+     "css": 1,
+     "js": 0
+    },
+    {
+     "valor": "rgba(16,23,18,0.45)",
+     "css": 1,
+     "js": 0
+    }
+   ],
+   "data_state": [
+    {
+     "valor": "full",
+     "linea": 70
+    },
+    {
+     "valor": "partial",
+     "linea": 70
+    },
+    {
+     "valor": "off",
+     "linea": 70
+    }
+   ],
+   "controles": {
+    "por_texto": [
+     {
+      "texto": "Semilla · Panel de riego (prototipo v3)",
+      "linea": 6
+     },
+     {
+      "texto": "DEMO ▾",
+      "linea": 54,
+      "etiqueta": "button",
+      "onclick": "demoToggleMenu()"
+     },
+     {
+      "texto": "Simular sensor sin señal",
+      "linea": 56,
+      "etiqueta": "button",
+      "onclick": "demoSet('sin-senal')"
+     },
+     {
+      "texto": "Simular tanque vacío",
+      "linea": 57,
+      "etiqueta": "button",
+      "onclick": "demoSet('tanque-vacio')"
+     },
+     {
+      "texto": "Salir de demo",
+      "linea": 58,
+      "etiqueta": "button",
+      "onclick": "demoSet('')"
+     }
+    ],
+    "por_funcion": [
+     {
+      "nombre": "DEMO_MODES",
+      "linea_en_js": 2
+     },
+     {
+      "nombre": "demoToggleMenu",
+      "linea_en_js": 3
+     },
+     {
+      "nombre": "demoSet",
+      "linea_en_js": 4
+     }
+    ]
+   },
+   "animaciones": {
+    "keyframes": 0,
+    "setTimeout": 0,
+    "setInterval": 0
+   },
+   "js_arma_markup": 0
+  }
+ ],
+ "iconos": [],
+ "valores": [
+  {
+   "valor": "8px",
+   "total": 6
+  },
+  {
+   "valor": "12px",
+   "total": 5
+  },
+  {
+   "valor": "10px",
+   "total": 4
+  },
+  {
+   "valor": "16px",
+   "total": 4
+  },
+  {
+   "valor": "6px",
+   "total": 4
+  },
+  {
+   "valor": "#9a5b00",
+   "total": 3
+  },
+  {
+   "valor": "14px",
+   "total": 3
+  },
+  {
+   "valor": "#fde2e2",
+   "total": 2
+  },
+  {
+   "valor": "30px",
+   "total": 2
+  },
+  {
+   "valor": "4px",
+   "total": 2
+  },
+  {
+   "valor": "#7b4fd6",
+   "total": 1
+  },
+  {
+   "valor": "#e6f0f3",
+   "total": 1
+  },
+  {
+   "valor": "#fff1d6",
+   "total": 1
+  },
+  {
+   "valor": "#fff8e8",
+   "total": 1
+  },
+  {
+   "valor": "#ffffff",
+   "total": 1
+  },
+  {
+   "valor": "1180px",
+   "total": 1
+  },
+  {
+   "valor": "13px",
+   "total": 1
+  },
+  {
+   "valor": "17px",
+   "total": 1
+  },
+  {
+   "valor": "18px",
+   "total": 1
+  },
+  {
+   "valor": "20px",
+   "total": 1
+  },
+  {
+   "valor": "220px",
+   "total": 1
+  },
+  {
+   "valor": "24px",
+   "total": 1
+  },
+  {
+   "valor": "380px",
+   "total": 1
+  },
+  {
+   "valor": "rgba(16,23,18,0.45)",
+   "total": 1
+  }
+ ]
+}

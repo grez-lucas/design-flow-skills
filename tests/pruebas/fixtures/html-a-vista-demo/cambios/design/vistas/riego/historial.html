@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Riego · Historial de riego</title>
+  <meta name="spec" content="specs/riego/spec.md">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos">
+  <main class="page" data-frame>
+    <header class="page__header">
+      <h1>Panel de riego</h1>
+    </header>
+    <nav class="tabs" aria-label="Secciones del panel de riego">
+      <a class="tab" href="panel.html">Zonas</a>
+      <a class="tab tab--active" href="historial.html" aria-current="page">Historial de riego</a>
+    </nav>
+
+    <!-- SEM-22: riegos de los últimos días, del más reciente al más antiguo -->
+    <section data-state="normal muchos-datos" aria-label="Historial de riego">
+      <!-- muchos-datos: la tabla crece en la misma página, sin paginación ni scroll interno; paginar o limitar a los últimos días queda pendiente de decisión de producto -->
+      <table class="table">
+        <thead><tr><th>Fecha</th><th>Zona</th><th>Duración</th><th>Origen</th></tr></thead>
+        <tbody>
+          <tr><td>12 de abril, 19:00</td><td>Zona norte</td><td>15 min</td><td>Programado</td></tr>
+          <tr><td>12 de abril, 07:30</td><td>Zona invernadero</td><td>20 min</td><td>Programado</td></tr>
+          <tr><td>11 de abril, 16:42</td><td>Zona aromáticas</td><td>10 min</td><td>Manual, Camila Rojas</td></tr>
+        </tbody>
+        <!-- solo muchos-datos: proto.js clona estas filas hasta 47 más (50 en total con las 3 de arriba) -->
+        <tbody data-state="muchos-datos" data-repeat="47">
+          <tr><td>11 de abril, 09:15</td><td>Zona invernadero de almácigos y plantines nuevos</td><td>60 min</td><td>Manual, Valentina Fuentes-Montenegro de la Barra</td></tr>
+          <tr><td>10 de abril, 19:00</td><td>Zona norte</td><td>15 min</td><td>Programado</td></tr>
+          <tr><td>10 de abril, 07:30</td><td>Zona aromáticas</td><td>20 min</td><td>Manual, Camila Rojas</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-state="vacio" class="empty-state">
+      <h2>Todavía no hay riegos registrados</h2>
+      <p>Cuando el sistema riegue una zona, o un socio la riegue a mano, el riego aparece aquí.</p>
+      <a class="btn" href="panel.html">Ir a las zonas</a>
+    </section>
+
+    <section data-state="cargando" aria-busy="true" aria-label="Cargando el historial de riego">
+      <!-- la tabla se arma con filas de esqueleto mientras llegan los riegos -->
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </section>
+
+    <section data-state="error">
+      <div class="alert alert--danger" role="alert">
+        <p>No pudimos cargar el historial de riego. Revisa tu conexión e inténtalo de nuevo.</p>
+        <!-- al hacer clic en "Reintentar": vuelve a pedir el historial y muestra el escenario cargando -->
+        <button class="btn" type="button">Reintentar</button>
+      </div>
+    </section>
+
+    <section data-state="sin-permiso" class="empty-state">
+      <h2>No tienes acceso al historial de riego</h2>
+      <p>Esta sección es para quienes coordinan el riego. Pide acceso a la coordinadora del huerto.</p>
+      <!-- al hacer clic en "Volver a las zonas": lleva a panel.html -->
+      <a class="btn" href="panel.html">Volver a las zonas</a>
+    </section>
+  </main>
+</body>
+</html>

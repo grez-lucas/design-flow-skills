@@ -496,5 +496,110 @@ class VeredictoDelRevisor(unittest.TestCase):
         res = self.grade.chequeo_revisor(self.out, ["lista"])
         self.assertFalse(next(r["passed"] for r in res if r["text"] == texto))
 
+
+DEMO = FIXTURES / "html-a-vista-demo"
+CHEQUEOS_DEMO = 27
+
+
+def git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=Prueba", "-c", "user.email=prueba@example.com",
+                    "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)
+
+
+def reemplazar(archivo, viejo, nuevo):
+    def mutar(repo):
+        f = repo / archivo
+        texto = f.read_text()
+        if texto.count(viejo) != 1:
+            raise AssertionError(f"{viejo!r} no aparece una vez en {archivo}")
+        f.write_text(texto.replace(viejo, nuevo))
+    return mutar
+
+
+
+def agregar(archivo, texto):
+    def mutar(repo):
+        f = repo / archivo
+        f.write_text(f.read_text() + texto)
+    return mutar
+
+
+class CorridaDeReferencia(unittest.TestCase):
+    """La corrida con skill de la eval 5 de la iteración 2 (demo con design system), recortada a lo que grade.py lee:
+    el informe, los archivos del commit, el manifiesto, los contratos, la revisión de la ola 3 y los subagentes del
+    transcript. El repositorio se arma de nuevo: fixtures/con-ds como estado inicial y los archivos del commit encima."""
+
+    def setUp(self):
+        self.grade = cargar("html-a-vista")
+
+    def calificar(self, mutar=None):
+        it = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, it)
+        out = it / "eval-5-demo-con-ds" / "with_skill" / "run-1" / "outputs"
+        shutil.copytree(DEMO / "outputs", out)
+        repo = out / "repo"
+        shutil.copytree(PRUEBAS / "html-a-vista" / "fixtures" / "con-ds", repo)
+        git(repo, "init", "-q")
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", "estado inicial")
+        shutil.copytree(DEMO / "cambios", repo, dirs_exist_ok=True)
+        if mutar:
+            mutar(repo)
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", "diseno(riego): convierte el mockup del panel de riego")
+        (it / "insumos").mkdir()
+        shutil.copy(PRUEBAS / "html-a-vista" / "fixtures" / "mockups" / "demo.html", it / "insumos")
+        return self.grade.calificar("eval-5-demo-con-ds", out, it)
+
+    def fallan(self, res):
+        return {r["text"]: r["evidence"] for r in res if not r["passed"]}
+
+    def test_la_corrida_de_referencia_pasa_todos_los_chequeos(self):
+        res = self.calificar()
+        self.assertEqual(self.fallan(res), {})
+        self.assertEqual(len(res), CHEQUEOS_DEMO)
+        textos = [r["text"] for r in res]
+        for chequeo in ("Sin @keyframes, CDN ni JS fuera de proto.js", "Las vistas no usan el data-state ajeno del mockup",
+                        "Los commits nuevos tocan solo design/ y specs/", "La ola 2 tiene un subagente por vista",
+                        "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"):
+            self.assertIn(chequeo, textos)
+
+    def test_cada_defecto_del_repositorio_lo_marca_su_chequeo(self):
+        revisar = "revisar.py no tiene hallazgos que bloquean"
+        sin_animaciones = "Sin @keyframes, CDN ni JS fuera de proto.js"
+        casos = {
+            "@keyframes real en components.css": (
+                agregar("design/components.css", "\n@keyframes latir { 50% { opacity: .5; } }\n.badge--vivo { animation: latir 1.4s infinite; }\n"),
+                {sin_animaciones: "'keyframes': ['design/components.css']", revisar: "@keyframes"}),
+            "fuente por CDN en una vista": (
+                reemplazar("design/vistas/riego/panel.html", '<link rel="stylesheet" href="../../components.css">',
+                           '<link rel="stylesheet" href="../../components.css">\n  '
+                           '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito">'),
+                {sin_animaciones: "'cdn': ['design/vistas/riego/panel.html']", revisar: "recursos externos"}),
+            "data-state ajeno declarado como escenario": (
+                lambda repo: [reemplazar("design/vistas/riego/panel.html", '<span class="badge badge--info">Lleno</span>',
+                                         '<span class="badge badge--info" data-state="full">Lleno</span>')(repo),
+                              reemplazar("design/vistas/riego/panel.html", 'regar-ahora, duracion-invalida">',
+                                         'regar-ahora, duracion-invalida, full">')(repo)],
+                {"Las vistas no usan el data-state ajeno del mockup": "['full']"}),
+            "commit fuera de design/ y specs/": (
+                lambda repo: (repo / "pendientes.md").write_text("Pendientes del panel de riego.\n"),
+                {"Los commits nuevos tocan solo design/ y specs/": "['pendientes.md']"}),
+        }
+        for caso, (mutar, esperado) in casos.items():
+            with self.subTest(caso=caso):
+                fallan = self.fallan(self.calificar(mutar))
+                self.assertEqual(set(fallan), set(esperado), fallan)
+                for texto, evidencia in esperado.items():
+                    self.assertIn(evidencia, fallan[texto])
+
+    def test_el_data_state_ajeno_sin_declarar_tambien_lo_bloquea_revisar(self):
+        mutar = reemplazar("design/vistas/riego/panel.html", '<span class="badge badge--info">Lleno</span>',
+                           '<span class="badge badge--info" data-state="full">Lleno</span>')
+        fallan = self.fallan(self.calificar(mutar))
+        self.assertEqual(set(fallan), {"Las vistas no usan el data-state ajeno del mockup", "revisar.py no tiene hallazgos que bloquean"})
+        self.assertIn("no declara: full", fallan["revisar.py no tiene hallazgos que bloquean"])
+
+
 if __name__ == "__main__":
     unittest.main()

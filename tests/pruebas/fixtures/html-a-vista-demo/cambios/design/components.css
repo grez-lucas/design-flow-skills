@@ -1,0 +1,108 @@
+/* components.css: componentes compartidos. Solo variables de tokens.css. */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-base);
+}
+[hidden] { display: none !important; }
+body:not([data-escenario]) [data-state] { display: none; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-surface); color: var(--color-text);
+  font: inherit; font-weight: var(--font-weight-medium); cursor: pointer;
+}
+.btn:hover { background: var(--color-surface-alt); }
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.btn--primary { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-contrast); }
+.btn--danger { background: var(--color-danger); border-color: var(--color-danger); color: var(--color-primary-contrast); }
+
+.field { display: grid; gap: var(--space-1); }
+.field label { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+.field input, .field select, .field textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-surface); color: var(--color-text); font: inherit;
+}
+.field [aria-invalid="true"] { border-color: var(--color-danger); }
+.field__hint { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.field__error { font-size: var(--font-size-xs); color: var(--color-danger); }
+
+.card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: var(--space-4);
+}
+
+.table { width: 100%; border-collapse: collapse; background: var(--color-surface); }
+.table th, .table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); text-align: left; }
+.table th { font-size: var(--font-size-sm); color: var(--color-text-muted); font-weight: var(--font-weight-medium); }
+
+.badge { display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-full); font-size: var(--font-size-xs); background: var(--color-surface-alt); }
+.badge--success { color: var(--color-success); }
+.badge--warning { color: var(--color-warning); }
+.badge--danger { color: var(--color-danger); }
+
+.alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); }
+.alert--danger { border-color: var(--color-danger); color: var(--color-danger); }
+.alert--warning { border-color: var(--color-warning); color: var(--color-warning); }
+.alert--success { border-color: var(--color-success); color: var(--color-success); }
+
+.empty-state { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-12) var(--space-4); text-align: center; color: var(--color-text-muted); }
+
+.skeleton { background: var(--color-surface-alt); border-radius: var(--radius-sm); min-height: var(--space-4); }
+
+.topbar { display: flex; align-items: center; gap: var(--space-4); height: var(--size-topbar); padding: 0 var(--space-4); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.sidebar { width: var(--size-sidebar); background: var(--color-surface); border-right: 1px solid var(--color-border); padding: var(--space-4); }
+
+/* ---- Nuevos (html-a-vista: demo.html) ---- */
+
+/* Variante informativa del badge: chip "Lleno" del tanque */
+.badge--info { color: var(--color-info); }
+
+/* Alerta informativa, por consistencia con las demás variantes */
+.alert--info { border-color: var(--color-info); color: var(--color-info); }
+
+/* Marco de página: ancho máximo centrado con respiro lateral */
+.page { max-width: var(--size-content-max); margin: 0 auto; padding: var(--space-5); }
+.page__header { display: flex; justify-content: space-between; align-items: center; }
+
+/* Pestañas: enlaces entre vistas; la activa lleva .tab--active y aria-current="page" */
+.tabs { display: flex; gap: var(--space-1); margin: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.tab {
+  padding: var(--space-2) var(--space-3);
+  border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--color-text-muted); font: inherit; text-decoration: none; cursor: pointer;
+}
+.tab:hover { background: var(--color-surface-alt); }
+.tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.tab[disabled] { opacity: 0.5; cursor: not-allowed; }
+.tab--active { color: var(--color-info); border-bottom-color: var(--color-info); }
+
+/* Grilla de tarjetas: tres columnas iguales */
+.card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+
+/* Título dentro de una tarjeta */
+.card__title { margin: 0 0 var(--space-1); font-size: var(--font-size-md); }
+
+/* Métrica grande (porcentaje de humedad); --muted cuando el dato no es confiable (sin señal) */
+.metric { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--color-info); }
+.metric--muted { color: var(--color-text-muted); }
+
+/* Texto de próximo riego programado */
+.text-schedule { color: var(--color-info); font-weight: var(--font-weight-medium); }
+
+/* Diálogo: tarjeta flotante para <dialog open> o bloque dentro de un escenario */
+.dialog {
+  background: var(--color-surface); color: var(--color-text);
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3); padding: var(--space-6);
+}
+.dialog__title { margin: 0 0 var(--space-3); font-size: var(--font-size-xl); }
+.dialog__actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
