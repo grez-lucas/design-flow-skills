@@ -529,6 +529,53 @@ class MoverAprobadas(unittest.TestCase):
                 self.assertNotIn("Traceback", r.stderr)
                 self.assertIn("design/vistas/<épica>/<vista>.html", r.stderr)
 
+    def test_casos_adversos_de_la_revision_final(self):
+        """Los casos con que la revisión final intentó que `mover` moviera algo que el revisor no aprobó tal cual."""
+        def h(ruta):
+            return self.huella(self.copia / "vistas" / ruta)
+        casos = {
+            "huella de otra vista copiada": (("e/panel.html", "e/hist.html"),
+                                             lambda: f"## e/panel: aprobada {h('e/hist.html')}\n## e/hist: aprobada {h('e/hist.html')}\n",
+                                             [], 1, set()),
+            "huella en mayúsculas": (("e/panel.html",), lambda: f"## e/panel: aprobada sha256:{h('e/panel.html')[7:].upper()}\n",
+                                     [], 1, set()),
+            "resumen posterior que nombra la vista": (("e/panel.html",),
+                                                      lambda: f"## e/panel: aprobada {h('e/panel.html')}\n\n## Resumen: panel aprobada\n",
+                                                      [], 1, set()),
+            "CRLF": (("e/panel.html",), lambda: f"## e/panel: aprobada {h('e/panel.html')}\r\n", [], 0, {"e/panel.html"}),
+            "--pendientes con espacios y repetida": (
+                ("e/panel.html", "e/marco.html"),
+                lambda: f"## e/panel: aprobada {h('e/panel.html')}\n## e/marco: no aprobada\n## e/marco, segunda revisión: no aprobada\n",
+                ["--pendientes", " e/marco , e/marco"], 0, {"e/panel.html"}),
+            "--pendientes vacío": (("e/panel.html", "e/marco.html"), lambda: f"## e/panel: aprobada {h('e/panel.html')}\n",
+                                   ["--pendientes", ""], 2, set()),
+        }
+        for caso, (vistas, texto, extra, codigo, movidas) in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.vistas(*vistas)
+                (self.trabajo / "ola-3" / "revision.md").write_bytes(texto().encode())
+                r = self.correr(*extra)
+                self.assertEqual(r.returncode, codigo, r.stdout + r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertEqual(self.en_repo(), movidas)
+
+    def test_solo_cambian_los_compartidos_o_hay_un_archivo_ajeno(self):
+        (self.copia / "tokens.css").write_text("/* tokens.css nuevo */\n")
+        self.revision("")
+        r = self.correr()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual((self.repo / "design" / "tokens.css").read_text(), "/* tokens.css del repositorio */\n")
+        self.assertIn("design/tokens.css: ninguna vista aprobada lo usa", r.stdout)
+        self.setUp()
+        self.vistas("e/panel.html")
+        (self.copia / ".DS_Store").write_bytes(b"\0")
+        self.revision("## e/panel: aprobada\n")
+        r = self.correr()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual(self.en_repo(), {"e/panel.html"})
+        self.assertIn("design/.DS_Store: no es una vista ni un archivo compartido", r.stdout)
+
     def test_sin_revision_no_mueve_nada(self):
         self.vistas("riego/panel.html")
         r = self.correr()

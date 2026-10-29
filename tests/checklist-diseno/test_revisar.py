@@ -316,6 +316,67 @@ class Revision(unittest.TestCase):
                 self.assertIn(f"`{archivo}`", bloquea[0])
                 self.assertIn("recursos externos", bloquea[0])
 
+    def test_casos_adversos_de_la_revision_final_en_la_vista(self):
+        """Los casos con que la revisión final de html-a-vista intentó pasar JS, animaciones o CDN por revisar.py: cada
+        uno bloquea con su motivo, y los comentarios que nombran la animación no."""
+        limpia = (FIXTURES / "limpia.html").read_text()
+
+        def head(x):
+            return limpia.replace("</head>", x + "\n</head>")
+
+        def frame(x):
+            return limpia.replace("<main data-frame>", "<main data-frame>" + x)
+        animacion, externo, js, hoja = "animación", "recursos externos", "JavaScript propio", "solo `tokens.css` y `components.css`"
+        casos = {
+            "@keyframes en <style>": (head("<style>@keyframes latir{from{opacity:1}to{opacity:.5}}</style>"), animacion),
+            "-webkit-": (head("<style>@-webkit-keyframes latir {0%{opacity:1}}</style>"), animacion),
+            "-o-": (head("<style>@-o-keyframes latir {0%{opacity:1}}</style>"), animacion),
+            "tras un comentario": (head("<style>/* x */ @keyframes latir {0%{opacity:1}}</style>"), animacion),
+            "en mayúsculas": (head("<style>@KEYFRAMES latir {0%{opacity:1}}</style>"), animacion),
+            "con escape CSS": (head("<style>@\\6b eyframes latir {0%{opacity:1}}</style>"), animacion),
+            "en <svg><style>": (frame("<svg><style>@keyframes g{0%{opacity:1}}</style></svg>"), animacion),
+            "en <template>": (frame("<template><style>@keyframes g{0%{opacity:1}}</style></template>"), animacion),
+            "en un comentario CSS": (head("<style>/* @keyframes latir { } */</style>"), None),
+            "en un comentario HTML": (head("<!-- @keyframes latir { } -->"), None),
+            "hoja local enlazada": (head('<link rel="stylesheet" href="../../anim.css">'), hoja),
+            "hoja local importada": (head('<style>@import "../../anim.css";</style>'), hoja),
+            "@import url(https://...)": (head("<style>@import url(https://cdn.example.com/x.css);</style>"), externo),
+            "@import 'https://...'": (head("<style>@import 'https://cdn.example.com/x.css';</style>"), externo),
+            "@import url('//...')": (head("<style>@import url('//cdn.example.com/x.css');</style>"), externo),
+            "onclick en el frame": (frame('<button onclick="alert(1)">x</button>'), "Controles de prototipo"),
+            "href javascript:": (frame('<a href="javascript:void(0)">x</a>'), js),
+            "script module inline": (head('<script type="module">console.log(1)</script>'), js),
+            "React por CDN": (head('<script src="https://cdn.example.com/react.production.min.js"></script>'), js),
+            "mi-proto.js": (head('<script src="../../mi-proto.js"></script>'), js),
+            "proto.js de un CDN": (head('<script src="https://cdn.example.com/proto.js"></script>'), externo),
+        }
+        for caso, (html, motivo) in casos.items():
+            with self.subTest(caso=caso):
+                bloquea, _ = self.revisar_texto(html)
+                if motivo is None:
+                    self.assertEqual(bloquea, [])
+                else:
+                    self.assertTrue(any(motivo in b for b in bloquea), bloquea)
+
+    def test_casos_adversos_de_la_revision_final_en_los_compartidos(self):
+        casos = {"@keyframes en components.css": ("components.css", "@keyframes g{0%{opacity:1}}", "animación"),
+                 "comentado": ("components.css", "/* @keyframes g{0%{opacity:1}} */", None),
+                 "@import url de un CDN": ("components.css", "@import url(https://cdn.example.com/x.css);", "recursos externos"),
+                 "@import local": ("components.css", '@import "anim.css";', "`anim.css`"),
+                 "@keyframes en tokens.css": ("tokens.css", "@keyframes g{0%{opacity:1}}", "animación"),
+                 "@font-face de un CDN": ("tokens.css", "@font-face{font-family:X;src:url(https://cdn.example.com/x.woff2)}",
+                                          "recursos externos")}
+        for caso, (archivo, css, motivo) in casos.items():
+            with self.subTest(caso=caso):
+                original = (self.design / archivo).read_text()
+                (self.design / archivo).write_text(original + "\n" + css + "\n")
+                bloquea, _ = self.compartidos()
+                (self.design / archivo).write_text(original)
+                if motivo is None:
+                    self.assertEqual(bloquea, [])
+                else:
+                    self.assertTrue(any(motivo in b and f"`{archivo}`" in b for b in bloquea), bloquea)
+
     def test_solo_spec_resumen_con_spec(self):
         self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))
 
