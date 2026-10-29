@@ -3,14 +3,19 @@
 Uso: python3 -m unittest discover -s tests/html-a-vista -v
 """
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 SCRIPT = RAIZ / "skills" / "html-a-vista" / "scripts" / "tokens.py"
 FIX = Path(__file__).resolve().parent / "fixtures" / "tokens"
+PRUEBAS = RAIZ / "pruebas" / "html-a-vista"
+TOKENS_CON_DS = PRUEBAS / "fixtures" / "con-ds" / "design" / "tokens.css"
+MOCKUPS = PRUEBAS / "fixtures" / "mockups"
 
 
 def correr(*args):
@@ -153,6 +158,79 @@ class Verificar(unittest.TestCase):
         r = correr("verificar", FIX / "tokens.css", "--json")
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertEqual(json.loads(r.stdout)["casi_iguales"], [])
+
+
+class MockupsDeLasEvals(unittest.TestCase):
+    """Los mockups de pruebas/html-a-vista contra el design system de fixtures/con-ds, o consolidados sin él."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp())
+        r = subprocess.run([sys.executable, "-B", str(PRUEBAS / "generar.py"), str(cls.tmp)], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise AssertionError(r.stderr)
+        cls.grande = cls.tmp / "grande.html"
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp)
+
+    def test_el_design_system_de_las_evals_existe(self):
+        self.assertTrue(TOKENS_CON_DS.is_file(), TOKENS_CON_DS)
+        self.assertIn("--color-warning: #b26b00;", TOKENS_CON_DS.read_text())
+
+    def mapeo(self, mockup):
+        r = correr("mapear", TOKENS_CON_DS, mockup, "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return {(f["valor"], f["categoria"]): f for f in json.loads(r.stdout)["valores"]}
+
+    def test_los_valores_a_decidir_quedan_fuera_del_umbral_con_su_token_mas_cercano(self):
+        casos = {
+            "chico": (MOCKUPS / "chico.html", "#e07a1f", "--color-warning", "#b26b00", [".estado--pendiente"]),
+            "demo": (MOCKUPS / "demo.html", "#7b4fd6", "--color-info", "#1f6f8b", [".programado"]),
+            "grande": (self.grande, "#e07a1f", "--color-warning", "#b26b00", [".atrasada"]),
+        }
+        for caso, (mockup, valor, token, valor_token, selectores) in casos.items():
+            with self.subTest(caso=caso):
+                f = self.mapeo(mockup)[(valor, "color")]
+                self.assertEqual((f["token"], f["valor_token"], f["bloque"], f["dentro"]), (token, valor_token, ":root", False))
+                self.assertGreater(f["distancia"], 2.0)
+                self.assertEqual(f["selectores"], selectores)
+                md = correr("mapear", TOKENS_CON_DS, mockup).stdout
+                dentro, fuera = md.split("## Fuera del umbral")
+                self.assertIn(f"| {valor} | color |", fuera)
+                self.assertNotIn(valor, dentro)
+
+    def test_el_tema_oscuro_del_grande_va_a_los_tokens_oscuros(self):
+        f = self.mapeo(self.grande)[("#101712", "color")]
+        self.assertEqual((f["token"], f["bloque"], f["distancia"], f["dentro"]), ("--color-bg", '[data-theme="dark"]', 0, True))
+
+    def test_la_consolidacion_del_grande_queda_en_escala_de_4_px_y_verificar_sale_con_0(self):
+        r = correr("consolidar", self.grande, "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = json.loads(r.stdout)
+        escala = [g for g in d["medidas"] if g["categoria"] in ("space", "radius", "size")]
+        self.assertEqual({g["categoria"] for g in escala}, {"space", "radius", "size"})
+        fuera = [g["propuesta"] for g in escala if g["propuesta"] != "9999px" and int(g["propuesta"].removesuffix("px")) % 4]
+        self.assertEqual(fuera, [])
+        propuesta = {(g["categoria"], m["valor"]): g["propuesta"] for g in d["medidas"] for m in g["miembros"]}
+        self.assertEqual(propuesta[("space", "22px")], "24px")
+        self.assertEqual(propuesta[("space", "9px")], "8px")
+        self.assertEqual(propuesta[("radius", "7px")], "8px")
+        self.assertEqual(propuesta[("radius", "999px")], "9999px")
+        self.assertEqual(propuesta[("size", "210px")], "212px")
+        fondo = next(g for g in d["colores"] if "#0e1410" in [m["valor"] for m in g["miembros"]])
+        self.assertEqual({"#111814", "#101712", "#0f1511"} - {m["valor"] for m in fondo["miembros"]}, set(),
+                         "el fondo oscuro de cada módulo es un solo color")
+        lineas = [f"  --color-{n}: {g['representante']};" for n, g in enumerate(d["colores"], start=1)]
+        for categoria, prefijo in (("space", "--space"), ("radius", "--radius"), ("size", "--size"), ("font-size", "--font-size")):
+            grupos = [g for g in d["medidas"] if g["categoria"] == categoria]
+            lineas += [f"  {prefijo}-{n}: {g['propuesta']};" for n, g in enumerate(grupos, start=1)]
+        tokens = self.tmp / "tokens.css"
+        tokens.write_text(":root {\n" + "\n".join(lineas) + "\n}\n")
+        r = correr("verificar", tokens, "--json")
+        self.assertEqual(json.loads(r.stdout)["casi_iguales"], [])
+        self.assertEqual(r.returncode, 0, r.stdout)
 
 
 class Uso(unittest.TestCase):
