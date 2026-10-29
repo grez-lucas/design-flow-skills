@@ -2,7 +2,9 @@
 
 Uso: python3 -m unittest discover -s tests/html-a-vista -v
 """
+import hashlib
 import importlib.util
+import re
 import shutil
 import subprocess
 import sys
@@ -181,11 +183,23 @@ class MoverAprobadas(unittest.TestCase):
                 (self.trabajo / "ola-3" / "inventario").mkdir(parents=True, exist_ok=True)
                 (self.trabajo / "ola-3" / "inventario" / f"{nombre}.json").write_text("{}\n")
 
-    def revision(self, texto):
+    def huella(self, vista):
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), "huella", str(vista)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return r.stdout.strip()
+
+    def revision(self, texto, huellas=True):
+        """revision.md con el texto dado. Con huellas, cada "aprobada" lleva la huella de su vista en la copia, como la
+        registra el revisor; las revisiones de las fixtures son anteriores a la huella."""
+        if huellas:
+            def firmar(m):
+                vista = next((self.copia / "vistas").rglob(f"{m.group(1)}.html"), None)
+                return m.group(0) + (f" {self.huella(vista)}" if vista else "")
+            texto = re.sub(r"(?m)^## ([^\s:,]+)(?:, segunda revisión)?: aprobada$", firmar, texto)
         (self.trabajo / "ola-3" / "revision.md").write_text(texto)
 
     def correr(self, *extra):
-        return subprocess.run([sys.executable, "-B", str(SCRIPT), str(self.trabajo), str(self.repo), *extra],
+        return subprocess.run([sys.executable, "-B", str(SCRIPT), "mover", str(self.trabajo), str(self.repo), *extra],
                               capture_output=True, text=True)
 
     def en_repo(self):
@@ -310,6 +324,54 @@ class MoverAprobadas(unittest.TestCase):
         fuera = r.stdout.split("Fuera del repositorio")[1]
         self.assertRegex(fuera, r"design/vistas/riego/panel\.html: .*ola-2/panel/contrato\.md")
         self.assertRegex(fuera, r"design/vistas/riego/historial\.html: .*ola-3/inventario/historial\.json")
+
+    def test_la_huella_cubre_la_vista_y_los_compartidos(self):
+        """sha256 de las líneas de sha256sum de la vista y de tokens.css, components.css y proto.js, relativas a design/."""
+        self.vistas("riego/panel.html")
+        vista = self.copia / "vistas" / "riego" / "panel.html"
+        rutas = ["vistas/riego/panel.html", "tokens.css", "components.css", "proto.js"]
+        lineas = "".join(f"{hashlib.sha256((self.copia / r).read_bytes()).hexdigest()}  {r}\n" for r in rutas)
+        antes = self.huella(vista)
+        self.assertEqual(antes, "sha256:" + hashlib.sha256(lineas.encode()).hexdigest())
+        (self.copia / "components.css").write_text("/* components.css cambiado después de la revisión */\n")
+        self.assertNotEqual(self.huella(vista), antes)
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), "huella", str(self.trabajo / "contrato.md")], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, "solo una vista bajo design/vistas/ tiene huella")
+
+    def test_aprobada_cuya_huella_no_coincide_queda_fuera(self):
+        """La vista o un compartido cambió después de que el revisor la aprobó: lo que entraría no es lo que vio."""
+        casos = {"la vista cambió": lambda: (self.copia / "vistas" / "riego" / "historial.html").write_text("<!doctype html><title>otra</title>\n"),
+                 "components.css cambió": lambda: (self.copia / "components.css").write_text("/* otro components.css */\n")}
+        for caso, cambiar in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.vistas("riego/panel.html", "riego/historial.html")
+                self.revision((FIX / "revision-segunda.md").read_text())
+                cambiar()
+                r = self.correr()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertEqual(self.en_repo(), set())
+                fuera = r.stdout.split("Fuera del repositorio")[1]
+                self.assertRegex(fuera, r"design/vistas/riego/historial\.html: .*huella")
+                if caso == "components.css cambió":
+                    self.assertRegex(fuera, r"design/vistas/riego/panel\.html: .*huella")
+
+    def test_aprobada_sin_huella_queda_fuera(self):
+        self.vistas("riego/panel.html", "riego/historial.html")
+        self.revision((FIX / "revision-segunda.md").read_text(), huellas=False)
+        r = self.correr()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual(self.en_repo(), set())
+        self.assertRegex(r.stdout.split("Fuera del repositorio")[1], r"design/vistas/riego/panel\.html: aprobada sin huella")
+
+    def test_con_el_marco_pendiente_y_una_huella_que_no_coincide_no_mueve_nada(self):
+        self.vistas(*VISTAS_ITERACION_3)
+        self.revision((FIX / "revision-iteracion-3.md").read_text())
+        (self.copia / "vistas" / "inventario" / "lista.html").write_text("<!doctype html><title>lista cambiada</title>\n")
+        r = self.correr("--pendientes", "marco")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual(self.en_repo(), set())
+        self.assertIn("quedan fuera sin nombrar: lista", r.stdout)
 
     def test_sin_revision_no_mueve_nada(self):
         self.vistas("riego/panel.html")

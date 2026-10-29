@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
-"""Mueve al repositorio de diseño solo las vistas que el revisor aprobó.
+"""Mueve al repositorio de diseño solo las vistas que el revisor aprobó, tal como las aprobó.
 
-Uso: python3 -B aprobadas.py <trabajo> <repo-de-diseño> [--pendientes <vista>[,<vista>...]]
+Uso:
+  python3 -B aprobadas.py huella <trabajo>/ola-3/repo/design/vistas/<épica>/<vista>.html
+  python3 -B aprobadas.py mover <trabajo> <repo-de-diseño> [--pendientes <vista>[,<vista>...]]
 
-Lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/repo/design/. Cada vista de la copia que es
-nueva o distinta de la del repositorio entra solo si su último veredicto es "aprobada" y tiene en disco lo que el
-revisor lee, <trabajo>/ola-2/<vista>/contrato.md y <trabajo>/ola-3/inventario/<vista>.json; `tokens.css`,
-`components.css` y `proto.js` entran si cambiaron y entró alguna vista. Las secciones del spec no las toca.
+huella  imprime `sha256:<hex>`, la huella de lo que el revisor ve de una vista: el sha256 de las líneas que daría
+        `sha256sum` (o `shasum -a 256`) desde design/ sobre la vista y los compartidos que existan, en este orden:
+        `vistas/<épica>/<vista>.html`, `tokens.css`, `components.css`, `proto.js`. Cambia si cambia la vista o
+        cualquiera de los compartidos que la pintan. El revisor la escribe en su veredicto:
+        `## <vista>: aprobada sha256:<hex>`.
 
-Si alguna vista queda fuera (no aprobada, sin veredicto, sin contrato o inventario, o con otra del mismo nombre), no
-mueve nada. Con --pendientes, que nombra las vistas que ya tuvieron su segunda revisión y siguen sin aprobarse, mueve
-las aprobadas solo si las que quedan fuera son exactamente esas; si no coinciden, no mueve nada y dice cuáles sobran o
-faltan. Cualquier otro archivo de la copia (contratos, inventarios) no entra y se lista.
+mover   lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/repo/design/. Cada vista de la copia que
+        es nueva o distinta de la del repositorio entra solo si su último veredicto es "aprobada" con una huella igual
+        a la de la copia, y tiene en disco lo que el revisor lee, <trabajo>/ola-2/<vista>/contrato.md y
+        <trabajo>/ola-3/inventario/<vista>.json; `tokens.css`, `components.css` y `proto.js` entran si cambiaron y
+        entró alguna vista. Las secciones del spec no las toca.
 
-Sale con 0 si entró todo lo que no es pendiente, 1 si no movió nada o dejó fuera un archivo, y 2 si el uso es
-incorrecto o falta revision.md o la copia.
+        Si alguna vista queda fuera (no aprobada, sin veredicto, sin huella o con otra, sin contrato o inventario, o
+        con otra del mismo nombre), no mueve nada. Con --pendientes, que nombra las vistas que ya tuvieron su segunda
+        revisión y siguen sin aprobarse, mueve las aprobadas solo si las que quedan fuera son exactamente esas; si no
+        coinciden, no mueve nada y dice cuáles sobran o faltan. Cualquier otro archivo de la copia (contratos,
+        inventarios) no entra y se lista.
+
+        Sale con 0 si entró todo lo que no es pendiente, 1 si no movió nada o dejó fuera un archivo, y 2 si falta
+        revision.md o la copia.
+
+Con uso incorrecto, o una ruta de huella que no es una vista bajo design/vistas/, sale con 2.
 """
+import argparse
+import hashlib
 import re
 import shutil
 import sys
@@ -106,6 +120,23 @@ def sin_evidencia(trabajo, vista):
     return " ni ".join(f"`{r}`" for r in faltan)
 
 
+def raiz_design(vista):
+    """La carpeta design/ de una vista en design/vistas/<épica>/<vista>.html, o None si la ruta no es una vista."""
+    vista = Path(vista).resolve()
+    if vista.suffix != ".html" or not vista.is_file() or len(vista.parents) < 3 or vista.parents[1].name != "vistas":
+        return None
+    return vista.parents[2]
+
+
+def huella(vista):
+    """`sha256:<hex>` de las líneas de sha256sum de la vista y de los compartidos que existen, relativas a design/."""
+    vista = Path(vista).resolve()
+    design = raiz_design(vista)
+    rutas = [vista.relative_to(design).as_posix()] + [c for c in COMPARTIDOS if (design / c).is_file()]
+    lineas = "".join(f"{hashlib.sha256((design / r).read_bytes()).hexdigest()}  {r}\n" for r in rutas)
+    return "sha256:" + hashlib.sha256(lineas.encode()).hexdigest()
+
+
 def mover(trabajo, repo, pendientes=()):
     """Copia al repositorio lo aprobado si las vistas que quedan fuera son exactamente `pendientes`.
 
@@ -118,7 +149,8 @@ def mover(trabajo, repo, pendientes=()):
     por_nombre = {}
     for v in vistas:
         por_nombre.setdefault(v.stem, []).append(v)
-    veredicto = veredictos((trabajo / "ola-3" / "revision.md").read_text(errors="ignore"), list(por_nombre))
+    leidos = leer((trabajo / "ola-3" / "revision.md").read_text(errors="ignore"), list(por_nombre))
+    veredicto = {v: x.estado if x else None for v, x in leidos.items()}
     entran, sin_aprobar, fuera = [], [], []
     for v in vistas:
         if len(por_nombre[v.stem]) > 1:
@@ -127,6 +159,11 @@ def mover(trabajo, repo, pendientes=()):
             sin_aprobar.append((v, {None: "sin veredicto en revision.md",
                                     "fuera de formato": f"su último encabezado en revision.md no sigue el formato `## {v.stem}: "
                                                         "aprobada sha256:<huella>` o `## <vista>: no aprobada`"}.get(veredicto[v.stem], veredicto[v.stem])))
+        elif not leidos[v.stem].huella:
+            sin_aprobar.append((v, "aprobada sin huella: el veredicto no dice qué versión de la vista vio el revisor"))
+        elif leidos[v.stem].huella != (actual := huella(copia / v)):
+            sin_aprobar.append((v, f"aprobada con la huella {leidos[v.stem].huella}, pero la copia tiene {actual}: la vista o un "
+                                   "compartido cambió después de la revisión, y vuelve al revisor"))
         elif falta := sin_evidencia(trabajo, v.stem):
             sin_aprobar.append((v, f"aprobada, pero sin {falta}: el revisor aprueba leyendo el contrato y el inventario"))
         else:
@@ -161,25 +198,35 @@ def mover(trabajo, repo, pendientes=()):
                      [(d / p, m) for p, m in fuera], problema)
 
 
+def lista_de_vistas(texto):
+    vistas = [v.strip() for v in texto.split(",") if v.strip()]
+    if not vistas:
+        raise argparse.ArgumentTypeError("nombra al menos una vista: --pendientes <vista>[,<vista>...]")
+    return vistas
+
+
 def main(argv):
-    args, pendientes = list(argv[1:]), []
-    if "--pendientes" in args:
-        i = args.index("--pendientes")
-        if i + 1 >= len(args):
-            print(__doc__)
+    uso = argparse.ArgumentParser(prog="aprobadas.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = uso.add_subparsers(dest="comando", required=True)
+    sub.add_parser("huella").add_argument("vista")
+    m = sub.add_parser("mover")
+    m.add_argument("trabajo")
+    m.add_argument("repo")
+    m.add_argument("--pendientes", type=lista_de_vistas, default=[])
+    args = uso.parse_args(argv[1:])
+    if args.comando == "huella":
+        if raiz_design(args.vista) is None:
+            print(f"`{args.vista}` no es una vista en design/vistas/<épica>/<vista>.html.", file=sys.stderr)
             return 2
-        pendientes = [v.strip() for v in args[i + 1].split(",") if v.strip()]
-        del args[i:i + 2]
-    if len(args) != 2 or not pendientes and "--pendientes" in argv:
-        print(__doc__)
-        return 2
-    trabajo, repo = Path(args[0]).resolve(), Path(args[1]).resolve()
+        print(huella(args.vista))
+        return 0
+    trabajo, repo = Path(args.trabajo).resolve(), Path(args.repo).resolve()
     revision, copia = trabajo / "ola-3" / "revision.md", trabajo / "ola-3" / "repo" / "design"
     for ruta, falta in ((revision, "el revisor no dejó su veredicto"), (copia, "no hay copia integrada")):
         if not ruta.exists():
             print(f"No existe `{ruta}`: {falta}. No se movió nada.")
             return 2
-    r = mover(trabajo, repo, pendientes)
+    r = mover(trabajo, repo, args.pendientes)
     print("# Vistas al repositorio\n")
     if r.problema:
         print(r.problema + "\n")
