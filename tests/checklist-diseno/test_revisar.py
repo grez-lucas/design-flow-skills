@@ -179,6 +179,58 @@ class Revision(unittest.TestCase):
         self.assertEqual(len(bloquea), 1, bloquea)
         self.assertIn("fuera del repositorio", bloquea[0])
 
+    def test_animacion_en_la_vista_bloquea(self):
+        bloquea, _ = self.revisar("animacion.html")
+        animacion = [b for b in bloquea if "animación" in b]
+        self.assertEqual(len(animacion), 1, bloquea)
+        self.assertIn("`latir`", animacion[0])
+
+    def test_animacion_nombrada_en_un_comentario_no_cuenta(self):
+        self.assertEqual(self.revisar("animacion-comentario.html"), ([], []))
+
+    def test_javascript_propio_en_la_vista_bloquea(self):
+        bloquea, avisa = self.revisar("js-propio.html")
+        self.assertTrue(any("JavaScript propio" in b for b in bloquea), bloquea)
+        self.assertEqual([a for a in avisa if "JavaScript" in a], [])
+
+    def compartidos(self):
+        return revisar.revisar_compartidos(self.design, revisar.tokens_definidos(self.design))
+
+    def test_keyframes_en_components_css_bloquea(self):
+        """El components.css que dejó el subagente de componentes en eval-3 de la iteración 3 de html-a-vista."""
+        shutil.copy(FIXTURES / "live-pulse" / "tokens.css", self.design / "tokens.css")
+        shutil.copy(FIXTURES / "live-pulse" / "components.css", self.design / "components.css")
+        bloquea, _ = self.compartidos()
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("`components.css`", bloquea[0])
+        self.assertIn("`live-pulse`", bloquea[0])
+
+    def test_keyframes_en_tokens_css_bloquea(self):
+        with (self.design / "tokens.css").open("a") as t:
+            t.write("@keyframes girar { to { transform: rotate(1turn); } }\n")
+        bloquea, _ = self.compartidos()
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("`tokens.css`", bloquea[0])
+        self.assertIn("`girar`", bloquea[0])
+
+    def test_animacion_mencionada_en_un_comentario_de_components_css_no_cuenta(self):
+        with (self.design / "components.css").open("a") as c:
+            c.write("/* Sin @keyframes, sin @import, sin fuentes externas. */\n")
+        self.assertEqual(self.compartidos(), ([], []))
+
+    def test_recursos_externos_en_components_y_tokens_bloquean(self):
+        casos = {"components.css": '@import url("https://cdn.example.net/iconos.css");\n',
+                 "tokens.css": "@import url(//fonts.example.net/css2?family=Nunito);\n"}
+        for archivo, linea in casos.items():
+            with self.subTest(archivo=archivo):
+                original = (self.design / archivo).read_text()
+                (self.design / archivo).write_text(linea + original)
+                bloquea, _ = self.compartidos()
+                (self.design / archivo).write_text(original)
+                self.assertEqual(len(bloquea), 1, bloquea)
+                self.assertIn(f"`{archivo}`", bloquea[0])
+                self.assertIn("recursos externos", bloquea[0])
+
     def test_solo_spec_resumen_con_spec(self):
         self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))
 

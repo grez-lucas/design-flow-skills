@@ -30,10 +30,11 @@ Confirma cada BLOQUEA leyendo la línea antes de pasarlo al informe: el script p
 Si no hay Python en la máquina, revisa a mano, y dilo en el informe. Una vista grande no se lee entera: busca con grep los atributos y los valores. Lo que hay que revisar:
 
 - Que la vista enlace `tokens.css`, `components.css` y `proto.js`, y que no tenga otro JavaScript.
+- Que no haya `@keyframes` en la vista, en `components.css` ni en `tokens.css`. Un comentario que nombra la animación no cuenta: es el comentario de intención que la reemplaza.
 - Que declare los escenarios base (normal, vacio, cargando, error, sin-permiso, muchos-datos) o los marque en `data-no-aplica`, cada uno con su motivo y separados por `;`.
 - Que cada `data-state` corresponda a un escenario declarado.
 - Que no haya colores ni medidas sueltas ni variables que `tokens.css` no define, en `<style>`, en `style=` ni en atributos de SVG.
-- Que no cargue recursos externos, tampoco desde CSS (`@import`, `url()`).
+- Que no cargue recursos externos, tampoco desde CSS (`@import`, `url()`), ni la vista ni `components.css` ni `tokens.css`.
 - Que cite sus tickets en `<meta name="tickets">` o, si es una vista sin ticket, su spec en `<meta name="spec">`, con la ruta del spec relativa a la raíz del repositorio (`specs/<épica>/spec.md`). Si trae los dos, mandan los tickets y el spec es contexto. Un `<meta name="spec">` declarado tiene que apuntar a un archivo que existe dentro del repositorio, aunque haya tickets.
 - Que no tenga dominios que parezcan reales ni texto de relleno.
 
@@ -79,6 +80,6 @@ Lista.   (cuando no tiene hallazgos)
 <qué corregir con spec-a-html antes de la planificación, o "listo para llevar a la planificación">
 ```
 
-Bloquea lo que impide construir sin preguntar: un escenario del spec o un criterio de un ticket que no se ve, valores visuales sueltos o variables sin definir, controles de prototipo dentro de la pantalla, una vista que no cita tickets ni spec o declara un spec que no existe o está fuera del repositorio, aunque cite tickets, recursos externos, texto de relleno, y dominios o marcas que confirmaste que son reales (el script los marca como aviso porque no puede saberlo; tú sí, mirando si el nombre existe fuera del ejemplo). Lo demás va en "Conviene mirar".
+Bloquea lo que impide construir sin preguntar: un escenario del spec o un criterio de un ticket que no se ve, valores visuales sueltos o variables sin definir, controles de prototipo dentro de la pantalla, JavaScript propio o animaciones con `@keyframes`, una vista que no cita tickets ni spec o declara un spec que no existe o está fuera del repositorio, aunque cite tickets, recursos externos, texto de relleno, y dominios o marcas que confirmaste que son reales (el script los marca como aviso porque no puede saberlo; tú sí, mirando si el nombre existe fuera del ejemplo). Lo demás va en "Conviene mirar".
 
 No corrijas las vistas: el informe es para decidir en la planificación. Si la persona quiere corregir, el siguiente paso es `spec-a-html` en modo edición, con la lista de hallazgos. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.

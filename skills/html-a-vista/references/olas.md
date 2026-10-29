@@ -18,7 +18,7 @@ Qué hace cada ola, qué recibe y qué devuelve cada subagente, y la plantilla d
 - Ninguno escribe en el repositorio de diseño: eso lo haces tú al integrar, con lo que aprobó el revisor.
 - Ninguno abre el mockup original ni una parte entera: lee los trozos que le tocan y busca con grep en el resto (`trozos/<parte>/script*.js`, `estilos*.css`) lo que le falte.
 - Todos siguen la convención de vista de `spec-a-html`: `references/vista-html.md` y `references/design-system.md` de esa skill. Pásales esas rutas.
-- Todos aplican `sin-equivalente.md` y `escenarios.md` de esta skill.
+- Todos aplican `sin-equivalente.md` y `escenarios.md` de esta skill. Pásales esas rutas a todos, los de la ola 1 incluidos.
 
 ## Ola 1
 
@@ -26,7 +26,7 @@ Los tokens van primero, porque los dos subagentes usan sus nombres; cuando produ
 
 **Tokens, a cargo tuyo** (`<trabajo>/ola-1/tokens/`). Con la ruta de `tokens.css` del repositorio si existe, los `estilos*.css` de cada parte y `references/tokens.md`, corres `tokens.py mapear` o `consolidar`, nombras los tokens con la convención de prefijos y escribes `tokens.css` propuesto y `tabla.md` con lo que producto decide. Las variables y valores por parte están en `manifiesto.json`; búscalos con grep si hace falta, sin leerlo entero.
 
-**Componentes base** (`<trabajo>/ola-1/componentes/`). Recibe el CSS del shell o de la parte cuyas reglas más se repiten, el `tokens.css` decidido y `components.css` del repositorio si existe. Escribe `components.css` con los componentes compartidos (botones, campos, tablas, tarjetas, badges, alertas, navegación, estados vacíos, esqueletos), solo con variables de tokens, y `catalogo.md`: clase original del mockup y componente que la reemplaza.
+**Componentes base** (`<trabajo>/ola-1/componentes/`). Recibe el CSS del shell o de la parte cuyas reglas más se repiten, el `tokens.css` decidido y `components.css` del repositorio si existe. Escribe `components.css` con los componentes compartidos (botones, campos, tablas, tarjetas, badges, alertas, navegación, estados vacíos, esqueletos), solo con variables de tokens, y `catalogo.md`: clase original del mockup y componente que la reemplaza. Recibe la ruta de `sin-equivalente.md`: un componente que en el mockup se anima queda quieto, sin `@keyframes` ni `animation`, y el catálogo dice qué animación tenía para que la vista lleve el comentario de intención. Lo mismo con `@import` y fuentes externas. `revisar.py` bloquea las dos cosas también en `components.css` y `tokens.css`.
 
 **Escenarios globales** (`<trabajo>/ola-1/globales/`). Recibe el markup del resto o del shell, el JS del shell y las funciones de modo que lista el resumen (las que propagan estado entre módulos, los menús DEMO). Escribe `escenarios-globales.md` (nombre fijo de cada escenario global, qué lo activa en el mockup, qué módulos afecta) y `rutas.md` (rutas o pestañas y a qué vista lleva cada una). En un documento único sin marco común, escribe solo los escenarios globales. No escribe la vista del marco: el marco es una fila de la ola 2, con su subagente y su contrato, para que el revisor lo apruebe o lo devuelva como a cualquier vista.
 

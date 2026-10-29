@@ -49,6 +49,7 @@ Con el tema oscuro definido, el panel de `proto.js` suma un grupo "Tema" y la vi
 - Nombres de clase cortos con modificadores: `.btn`, `.btn--primary`, `.btn--danger`, `.field`, `.field--error`, `.card`, `.table`, `.badge--success`, `.alert--warning`, `.empty-state`, `.skeleton`, `.topbar`, `.sidebar`.
 - Un componente entra cuando lo usa más de una vista o cuando es claramente reutilizable. Lo que es propio de una vista se queda en el `<style>` de esa vista.
 - Al agregar un componente, agrega también sus estados visibles en la misma regla: `:hover`, `:focus-visible`, `[disabled]`, `[aria-invalid="true"]`.
+- Sin `@keyframes` ni `@import` o `url()` a recursos externos, igual que en las vistas: un componente animado se escribe con su estado quieto, y el movimiento va como comentario junto al elemento en la vista que lo usa. `revisar.py` de `checklist-diseno` lo bloquea también aquí y en `tokens.css`.
 
 ## Extraer del código
 

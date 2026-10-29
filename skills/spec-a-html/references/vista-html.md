@@ -48,6 +48,7 @@ Parte de `assets/vista.html`. La estructura es:
 - Componentes de `components.css` antes que estilos nuevos. Si falta uno que se va a repetir, agrégalo allá.
 - HTML semántico: `header`, `nav`, `main`, `section`, `table`, `form`, `label`, `button`. Ayuda a DEV a leer la intención y le da accesibilidad básica a la vista.
 - Sin frameworks, sin CDN, sin imágenes externas. Íconos como SVG inline cortos o un carácter, y avatares como iniciales.
+- Sin animaciones (`@keyframes`): DEV no lee una duración en CSS como un requisito. El movimiento va como comentario de intención junto al elemento (`<!-- el indicador late mientras el riego está activo -->`), y si el tiempo importa, como un escenario (`cargando`).
 - Datos ficticios y verosímiles: nombres inventados, dominios `example.com`, montos y fechas creíbles. Nada de clientes reales.
 - Textos de la interfaz completos, no "Lorem ipsum": el texto es parte del diseño y DEV lo copia.
 - Un flujo de varios pasos puede ir en un solo archivo con un escenario por paso (`paso-1`, `paso-2`) o en un archivo por paso; elige lo que deje cada archivo más corto y dilo en el plan.

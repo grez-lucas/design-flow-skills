@@ -1,0 +1,4 @@
+/* Resaltado de elemento recién creado y punto en vivo */
+.is-new { box-shadow: var(--shadow-2); outline: 1px solid var(--color-primary); }
+.live-dot { display: inline-block; width: var(--space-2); height: var(--space-2); border-radius: var(--radius-full); background: var(--color-danger); animation: live-pulse 1.4s infinite; }
+@keyframes live-pulse { 50% { opacity: 0.5; } }

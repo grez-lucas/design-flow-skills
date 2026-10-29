@@ -24,6 +24,7 @@ EXTERNAL = re.compile(r"""(?:\b(?:src|href|srcset|poster|data)\s*=\s*["']?|url\(
 DOMAIN = re.compile(r"\b[\w.+-]+@([\w-]+(?:\.[\w-]+)+)|\bhttps?://([\w-]+(?:\.[\w-]+)+)", re.I)
 FAKE_DOMAINS = re.compile(r"(^|\.)(example(\.(com|org|net|cl))?|test|invalid|localhost|ejemplo\.(com|cl)|w3\.org)$", re.I)
 LOREM = re.compile(r"lorem ipsum", re.I)
+KEYFRAMES = re.compile(r"@(?:-webkit-|-moz-)?keyframes\s+([^\s{]+)\s*\{", re.I)
 
 
 class Vista(HTMLParser):
@@ -101,6 +102,17 @@ def strip_comments(css):
     return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
 
+def keyframes(css):
+    """Nombres de las reglas @keyframes del CSS. Un comentario que las nombra no cuenta: es justo el comentario de
+    intención que reemplaza a la animación."""
+    return KEYFRAMES.findall(strip_comments(css))
+
+
+def sin_animacion(archivo, nombres):
+    return (f"{archivo}tiene animación con `@keyframes` ({', '.join(f'`{n}`' for n in nombres)}). Las vistas no se animan: el movimiento "
+            "va como comentario de intención junto al elemento, y si el tiempo importa, como un escenario (`cargando`).")
+
+
 def tokens_definidos(design):
     t = design / "tokens.css"
     return set(re.findall(r"(--[\w-]+)\s*:", t.read_text())) if t.exists() else set()
@@ -128,7 +140,7 @@ def revisar_vista(path, repo, definidos):
         bloquea.append("No enlaza `proto.js`.")
     otros_js = [s for s in v.scripts if s and not s.endswith("proto.js")] + v.script_inline
     if otros_js:
-        avisa.append(f"Tiene JavaScript propio además de `proto.js`: {otros_js[:3]}. El comportamiento va como comentario, no como código.")
+        bloquea.append(f"Tiene JavaScript propio además de `proto.js`: {otros_js[:3]}. El comportamiento va como comentario, no como código.")
 
     escenarios = [e.strip() for e in v.body.get("data-escenarios", "").split(",") if e.strip()]
     no_aplica = set()
@@ -168,6 +180,9 @@ def revisar_vista(path, repo, definidos):
     if sueltos:
         bloquea.append(f"Valores visuales sueltos fuera de `tokens.css`: {sorted(set(sueltos))[:8]}.")
     css_vista = "\n".join(v.styles + v.inline)
+    animadas = keyframes(css_vista)
+    if animadas:
+        bloquea.append(sin_animacion("La vista ", animadas))
     no_definidos = sorted(set(VAR.findall(css_vista)) - definidos)
     if no_definidos:
         bloquea.append(f"Variables que `tokens.css` no define: {', '.join(no_definidos)}.")
@@ -218,6 +233,16 @@ def revisar_vista(path, repo, definidos):
 
 def revisar_compartidos(design, definidos):
     bloquea, avisa = [], []
+    for archivo in ("tokens.css", "components.css"):
+        ruta = design / archivo
+        if not ruta.exists():
+            continue
+        css = ruta.read_text()
+        animadas = keyframes(css)
+        if animadas:
+            bloquea.append(sin_animacion(f"`{archivo}` ", animadas))
+        if EXTERNAL.search(strip_comments(css)):
+            bloquea.append(f"`{archivo}` carga recursos externos (CDN, fuentes, imágenes remotas).")
     if not (design / "tokens.css").exists():
         bloquea.append("No existe `design/tokens.css`.")
     comp = design / "components.css"

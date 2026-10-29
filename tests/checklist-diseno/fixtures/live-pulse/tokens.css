@@ -1,0 +1,7 @@
+:root {
+  --color-primary: #2f7d4f;
+  --color-danger: #c62828;
+  --space-2: 8px;
+  --radius-full: 9999px;
+  --shadow-2: 0 4px 12px rgba(16, 24, 40, 0.10);
+}
