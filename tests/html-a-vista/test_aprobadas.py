@@ -373,6 +373,47 @@ class MoverAprobadas(unittest.TestCase):
         self.assertEqual(self.en_repo(), set())
         self.assertIn("quedan fuera sin nombrar: lista", r.stdout)
 
+    def test_vista_fuera_de_vistas_epica_vista_sale_con_2_sin_mover(self):
+        """Una vista sin épica o anidada de más no tiene huella ni lugar en el repositorio: error claro, sin traceback."""
+        for caso, ruta in {"sin épica": "x.html", "anidada": "a/b/c.html"}.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.vistas("riego/panel.html", ruta)
+                self.revision((FIX / "revision-segunda.md").read_text())
+                r = self.correr()
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertEqual(self.en_repo(), set())
+                self.assertIn(f"design/vistas/{ruta}", r.stderr)
+                self.assertIn("design/vistas/<épica>/<vista>.html", r.stderr)
+                self.assertIn("No se movió nada", r.stderr)
+
+    def test_enlace_simbolico_en_la_copia_sale_con_2_sin_mover(self):
+        self.vistas("riego/panel.html")
+        afuera = self.trabajo / "secreto.txt"
+        afuera.write_text("fuera de la copia\n")
+        (self.copia / "vistas" / "riego" / "enlace.html").symlink_to(afuera)
+        self.revision((FIX / "revision-segunda.md").read_text())
+        r = self.correr()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertEqual(self.en_repo(), set())
+        self.assertIn("design/vistas/riego/enlace.html", r.stderr)
+        self.assertIn("enlace simbólico", r.stderr)
+
+    def test_huella_de_una_ruta_que_no_es_una_vista_de_design_sale_con_2(self):
+        fuera = self.trabajo / "x" / "vistas" / "e" / "v.html"
+        sin_epica = self.copia / "vistas" / "v.html"
+        for caso, ruta in {"fuera de design/": fuera, "sin épica": sin_epica}.items():
+            with self.subTest(caso=caso):
+                ruta.parent.mkdir(parents=True, exist_ok=True)
+                ruta.write_text("<!doctype html><title>v</title>\n")
+                r = subprocess.run([sys.executable, "-B", str(SCRIPT), "huella", str(ruta)], capture_output=True, text=True)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertEqual(r.stdout, "")
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertIn("design/vistas/<épica>/<vista>.html", r.stderr)
+
     def test_sin_revision_no_mueve_nada(self):
         self.vistas("riego/panel.html")
         r = self.correr()

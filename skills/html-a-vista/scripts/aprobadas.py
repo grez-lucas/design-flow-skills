@@ -23,10 +23,11 @@ mover   lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/rep
         coinciden, no mueve nada y dice cuáles sobran o faltan. Cualquier otro archivo de la copia (contratos,
         inventarios) no entra y se lista.
 
-        Sale con 0 si entró todo lo que no es pendiente, 1 si no movió nada o dejó fuera un archivo, y 2 si falta
-        revision.md o la copia.
+        Sale con 0 si entró todo lo que no es pendiente, 1 si no movió nada o dejó fuera un archivo, y 2, sin mover
+        nada, si falta revision.md o la copia, o si la copia tiene un .html bajo vistas/ fuera de
+        vistas/<épica>/<vista>.html o un enlace simbólico.
 
-Con uso incorrecto, o una ruta de huella que no es una vista bajo design/vistas/, sale con 2.
+Con uso incorrecto, o una ruta de huella que no es una vista en design/vistas/<épica>/<vista>.html, sale con 2.
 """
 import argparse
 import hashlib
@@ -120,10 +121,15 @@ def sin_evidencia(trabajo, vista):
     return " ni ".join(f"`{r}`" for r in faltan)
 
 
+class RutaInvalida(ValueError):
+    """Una ruta que no es una vista en design/vistas/<épica>/<vista>.html: el script sale con 2, sin mover nada."""
+
+
 def raiz_design(vista):
     """La carpeta design/ de una vista en design/vistas/<épica>/<vista>.html, o None si la ruta no es una vista."""
     vista = Path(vista).resolve()
-    if vista.suffix != ".html" or not vista.is_file() or len(vista.parents) < 3 or vista.parents[1].name != "vistas":
+    if vista.suffix != ".html" or not vista.is_file() or len(vista.parents) < 4 \
+            or vista.parents[1].name != "vistas" or vista.parents[2].name != "design":
         return None
     return vista.parents[2]
 
@@ -132,9 +138,23 @@ def huella(vista):
     """`sha256:<hex>` de las líneas de sha256sum de la vista y de los compartidos que existen, relativas a design/."""
     vista = Path(vista).resolve()
     design = raiz_design(vista)
+    if design is None:
+        raise RutaInvalida(f"`{vista}` no es una vista en design/vistas/<épica>/<vista>.html.")
     rutas = [vista.relative_to(design).as_posix()] + [c for c in COMPARTIDOS if (design / c).is_file()]
     lineas = "".join(f"{hashlib.sha256((design / r).read_bytes()).hexdigest()}  {r}\n" for r in rutas)
     return "sha256:" + hashlib.sha256(lineas.encode()).hexdigest()
+
+
+def estructura(copia, candidatos):
+    """Lo que en la copia no puede ser una vista del repositorio: un .html bajo vistas/ a otra profundidad que
+    vistas/<épica>/<vista>.html, o un enlace simbólico. Lista de (ruta bajo design/, motivo)."""
+    malas = []
+    for p in candidatos:
+        if (copia / p).is_symlink():
+            malas.append((p, "es un enlace simbólico; la vista va como archivo, no como enlace a otro"))
+        elif p.parts[0] == "vistas" and p.suffix == ".html" and len(p.parts) != 3:
+            malas.append((p, "no está en `design/vistas/<épica>/<vista>.html`"))
+    return malas
 
 
 def mover(trabajo, repo, pendientes=()):
@@ -144,6 +164,12 @@ def mover(trabajo, repo, pendientes=()):
     por el que no se movió nada, o None."""
     copia, design = trabajo / "ola-3" / "repo" / "design", repo / "design"
     candidatos = cambiados(copia, design)
+    malas = estructura(copia, candidatos)
+    if malas:
+        raise RutaInvalida("No se movió nada: la copia tiene archivos que no pueden entrar como vistas.\n"
+                           + "".join(f"- design/{p.as_posix()}: {m}\n" for p, m in malas)
+                           + "Cada vista va como archivo en `design/vistas/<épica>/<vista>.html`. Corrige la copia y vuelve a "
+                             "correr la revisión de esas vistas.")
     vistas = [p for p in candidatos if p.parts[0] == "vistas" and p.suffix == ".html"]
     otros = [p for p in candidatos if p not in vistas]
     por_nombre = {}
@@ -215,10 +241,11 @@ def main(argv):
     m.add_argument("--pendientes", type=lista_de_vistas, default=[])
     args = uso.parse_args(argv[1:])
     if args.comando == "huella":
-        if raiz_design(args.vista) is None:
-            print(f"`{args.vista}` no es una vista en design/vistas/<épica>/<vista>.html.", file=sys.stderr)
+        try:
+            print(huella(args.vista))
+        except RutaInvalida as e:
+            print(e, file=sys.stderr)
             return 2
-        print(huella(args.vista))
         return 0
     trabajo, repo = Path(args.trabajo).resolve(), Path(args.repo).resolve()
     revision, copia = trabajo / "ola-3" / "revision.md", trabajo / "ola-3" / "repo" / "design"
@@ -226,7 +253,11 @@ def main(argv):
         if not ruta.exists():
             print(f"No existe `{ruta}`: {falta}. No se movió nada.")
             return 2
-    r = mover(trabajo, repo, args.pendientes)
+    try:
+        r = mover(trabajo, repo, args.pendientes)
+    except RutaInvalida as e:
+        print(e, file=sys.stderr)
+        return 2
     print("# Vistas al repositorio\n")
     if r.problema:
         print(r.problema + "\n")
