@@ -345,5 +345,192 @@ class NoDesarmable(Base):
         self.assertEqual((self.trabajo / "manifiesto.json").read_text(), "{}")
 
 
+PRUEBAS = RAIZ / "pruebas" / "html-a-vista"
+MOCKUPS = PRUEBAS / "fixtures" / "mockups"
+LIMITE = 256 * 1024
+
+
+def desarmado(entrada, trabajo):
+    r = desarmar(entrada, trabajo)
+    if r.returncode != 0:
+        raise AssertionError(r.stderr + r.stdout)
+    return json.loads((trabajo / "manifiesto.json").read_text())
+
+
+class MockupGrande(unittest.TestCase):
+    """El mockup grande de las evals 3 y 4, tal como lo genera pruebas/html-a-vista/generar.py."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp())
+        r = subprocess.run([sys.executable, "-B", str(PRUEBAS / "generar.py"), str(cls.tmp)], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise AssertionError(r.stderr)
+        cls.original = cls.tmp / "grande.html"
+        cls.trabajo = cls.tmp / "trabajo"
+        cls.m = desarmado(cls.original, cls.trabajo)
+        cls.partes = {p["id"]: p for p in cls.m["partes"]}
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp)
+
+    def markup(self, parte):
+        return {t["id"]: t for t in self.partes[parte]["trozos"] if t["tipo"] == "markup"}
+
+    def test_una_parte_por_modulo_y_el_shell_con_su_tramo_de_lineas(self):
+        self.assertTrue(self.m["compuesto"])
+        self.assertEqual(list(self.partes), ["shell", "tpl-inventario", "tpl-compostaje", "tpl-socios"])
+        lineas = self.original.read_text().splitlines()
+        self.assertEqual(self.partes["shell"]["origen"]["lineas"], [1, len(lineas)])
+        anterior = 0
+        for modulo in ("inventario", "compostaje", "socios"):
+            p = self.partes[f"tpl-{modulo}"]
+            self.assertEqual(p["origen"]["via"], "script text/plain")
+            self.assertEqual(p["origen"]["decodificacion"], "<\\ -> <")
+            desde, hasta = p["origen"]["lineas"]
+            self.assertGreater(desde, anterior, "los tramos de los módulos no se pisan y van en orden")
+            self.assertTrue(lineas[desde - 1].startswith(f'<script type="text/plain" id="tpl-{modulo}"><!doctype html>'), modulo)
+            self.assertEqual(lineas[hasta - 1], "</html>", modulo)
+            self.assertEqual(lineas[hasta], "</script>", modulo)
+            anterior = hasta
+            texto = (self.trabajo / p["archivo"]).read_text()
+            self.assertTrue(texto.startswith("<!doctype html>"), modulo)
+            self.assertNotIn("<\\/script>", texto, modulo)
+            self.assertIn("</script>", texto, modulo)
+        shell = (self.trabajo / self.partes["shell"]["archivo"]).read_text()
+        for texto_de_modulo in ("Inventario de semillas", "Resumen de compostaje", "Socios del huerto"):
+            self.assertNotIn(texto_de_modulo, shell)
+        self.assertIn('<script type="text/plain" id="tpl-socios"></script>', shell)
+
+    def test_variables_de_root_y_de_cada_tema_por_modulo(self):
+        oscuro, claro = ':root, [data-theme="dark"]', '[data-theme="light"]'
+        esperado = {
+            "shell": ("--bg", "#0e1410", "#f6f7f2", 6),
+            "tpl-inventario": ("--warn", "#e0a21f", "#b26b00", 7),
+            "tpl-compostaje": ("--calor", "#e8743b", "#c4501b", 7),
+            "tpl-socios": ("--brand", "#74c795", "#2f7d4f", 6),
+        }
+        for parte, (nombre, valor_oscuro, valor_claro, cuantas) in esperado.items():
+            with self.subTest(parte=parte):
+                v = self.partes[parte]["variables"]
+                self.assertEqual(list(v), [oscuro, claro])
+                self.assertEqual((v[oscuro][nombre], v[claro][nombre]), (valor_oscuro, valor_claro))
+                self.assertEqual(set(v[oscuro]), set(v[claro]), "cada tema define las mismas variables")
+                self.assertEqual(len(v[oscuro]), cuantas)
+        self.assertNotIn("--brand", self.partes["tpl-inventario"]["variables"][oscuro], "cada módulo tiene sus propias variables")
+
+    def test_controles_demo_de_la_bascula_en_el_shell(self):
+        textos = [(c["texto"], c.get("onclick")) for c in self.partes["shell"]["controles"]["por_texto"]]
+        self.assertEqual(textos, [("DEMO ▾", "document.getElementById('demo').classList.toggle('open')"),
+                                  ("Simular báscula desconectada", "aplicarBascula(true)"),
+                                  ("Salir de demo", "aplicarBascula(false)")])
+        for modulo in ("tpl-inventario", "tpl-compostaje", "tpl-socios"):
+            self.assertEqual(self.partes[modulo]["controles"]["por_texto"], [], modulo)
+        resumen = (self.trabajo / "resumen.md").read_text()
+        self.assertIn('"Simular báscula desconectada" (línea 32)', resumen)
+
+    def test_ninguna_parte_ni_trozo_pasa_256_kb(self):
+        self.assertGreater(self.original.stat().st_size, LIMITE, "el mockup entero sí pasa el límite")
+        archivos = [p for p in self.trabajo.rglob("*") if p.is_file()]
+        self.assertTrue(any(p.parent.name == "partes" for p in archivos))
+        pesados = [(str(p.relative_to(self.trabajo)), p.stat().st_size) for p in archivos if p.stat().st_size > LIMITE]
+        self.assertEqual(pesados, [])
+        for p in self.m["partes"]:
+            for t in p["trozos"]:
+                self.assertLessEqual(t["tokens"], self.m["estimacion"]["tope_por_trozo"], t["archivo"])
+
+    def test_titulo_visible_de_cada_pantalla_y_superposicion(self):
+        esperado = {
+            "shell": {"notif-drawer": "Notificaciones", "ayuda-overlay": "Centro de ayuda", "_resto": "Semilla · Huerto Los Aromos"},
+            "tpl-inventario": {"lista-page.1": "Inventario de semillas", "lista-page.2": "Inventario de semillas",
+                               "lista-page.3": "Inventario de semillas", "detalle-page": "Detalle del lote",
+                               "movimientos-page": "Movimientos de semillas", "nuevo-lote-modal": "Nuevo lote",
+                               "baja-modal": "Dar de baja el lote", "_resto": None},
+            "tpl-compostaje": {"resumen-tab": "Resumen de compostaje", "pilas-tab": "Pilas de compost",
+                               "registrar-modal": "Registrar aporte", "_resto": None},
+            "tpl-socios": {"panel-socios.1": "Socios del huerto", "panel-socios.2": "Socios del huerto", "panel-cuotas": "Cuotas",
+                           "panel-ajustes": "Ajustes del huerto", "invitar-modal": "Invitar socio",
+                           "cuota-modal": "Registrar pago de cuota", "_resto": None},
+        }
+        for parte, titulos in esperado.items():
+            with self.subTest(parte=parte):
+                self.assertEqual({i: t.get("titulo") for i, t in self.markup(parte).items()}, titulos)
+        clases = {i: t["clase"] for p in esperado for i, t in self.markup(p).items()}
+        self.assertEqual({i for i, c in clases.items() if c == "superposicion"},
+                         {"notif-drawer", "ayuda-overlay", "nuevo-lote-modal", "baja-modal", "registrar-modal", "invitar-modal", "cuota-modal"})
+        self.assertEqual([p["titulo"] for p in self.m["partes"]],
+                         ["Semilla · Integrado", "Semilla · Inventario de semillas", "Semilla · Compostaje", "Semilla · Socios"])
+
+    def test_la_pantalla_partida_conserva_todas_sus_filas(self):
+        lista = [t for t in self.partes["tpl-inventario"]["trozos"] if t.get("id", "").startswith("lista-page")]
+        juntos = "".join((self.trabajo / t["archivo"]).read_text() for t in lista)
+        self.assertEqual(juntos.count("<tr><td>L-"), 620)
+        self.assertEqual({tuple(t["lineas"]) for t in lista}, {(31, 657)})
+
+
+class MockupsChicos(unittest.TestCase):
+    """Los mockups demo, react y chico de pruebas/html-a-vista/fixtures/mockups."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def desarmar(self, mockup):
+        trabajo = self.tmp / mockup
+        return desarmado(MOCKUPS / f"{mockup}.html", trabajo), trabajo
+
+    def test_demo_con_sus_controles_y_sus_data_state(self):
+        m, trabajo = self.desarmar("demo")
+        p = m["partes"][0]
+        botones = [(c["texto"], c["onclick"]) for c in p["controles"]["por_texto"] if c.get("etiqueta") == "button"]
+        self.assertEqual(botones, [("DEMO ▾", "demoToggleMenu()"), ("Simular sensor sin señal", "demoSet('sin-senal')"),
+                                   ("Simular tanque vacío", "demoSet('tanque-vacio')"), ("Salir de demo", "demoSet('')")])
+        self.assertEqual([f["nombre"] for f in p["controles"]["por_funcion"]], ["DEMO_MODES", "demoToggleMenu", "demoSet"])
+        self.assertEqual(p["data_state"], [{"valor": "full", "linea": 70}, {"valor": "partial", "linea": 70},
+                                           {"valor": "off", "linea": 70}])
+        resumen = (trabajo / "resumen.md").read_text()
+        self.assertIn("data-state existentes full, off, partial", resumen)
+        for texto in ('"Simular sensor sin señal" (línea 56)', '"Simular tanque vacío" (línea 57)'):
+            self.assertIn(texto, resumen)
+        markup = {t["id"]: t for t in p["trozos"] if t["tipo"] == "markup"}
+        self.assertEqual({i: (t["clase"], t["titulo"]) for i, t in markup.items()},
+                         {"panel-page": ("pantalla", "Zonas"), "historial-page": ("pantalla", "Historial de riego"),
+                          "regar-modal": ("superposicion", "Regar ahora"), "_resto": ("resto", "Panel de riego")})
+        self.assertIn("Simular tanque vacío", (trabajo / markup["_resto"]["archivo"]).read_text(), "el menú DEMO vive en el marco")
+        self.assertFalse(m["requiere_render"])
+
+    def test_react_por_cdn_requiere_render(self):
+        m, trabajo = self.desarmar("react")
+        self.assertEqual(m["frameworks"], ["babel", "react", "tailwind"])
+        self.assertTrue(m["requiere_render"])
+        self.assertEqual([(e["url"], e["cdn"]) for e in m["externos"]],
+                         [("https://unpkg.com/react@18/umd/react.development.js", True),
+                          ("https://unpkg.com/react-dom@18/umd/react-dom.development.js", True),
+                          ("https://unpkg.com/@babel/standalone/babel.min.js", True),
+                          ("https://cdn.tailwindcss.com", True)])
+        self.assertIn("Frameworks por CDN: babel, react, tailwind; requiere render: sí.", (trabajo / "resumen.md").read_text())
+        markup = [t for t in m["partes"][0]["trozos"] if t["tipo"] == "markup"]
+        self.assertEqual([t["id"] for t in markup], ["_resto"], "sin render solo queda el contenedor vacío")
+        self.assertEqual((trabajo / markup[0]["archivo"]).read_text(), '<div id="root"></div>\n')
+
+    def test_chico_con_google_fonts_keyframes_y_settimeout(self):
+        m, trabajo = self.desarmar("chico")
+        self.assertEqual([(e["url"], e["cdn"]) for e in m["externos"]],
+                         [("https://fonts.googleapis.com", True),
+                          ("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap", True)])
+        self.assertEqual(m["frameworks"], [])
+        self.assertFalse(m["requiere_render"])
+        p = m["partes"][0]
+        self.assertEqual(p["animaciones"], {"keyframes": 1, "setTimeout": 1, "setInterval": 0})
+        self.assertEqual(p["variables"], {":root": {"--hoja": "#2e7d4f", "--tierra": "#6b4f2a", "--crema": "#f6f7f3",
+                                                    "--tinta": "#1d2b21", "--borde": "#d6dcd0"}})
+        valores = {v["valor"]: v["css"] for v in p["valores"]}
+        self.assertEqual(valores["#e07a1f"], 1, "el naranja de pendiente que la eval 1 deja a decidir")
+        self.assertIn("1 keyframes, 1 setTimeout, 0 setInterval", (trabajo / "resumen.md").read_text())
+        css = next(t for t in p["trozos"] if t["tipo"] == "css")
+        self.assertIn("@keyframes pulso", (trabajo / css["archivo"]).read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
