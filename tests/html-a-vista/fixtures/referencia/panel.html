@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Riego · Panel</title>
+  <meta name="spec" content="specs/riego/spec.md">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos, sensor-sin-senal, tanque-vacio, tanque-a-la-mitad, regar-ahora, duracion-invalida">
+  <main class="page" data-frame>
+    <header class="page__header">
+      <h1>Panel de riego</h1>
+    </header>
+    <nav class="tabs" aria-label="Secciones del panel de riego">
+      <a class="tab tab--active" href="panel.html" aria-current="page">Zonas</a>
+      <a class="tab" href="historial.html">Historial de riego</a>
+    </nav>
+
+    <!-- SEM-20 escenario 2: aviso con la zona y desde cuándo (sensor sin datos hace más de una hora) -->
+    <p class="alert alert--danger" role="alert" data-state="sensor-sin-senal">El sensor de la zona norte no envía datos desde hace 3 horas.</p>
+    <!-- SEM-20 escenario 3: el riego automático queda en pausa mientras el tanque está vacío -->
+    <p class="alert alert--danger" role="alert" data-state="tanque-vacio">El tanque está vacío: el riego automático quedó en pausa.</p>
+
+    <!-- Regla del spec: el nivel del tanque es lleno, a la mitad o sin agua; un solo chip por escenario -->
+    <p data-state="normal muchos-datos sensor-sin-senal regar-ahora duracion-invalida">Tanque de agua: <span class="badge badge--info">Lleno</span></p>
+    <p data-state="tanque-a-la-mitad">Tanque de agua: <span class="badge badge--warning">A la mitad</span></p>
+    <p data-state="tanque-vacio">Tanque de agua: <span class="badge badge--danger">Sin agua</span></p>
+
+    <!-- SEM-20 escenario 1: cada zona con su humedad y su próximo riego.
+         muchos-datos: proto.js repite las tarjetas; el nombre largo prueba que el título no cabe en una línea -->
+    <div class="card-grid" data-repeat="50" data-state="normal muchos-datos sensor-sin-senal tanque-vacio tanque-a-la-mitad regar-ahora duracion-invalida">
+      <article class="card">
+        <h3 class="card__title">Zona norte</h3>
+        <!-- sensor-sin-senal: la humedad de la zona norte se atenúa porque el dato no es confiable -->
+        <div class="metric" data-state="normal muchos-datos tanque-vacio tanque-a-la-mitad regar-ahora duracion-invalida">42 %</div>
+        <div class="metric metric--muted" data-state="sensor-sin-senal">42 %</div>
+        <p>Humedad del suelo</p>
+        <p class="text-schedule">Próximo riego: hoy 19:00</p>
+        <!-- al hacer clic: abre el modal "Regar ahora" con el nombre de la zona (abrirRiego('Zona norte')) -->
+        <button class="btn btn--primary" type="button">Regar ahora</button>
+      </article>
+      <article class="card">
+        <h3 class="card__title">Zona invernadero</h3>
+        <div class="metric">61 %</div>
+        <p>Humedad del suelo</p>
+        <p class="text-schedule">Próximo riego: mañana 07:30</p>
+        <!-- al hacer clic: abre el modal "Regar ahora" con "Zona invernadero" -->
+        <button class="btn btn--primary" type="button">Regar ahora</button>
+      </article>
+      <article class="card">
+        <h3 class="card__title">Zona aromáticas</h3>
+        <div class="metric">28 %</div>
+        <p>Humedad del suelo</p>
+        <p class="text-schedule">Próximo riego: hoy 18:15</p>
+        <!-- al hacer clic: abre el modal "Regar ahora" con "Zona aromáticas" -->
+        <button class="btn btn--primary" type="button">Regar ahora</button>
+      </article>
+      <article class="card" data-state="muchos-datos">
+        <h3 class="card__title">Zona de frutales del límite sur junto al invernadero viejo</h3>
+        <div class="metric">73 %</div>
+        <p>Humedad del suelo</p>
+        <p class="text-schedule">Próximo riego: pasado mañana 06:45</p>
+        <button class="btn btn--primary" type="button">Regar ahora</button>
+      </article>
+    </div>
+
+    <!-- Modal "Regar ahora" (regar-ahora y duracion-invalida): el velo oscuro y el ancho de 380px del mockup no se aplican (sin token) -->
+    <dialog class="dialog" open data-state="regar-ahora duracion-invalida" aria-labelledby="regar-titulo">
+      <h2 class="dialog__title" id="regar-titulo">Regar ahora</h2>
+      <!-- abrirRiego(zona) pone aquí el nombre de la zona que se eligió -->
+      <p>Zona norte</p>
+      <!-- validación al iniciar (confirmarRiego): la duración tiene que estar entre 5 y 60 minutos;
+           si es válida, el riego empieza y el modal se cierra; si no, se muestra el error y el modal sigue abierto -->
+      <div class="field" data-state="regar-ahora">
+        <label for="duracion">Duración en minutos</label>
+        <input id="duracion" type="number" value="15" min="5" max="60">
+      </div>
+      <div class="field" data-state="duracion-invalida">
+        <label for="duracion-invalida">Duración en minutos</label>
+        <input id="duracion-invalida" type="number" value="3" min="5" max="60" aria-invalid="true" aria-describedby="duracion-error">
+        <p class="field__error" id="duracion-error" role="alert">La duración tiene que estar entre 5 y 60 minutos.</p>
+      </div>
+      <div class="dialog__actions">
+        <!-- Iniciar riego: valida la duración (5 a 60) -->
+        <button class="btn btn--primary" type="button">Iniciar riego</button>
+        <!-- Cancelar: cierra el modal sin regar -->
+        <button class="btn" type="button">Cancelar</button>
+      </div>
+    </dialog>
+
+    <!-- Escenarios del spec que el mockup no tiene -->
+    <section class="empty-state" data-state="vacio">
+      <h2>Todavía no hay zonas configuradas</h2>
+      <p>Cuando se configure una zona con su sensor de humedad, la verás aquí con su próximo riego.</p>
+    </section>
+
+    <section data-state="cargando" aria-busy="true">
+      <div class="card-grid">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </section>
+
+    <section data-state="error">
+      <div class="alert alert--danger" role="alert">
+        No pudimos cargar el panel de riego. Revisa tu conexión e inténtalo de nuevo.
+        <!-- Reintentar: vuelve a pedir las zonas -->
+        <button class="btn" type="button">Reintentar</button>
+      </div>
+    </section>
+
+    <section class="empty-state" data-state="sin-permiso">
+      <h2>No tienes acceso al panel de riego</h2>
+      <p>Pide acceso a la persona que administra Semilla para ver las zonas y regar.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reservas · Reservas de parcelas</title>
+  <meta name="tickets" content="SEM-11">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <style>
+    /* Layout propio de esta vista. Solo var(--...) para valores visuales. */
+    .reservas-carga { display: grid; gap: var(--space-2); }
+    .reservas-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+    .reservas-error p { margin: 0; }
+  </style>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos, filtro-pendientes, filtro-sin-resultados">
+  <header class="topbar topbar--spread">
+    <span class="topbar__brand">Semilla</span>
+    <span>Huerto Los Aromos · Carmen Olivares</span>
+  </header>
+
+  <main class="container" data-frame>
+    <div class="page-header">
+      <h1 class="page-header__title">Reservas de parcelas</h1>
+      <!-- "Nueva reserva" viene del mockup, pero crear o editar una reserva está fuera de alcance en el spec (SEM-11).
+           Se conserva para no perder el diseño; no lleva a ninguna vista. Un socio sin rol de coordinación no lo ve. -->
+      <button class="btn btn--primary" type="button" data-state="normal vacio cargando error muchos-datos filtro-pendientes filtro-sin-resultados">Nueva reserva</button>
+    </div>
+
+    <!-- filtra la tabla por estado; "Todas" muestra todo. El filtro activo lleva aria-selected="true".
+         Si ninguna reserva tiene el estado elegido, la tabla se esconde y aparece "No hay reservas con este estado." -->
+    <div class="filter-group" role="tablist" aria-label="Filtrar por estado" data-state="normal cargando muchos-datos">
+      <button class="filter-pill" type="button" role="tab" aria-selected="true" data-filtro="todas">Todas</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="confirmada">Confirmadas</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="pendiente">Pendientes</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="cancelada">Canceladas</button>
+    </div>
+    <div class="filter-group" role="tablist" aria-label="Filtrar por estado" data-state="filtro-pendientes">
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="todas">Todas</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="confirmada">Confirmadas</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="true" data-filtro="pendiente">Pendientes</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="cancelada">Canceladas</button>
+    </div>
+    <div class="filter-group" role="tablist" aria-label="Filtrar por estado" data-state="filtro-sin-resultados">
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="todas">Todas</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="confirmada">Confirmadas</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="false" data-filtro="pendiente">Pendientes</button>
+      <button class="filter-pill" type="button" role="tab" aria-selected="true" data-filtro="cancelada">Canceladas</button>
+    </div>
+
+    <!-- Reservas de la temporada, ordenadas por fecha de inicio (la más próxima primero).
+         data-reserva-estado es el estado de la reserva (en el mockup, data-estado); no es un escenario. -->
+    <table class="table table--bordered" data-state="normal filtro-pendientes">
+      <thead><tr><th>Socio</th><th>Parcela</th><th>Desde</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr data-reserva-estado="confirmada" data-state="normal"><td>Tomás Aguilera</td><td>P-04 · Sol pleno</td><td>3 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="pendiente">
+          <td>Valentina Soto Arancibia</td><td>P-11 · Media sombra</td><td>10 de marzo</td>
+          <!-- el estado pendiente late para destacarse (en el mockup, un pulso de opacidad cada 1,6 s): regla del spec, las pendientes se destacan -->
+          <td><span class="badge badge--strong badge--warning">Pendiente</span></td>
+        </tr>
+        <tr data-reserva-estado="confirmada" data-state="normal"><td>Joaquín Ferrada</td><td>P-02 · Sol pleno</td><td>12 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="cancelada" data-state="normal"><td>Isidora Muñoz</td><td>P-07 · Invernadero</td><td>15 de marzo</td><td><span class="badge badge--strong badge--danger">Cancelada</span></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Temporada con muchas reservas, nombres y parcelas largos, ordenada por fecha de inicio.
+         Sin data-repeat: proto.js clona las filas en ciclo y rompería el orden por fecha. -->
+    <table class="table table--bordered" data-state="muchos-datos">
+      <thead><tr><th>Socio</th><th>Parcela</th><th>Desde</th><th>Estado</th></tr></thead>
+      <tbody>
+        <!-- el estado pendiente late para destacarse, como en la tabla normal -->
+        <tr data-reserva-estado="confirmada"><td>Tomás Aguilera</td><td>P-04 · Sol pleno</td><td>3 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="pendiente"><td>María Fernanda Valenzuela Etchegaray</td><td>P-18 · Media sombra junto al compostero norte</td><td>5 de marzo</td><td><span class="badge badge--strong badge--warning">Pendiente</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Benjamín Toro</td><td>P-01 · Sol pleno</td><td>6 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="pendiente"><td>Valentina Soto Arancibia</td><td>P-11 · Media sombra</td><td>10 de marzo</td><td><span class="badge badge--strong badge--warning">Pendiente</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Joaquín Ferrada</td><td>P-02 · Sol pleno</td><td>12 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="cancelada"><td>Isidora Muñoz</td><td>P-07 · Invernadero</td><td>15 de marzo</td><td><span class="badge badge--strong badge--danger">Cancelada</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Francisco Javier Riquelme Bustamante</td><td>P-09 · Invernadero con riego por goteo</td><td>18 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="pendiente"><td>Antonella Cárcamo</td><td>P-15 · Sol pleno</td><td>21 de marzo</td><td><span class="badge badge--strong badge--warning">Pendiente</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Martín Saavedra</td><td>P-03 · Media sombra</td><td>24 de marzo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="cancelada"><td>Catalina Ignacia Henríquez de la Fuente</td><td>P-12 · Sol pleno, borde del camino</td><td>28 de marzo</td><td><span class="badge badge--strong badge--danger">Cancelada</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Diego Navarrete</td><td>P-06 · Invernadero</td><td>2 de abril</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="pendiente"><td>Florencia Arriagada</td><td>P-20 · Media sombra bajo el nogal</td><td>7 de abril</td><td><span class="badge badge--strong badge--warning">Pendiente</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Ignacio Fuentealba</td><td>P-05 · Sol pleno</td><td>11 de abril</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Josefa Contreras</td><td>P-14 · Media sombra</td><td>16 de abril</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="pendiente"><td>Agustín Bravo Lagos</td><td>P-17 · Invernadero</td><td>22 de abril</td><td><span class="badge badge--strong badge--warning">Pendiente</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Renata Espinoza</td><td>P-08 · Sol pleno</td><td>29 de abril</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+        <tr data-reserva-estado="cancelada"><td>Sebastián Olguín</td><td>P-19 · Media sombra</td><td>5 de mayo</td><td><span class="badge badge--strong badge--danger">Cancelada</span></td></tr>
+        <tr data-reserva-estado="confirmada"><td>Emilia Vergara Santibáñez</td><td>P-10 · Sol pleno</td><td>12 de mayo</td><td><span class="badge badge--strong badge--primary">Confirmada</span></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Filtro sin resultados (SEM-11, escenario 3): en una temporada sin cancelaciones, el filtro "Canceladas" deja la tabla sin filas. -->
+    <p class="empty-state empty-state--compact" data-state="filtro-sin-resultados">No hay reservas con este estado.</p>
+
+    <!-- simula la carga desde el servidor; en el mockup duraba 1,2 s y después aparecía la tabla -->
+    <div class="reservas-carga" role="status" data-state="cargando">
+      <p class="empty-state empty-state--compact">Cargando reservas...</p>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+
+    <section class="empty-state" data-state="vacio">
+      <h2>Todavía no hay reservas en esta temporada</h2>
+      <p>Cuando un socio reserve una parcela, la vas a ver aquí con su estado para confirmarla.</p>
+    </section>
+
+    <section data-state="error">
+      <div class="alert alert--danger reservas-error" role="alert">
+        <p>No pudimos cargar las reservas. Revisa tu conexión e inténtalo de nuevo.</p>
+        <!-- al reintentar: vuelve a cargar la lista (escenario cargando) -->
+        <button class="btn" type="button">Reintentar</button>
+      </div>
+    </section>
+
+    <section class="empty-state" data-state="sin-permiso">
+      <h2>Solo la coordinación del huerto ve las reservas</h2>
+      <p>Tu cuenta es de socio. Si necesitas confirmar reservas, pide el rol de coordinación a quien coordina Huerto Los Aromos.</p>
+    </section>
+  </main>
+</body>
+</html>
