@@ -102,10 +102,10 @@ def strip_comments(css):
     return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
 
-def keyframes(css):
-    """Nombres de las reglas @keyframes del CSS. Un comentario que las nombra no cuenta: es justo el comentario de
-    intención que reemplaza a la animación."""
-    return KEYFRAMES.findall(strip_comments(css))
+def keyframes(texto):
+    """Nombres de las reglas @keyframes de un CSS o un HTML. Un comentario, `/* */` o `<!-- -->`, que las nombra no
+    cuenta: es justo el comentario de intención que reemplaza a la animación."""
+    return KEYFRAMES.findall(re.sub(r"<!--.*?-->", " ", strip_comments(texto), flags=re.S))
 
 
 def sin_animacion(archivo, nombres):

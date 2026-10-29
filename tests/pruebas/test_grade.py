@@ -471,30 +471,6 @@ REVISION_FORMATO_FIJO = """# Revisión · ola 3
 
 ## historial, segunda revisión: aprobada
 """
-REVISION_PRIMERA_DESPUES = """# Revisión
-
-| Vista | Veredicto |
-| :--- | :--- |
-| panel | aprobada (segunda revisión) |
-
-## Panel, segunda revisión: aprobada
-
-## Panel, primera revisión: no aprobada (lo que sigue es lo que se pidió corregir)
-"""
-REVISION_UNA_VISTA = """# Revisión · ola 3
-
-## semana (`design/vistas/cosechas/semana.html`)
-
-**Veredicto: no aprobada.** Los encabezados de la tabla. Todo lo demás está aprobado.
-
-## Segunda revisión
-
-**Veredicto: aprobada.**
-"""
-REVISION_SIN_NOMBRE = """# Revisión · ola 3 · chico.html
-
-Veredicto: **aprobada**
-"""
 
 
 class VeredictoDelRevisor(unittest.TestCase):
@@ -502,24 +478,6 @@ class VeredictoDelRevisor(unittest.TestCase):
         self.grade = cargar("html-a-vista")
         self.out = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.out)
-
-    def test_ultimo_veredicto_de_cada_vista(self):
-        casos = {
-            "sin segunda revisión": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"],
-                                     {"marco": "no aprobada", "lista": "aprobada", "ajustes": "no aprobada"}),
-            "con segunda vuelta en viñetas": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"],
-                                              {"marco": "aprobada", "lista": "aprobada", "detalle-lote": "aprobada"}),
-            "formato fijo de la skill": (REVISION_FORMATO_FIJO, ["panel", "historial"], {"panel": "aprobada", "historial": "aprobada"}),
-            "primera revisión escrita después": (REVISION_PRIMERA_DESPUES, ["panel"], {"panel": "aprobada"}),
-            "una vista, segunda revisión sin nombrarla": (REVISION_UNA_VISTA, ["semana"], {"semana": "aprobada"}),
-            "una vista que el archivo no nombra": (REVISION_SIN_NOMBRE, ["reservas"], {"reservas": "aprobada"}),
-            "vista que el revisor no nombra": (REVISION_FORMATO_FIJO, ["panel", "historial", "ajustes"],
-                                               {"panel": "aprobada", "historial": "aprobada", "ajustes": None}),
-            "detalle no es detalle-lote": (REVISION_CON_SEGUNDA_VUELTA, ["detalle"], {"detalle": None}),
-        }
-        for caso, (revision, nombres, esperado) in casos.items():
-            with self.subTest(caso=caso):
-                self.assertEqual(self.grade.veredictos(revision, nombres), esperado)
 
     def test_toda_vista_del_repositorio_tiene_aprobada_como_ultimo_veredicto(self):
         texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"

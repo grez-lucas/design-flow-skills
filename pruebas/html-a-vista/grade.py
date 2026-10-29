@@ -19,8 +19,11 @@ SKILLS = PRUEBAS.parents[1] / "skills"
 REVISAR = SKILLS / "checklist-diseno" / "scripts" / "revisar.py"
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(SKILLS / "html-a-vista" / "scripts"))
+sys.path.insert(0, str(REVISAR.parent))
 import tokens as T  # noqa: E402
+from aprobadas import palabra, veredictos  # noqa: E402
 from desarmar import DEMO  # noqa: E402
+from revisar import keyframes  # noqa: E402
 
 LIMITE = 256 * 1024
 PENDIENTE = r"pendiente|por decidir|a decidir|sin decidir|falta decidir|queda abiert"
@@ -93,16 +96,6 @@ def visible(html):
     return " ".join(re.sub(r"<[^>]+>", " ", s).split()).lower()
 
 
-COMENTARIO = re.compile(r"/\*.*?\*/|<!--.*?-->", re.S)
-KEYFRAMES = re.compile(r"@(?:-webkit-)?keyframes\s+([^\s{]+)\s*\{")
-
-
-def keyframes(texto):
-    """Nombres de las reglas @keyframes reales del texto. Un comentario que menciona @keyframes no cuenta: el criterio
-    pide justamente el comentario de intención junto al elemento que en el mockup se animaba."""
-    return KEYFRAMES.findall(COMENTARIO.sub(" ", texto))
-
-
 def escenarios(html):
     m = re.search(r"""data-escenarios\s*=\s*["']([^"']*)""", html)
     return [e.strip() for e in m.group(1).split(",") if e.strip()] if m else []
@@ -132,11 +125,6 @@ def hallazgos(informe):
 def con_marca(its, contenido, marca):
     """Hallazgos cuya primera oración nombra el contenido y que llevan la marca en esa oración o en su etiqueta."""
     return [h for h, e in its if re.search(contenido, h) and (re.search(marca, h) or re.search(marca, e))]
-
-
-def palabra(valor):
-    """El valor como palabra suelta o entre comillas invertidas, no como parte de otro nombre (--radius-full)."""
-    return rf"(?<![\w-]){re.escape(valor)}(?![\w-])"
 
 
 def secciones(notas):
@@ -308,37 +296,6 @@ def chequeo_ola2(out, nombres):
               if not any(re.fullmatch(rf"(?:vista\s+)?{re.escape(v.lower())}(?:\s*\(parte\s*\d+\))?", d) for d in ola2)]
     return [check("La ola 2 tiene un subagente por vista", nombres and not faltan,
                   f"sin subagente propio: {faltan}; subagentes de la ola 2: {ola2[:10]}")]
-
-
-VEREDICTO = re.compile(r"(?:^|[:|·(-])\s*(no\s+)?aprobada\b")
-SIN_NOMBRE = re.compile(r"[\s#|>-]*(?:veredicto|decisi[oó]n)?(?:\s+final)?\s*")
-
-
-def veredictos(revision, nombres):
-    """Último veredicto del revisor por vista ("aprobada", "no aprobada" o None) en revision.md. Un veredicto es
-    "aprobada" o "no aprobada" tras dos puntos, guion, barra o paréntesis, en singular, para no leer un resumen
-    ("6 aprobadas") ni una frase ("la tabla de tokens aprobada"). Va a la vista que la línea nombra antes del
-    veredicto; un "Veredicto:" sin vista, a la del último encabezado que nombró una, o a la única vista. Vale el
-    último en el archivo, salvo que diga "primera revisión": esa pierde contra cualquier otra."""
-    patrones = {v: re.compile(palabra(v.lower())) for v in nombres}
-    mejor, contexto, encabezado = {}, [], ""
-    for n, linea in enumerate(revision.splitlines()):
-        plano = re.sub(r"[*_`]", "", linea).strip().lower()
-        if plano.startswith("#"):
-            encabezado = plano
-            contexto = [v for v, p in patrones.items() if p.search(plano)] or contexto
-        m = VEREDICTO.search(plano)
-        if not m:
-            continue
-        antes = plano[:m.start()]
-        vistas_ = [v for v, p in patrones.items() if p.search(antes)]
-        if not vistas_ and SIN_NOMBRE.fullmatch(antes):
-            vistas_ = contexto or (list(nombres) if len(nombres) == 1 else [])
-        rango = (0 if "primera" in plano or "primera" in encabezado else 1, n)
-        for v in vistas_:
-            if v not in mejor or rango > mejor[v][0]:
-                mejor[v] = (rango, "no aprobada" if m.group(1) else "aprobada")
-    return {v: mejor[v][1] if v in mejor else None for v in nombres}
 
 
 def chequeo_revisor(out, nombres):
