@@ -24,7 +24,12 @@ EXTERNAL = re.compile(r"""(?:\b(?:src|href|srcset|poster|data)\s*=\s*["']?|url\(
 DOMAIN = re.compile(r"\b[\w.+-]+@([\w-]+(?:\.[\w-]+)+)|\bhttps?://([\w-]+(?:\.[\w-]+)+)", re.I)
 FAKE_DOMAINS = re.compile(r"(^|\.)(example(\.(com|org|net|cl))?|test|invalid|localhost|ejemplo\.(com|cl)|w3\.org)$", re.I)
 LOREM = re.compile(r"lorem ipsum", re.I)
-KEYFRAMES = re.compile(r"@(?:-webkit-|-moz-)?keyframes\s+([^\s{]+)\s*\{", re.I)
+KEYFRAMES = re.compile(r"@(?:-[a-z]+-)?keyframes\s+([^\s{]+)\s*\{", re.I)
+IMPORT = re.compile(r"""@import\s+(?:url\(\s*)?["']?([^"')\s;]+)""", re.I)
+ESCAPE_CSS = re.compile(r"\\(?:([0-9a-fA-F]{1,6})\s?|(.))", re.S)
+EXTERNO = re.compile(r"(?:https?:)?//", re.I)
+ESQUEMA = re.compile(r"[a-z][\w+.-]*:", re.I)
+COMPARTIDOS_CSS = ("tokens.css", "components.css")
 
 
 class Vista(HTMLParser):
@@ -32,7 +37,8 @@ class Vista(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.body = {}
         self.metas = {}
-        self.links = []
+        self.hojas = []
+        self.js_en_atributos = []
         self.scripts = []
         self.states = []
         self.styles = []
@@ -56,8 +62,12 @@ class Vista(HTMLParser):
             self.body = a
         if tag == "meta" and a.get("name"):
             self.metas[a["name"]] = a.get("content", "")
-        if tag == "link":
-            self.links.append(a.get("href", ""))
+        if tag == "link" and ("stylesheet" in (a.get("rel") or "").lower().split()
+                              or re.sub(r"[?#].*", "", a.get("href") or "").lower().endswith(".css")):
+            self.hojas.append(a.get("href") or "")
+        for k, valor in attrs:
+            if re.sub(r"[\x00-\x20]", "", valor or "").lower().startswith("javascript:"):
+                self.js_en_atributos.append(f'<{tag} {k}="{valor}">')
         if tag == "script":
             self.in_script = True
             self.scripts.append(a.get("src", ""))
@@ -72,7 +82,9 @@ class Vista(HTMLParser):
             self.states.append(a["data-state"])
         if "data-frame" in a and self.frame_at is None:
             self.frame_at = len(self.stack)
-        if self.frame_at is not None:
+        if self.frame_at is None:
+            self.js_en_atributos += [f'<{tag} {k}="{v}">' for k, v in attrs if k.startswith("on")]
+        else:
             handlers = [k for k, _ in attrs if k.startswith("on")]
             links = [v for k, v in attrs if k == "href" and v and "escenario=" in v]
             if handlers or links:
@@ -102,10 +114,36 @@ def strip_comments(css):
     return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
 
+def sin_escapes(css):
+    """El CSS con sus escapes resueltos: `@\\6b eyframes` es `@keyframes` para el navegador, y para la revisión."""
+    def letra(m):
+        if m.group(1):
+            n = int(m.group(1), 16)
+            return chr(n) if 0 < n <= 0x10FFFF else "\ufffd"
+        return m.group(2)
+    return ESCAPE_CSS.sub(letra, css)
+
+
 def keyframes(texto):
-    """Nombres de las reglas @keyframes de un CSS o un HTML. Un comentario, `/* */` o `<!-- -->`, que las nombra no
-    cuenta: es justo el comentario de intención que reemplaza a la animación."""
-    return KEYFRAMES.findall(re.sub(r"<!--.*?-->", " ", strip_comments(texto), flags=re.S))
+    """Nombres de las reglas @keyframes de un CSS o un HTML, con cualquier prefijo (-webkit-, -o-) o escritas con
+    escapes de CSS. Un comentario, `/* */` o `<!-- -->`, que las nombra no cuenta: es justo el comentario de intención
+    que reemplaza a la animación."""
+    return KEYFRAMES.findall(sin_escapes(re.sub(r"<!--.*?-->", " ", strip_comments(texto), flags=re.S)))
+
+
+def imports_locales(css):
+    """Lo que un CSS importa con `@import` desde un archivo local o un `data:`, no desde un CDN (eso es un recurso
+    externo, aparte)."""
+    return [r for r in IMPORT.findall(sin_escapes(strip_comments(css))) if not EXTERNO.match(r)]
+
+
+def resolver(ref, desde):
+    """La ruta local a la que lleva un `href` o `src` desde la carpeta de la vista, o None si es externo o tiene
+    esquema (`data:`, `javascript:`)."""
+    ref = re.sub(r"[?#].*", "", ref.strip())
+    if not ref or EXTERNO.match(ref) or ESQUEMA.match(ref):
+        return None
+    return (desde / ref).resolve()
 
 
 def sin_animacion(archivo, nombres):
@@ -133,12 +171,21 @@ def revisar_vista(path, repo, definidos):
     bloquea, avisa = [], []
     rel = path.relative_to(repo)
 
-    for archivo in ("tokens.css", "components.css"):
-        if not any(h.endswith(archivo) for h in v.links):
-            bloquea.append(f"No enlaza `{archivo}`.")
-    if not any(s.endswith("proto.js") for s in v.scripts):
-        bloquea.append("No enlaza `proto.js`.")
-    otros_js = [s for s in v.scripts if s and not s.endswith("proto.js")] + v.script_inline
+    design = (repo / "design").resolve()
+    compartidos = {design / a for a in COMPARTIDOS_CSS}
+    for archivo in COMPARTIDOS_CSS:
+        if not any(resolver(h, path.parent) == design / archivo for h in v.hojas):
+            bloquea.append(f"No enlaza `{archivo}` del repositorio de diseño (`design/{archivo}`).")
+    ajenas = [h for h in v.hojas if not EXTERNO.match(h.strip()) and resolver(h, path.parent) not in compartidos]
+    ajenas += imports_locales("\n".join(v.styles))
+    if ajenas:
+        bloquea.append(f"Enlaza o importa {', '.join(f'`{h}`' for h in dict.fromkeys(ajenas))}, y una vista usa solo `tokens.css` "
+                       "y `components.css` del repositorio de diseño. Lo que esa hoja trae no lo ve esta revisión: los estilos "
+                       "propios van en el `<style>` de la vista, y lo que se repite, en `components.css`.")
+    proto = design / "proto.js"
+    if not any(resolver(s, path.parent) == proto for s in v.scripts if s):
+        bloquea.append("No enlaza `proto.js` del repositorio de diseño (`design/proto.js`).")
+    otros_js = [s for s in v.scripts if s and resolver(s, path.parent) != proto] + v.script_inline + v.js_en_atributos
     if otros_js:
         bloquea.append(f"Tiene JavaScript propio además de `proto.js`: {otros_js[:3]}. El comportamiento va como comentario, no como código.")
 
@@ -243,6 +290,10 @@ def revisar_compartidos(design, definidos):
             bloquea.append(sin_animacion(f"`{archivo}` ", animadas))
         if EXTERNAL.search(strip_comments(css)):
             bloquea.append(f"`{archivo}` carga recursos externos (CDN, fuentes, imágenes remotas).")
+        locales = imports_locales(css)
+        if locales:
+            bloquea.append(f"`{archivo}` importa {', '.join(f'`{r}`' for r in locales)} con `@import`. Los archivos compartidos "
+                           "no cargan otras hojas: lo que haga falta va dentro del mismo archivo, donde la revisión lo ve.")
     if not (design / "tokens.css").exists():
         bloquea.append("No existe `design/tokens.css`.")
     comp = design / "components.css"

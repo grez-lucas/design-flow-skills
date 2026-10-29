@@ -193,8 +193,93 @@ class Revision(unittest.TestCase):
         self.assertTrue(any("JavaScript propio" in b for b in bloquea), bloquea)
         self.assertEqual([a for a in avisa if "JavaScript" in a], [])
 
+    def revisar_texto(self, texto, nombre="caso.html"):
+        vista = self.design / "vistas" / "pedidos" / nombre
+        vista.write_text(texto)
+        _, _, _, bloquea, avisa = revisar.revisar_vista(vista, self.repo, revisar.tokens_definidos(self.design))
+        return bloquea, avisa
+
+    def test_script_que_no_es_el_proto_js_del_repositorio_bloquea(self):
+        """`../../mi-proto.js` termina en proto.js, pero no es design/proto.js: es JavaScript propio."""
+        bloquea, _ = self.revisar("js-mi-proto.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("JavaScript propio", bloquea[0])
+        self.assertIn("../../mi-proto.js", bloquea[0])
+        limpia = (FIXTURES / "limpia.html").read_text()
+        casos = {"solo mi-proto.js": "../../mi-proto.js", "proto.js de otra carpeta": "../proto.js",
+                 "proto.js con otra ruta absoluta": "/proto.js"}
+        for caso, src in casos.items():
+            with self.subTest(caso=caso):
+                bloquea, _ = self.revisar_texto(limpia.replace('src="../../proto.js"', f'src="{src}"'))
+                self.assertIn("No enlaza `proto.js` del repositorio de diseño (`design/proto.js`).", bloquea)
+                self.assertTrue(any("JavaScript propio" in b and src in b for b in bloquea), bloquea)
+
+    def test_url_javascript_es_javascript_propio(self):
+        bloquea, _ = self.revisar("href-javascript.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("JavaScript propio", bloquea[0])
+        self.assertIn("javascript:void(0)", bloquea[0])
+        limpia = (FIXTURES / "limpia.html").read_text()
+        casos = {"mayúsculas y espacios": '<a href="  JavaScript:alert(1)">x</a>',
+                 "entidad en el esquema": '<a href="java&#x09;script:alert(1)">x</a>',
+                 "en un formulario": '<form action="javascript:enviar()"><button>Enviar</button></form>'}
+        for caso, html in casos.items():
+            with self.subTest(caso=caso):
+                bloquea, _ = self.revisar_texto(limpia.replace("<main data-frame>", "<main data-frame>\n    " + html))
+                self.assertTrue(any("JavaScript propio" in b for b in bloquea), bloquea)
+
+    def test_manejador_de_eventos_fuera_del_frame_es_javascript_propio(self):
+        limpia = (FIXTURES / "limpia.html").read_text()
+        bloquea, _ = self.revisar_texto(limpia.replace("<body ", '<body onload="iniciar()" '))
+        self.assertTrue(any("JavaScript propio" in b and "onload" in b for b in bloquea), bloquea)
+
+    def test_hoja_de_estilo_local_enlazada_o_importada_bloquea(self):
+        """La convención enlaza solo tokens.css y components.css: otra hoja local escondería @keyframes o valores sueltos
+        que el script no mira."""
+        (self.design / "anim.css").write_text("@keyframes latir { 50% { opacity: .5; } }\n")
+        for fixture in ("css-local-enlazado.html", "css-local-importado.html"):
+            with self.subTest(fixture=fixture):
+                bloquea, _ = self.revisar(fixture)
+                self.assertEqual(len(bloquea), 1, bloquea)
+                self.assertIn("`../../anim.css`", bloquea[0])
+                self.assertIn("solo `tokens.css` y `components.css`", bloquea[0])
+
+    def test_tokens_o_components_de_otra_ruta_no_cuentan(self):
+        limpia = (FIXTURES / "limpia.html").read_text()
+        bloquea, _ = self.revisar_texto(limpia.replace('href="../../tokens.css"', 'href="../../mi-tokens.css"'))
+        self.assertIn("No enlaza `tokens.css` del repositorio de diseño (`design/tokens.css`).", bloquea)
+        self.assertTrue(any("`../../mi-tokens.css`" in b for b in bloquea), bloquea)
+
+    def test_keyframes_con_cualquier_prefijo_o_escapado_bloquean(self):
+        bloquea, _ = self.revisar("animacion-prefijo.html")
+        self.assertEqual(len([b for b in bloquea if "animación" in b]), 1, bloquea)
+        animacion = (FIXTURES / "animacion.html").read_text()
+        for caso, regla in {"-ms-": "@-ms-keyframes", "-khtml-": "@-khtml-keyframes", "escape CSS": "@\\6b eyframes",
+                            "escape de una letra": "@ke\\yframes"}.items():
+            with self.subTest(caso=caso):
+                bloquea, _ = self.revisar_texto(animacion.replace("@keyframes", regla))
+                self.assertTrue(any("animación" in b and "`latir`" in b for b in bloquea), bloquea)
+
     def compartidos(self):
         return revisar.revisar_compartidos(self.design, revisar.tokens_definidos(self.design))
+
+    def test_import_local_en_components_o_tokens_bloquea(self):
+        for archivo in ("components.css", "tokens.css"):
+            with self.subTest(archivo=archivo):
+                original = (self.design / archivo).read_text()
+                (self.design / archivo).write_text('@import "anim.css";\n' + original)
+                bloquea, _ = self.compartidos()
+                (self.design / archivo).write_text(original)
+                self.assertEqual(len(bloquea), 1, bloquea)
+                self.assertIn(f"`{archivo}`", bloquea[0])
+                self.assertIn("`anim.css`", bloquea[0])
+
+    def test_keyframes_con_prefijo_en_components_css_bloquea(self):
+        with (self.design / "components.css").open("a") as c:
+            c.write("@-o-keyframes girar { to { opacity: 0; } }\n")
+        bloquea, _ = self.compartidos()
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("`girar`", bloquea[0])
 
     def test_keyframes_en_components_css_bloquea(self):
         """El components.css que dejó el subagente de componentes en eval-3 de la iteración 3 de html-a-vista."""

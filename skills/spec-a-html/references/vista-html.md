@@ -47,12 +47,13 @@ Parte de `assets/vista.html`. La estructura es:
 - Valores visuales solo con `var(--...)` de `tokens.css`. El `<style>` de la vista es para layout propio de esa vista (grids, posiciones) y sigue la misma regla.
 - Componentes de `components.css` antes que estilos nuevos. Si falta uno que se va a repetir, agrégalo allá.
 - HTML semántico: `header`, `nav`, `main`, `section`, `table`, `form`, `label`, `button`. Ayuda a DEV a leer la intención y le da accesibilidad básica a la vista.
+- La vista enlaza `../../tokens.css`, `../../components.css` y `../../proto.js`, y nada más: ni otra hoja de estilo (tampoco con `@import`), ni otro script. Lo que va en otro archivo no lo ve la revisión de `checklist-diseno`.
 - Sin frameworks, sin CDN, sin imágenes externas. Íconos como SVG inline cortos o un carácter, y avatares como iniciales.
 - Sin animaciones (`@keyframes`): DEV no lee una duración en CSS como un requisito. El movimiento va como comentario de intención junto al elemento (`<!-- el indicador late mientras el riego está activo -->`), y si el tiempo importa, como un escenario (`cargando`).
 - Datos ficticios y verosímiles: nombres inventados, dominios `example.com`, montos y fechas creíbles. Nada de clientes reales.
 - Textos de la interfaz completos, no "Lorem ipsum": el texto es parte del diseño y DEV lo copia.
 - Un flujo de varios pasos puede ir en un solo archivo con un escenario por paso (`paso-1`, `paso-2`) o en un archivo por paso; elige lo que deje cada archivo más corto y dilo en el plan.
-- Interacciones que el HTML no muestra (qué pasa al hacer clic, validaciones, tiempos) van como comentario corto junto al elemento: `<!-- al confirmar: vuelve al listado con un aviso de éxito -->`. No escribas JavaScript de comportamiento.
+- Interacciones que el HTML no muestra (qué pasa al hacer clic, validaciones, tiempos) van como comentario corto junto al elemento: `<!-- al confirmar: vuelve al listado con un aviso de éxito -->`. No escribas JavaScript de comportamiento, tampoco en un `href="javascript:..."` ni en un `onclick`.
 
 ## Tamaño
 
