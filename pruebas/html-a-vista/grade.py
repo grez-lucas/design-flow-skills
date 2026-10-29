@@ -348,7 +348,8 @@ def extra_grande(out, htmls, tok):
     return [
         check("tokens.css define el tema oscuro en [data-theme=\"dark\"] solo con --color-*", oscuro and not no_color, no_color[:3]),
         check("Una épica por módulo, más el marco", len(epicas) >= 4, sorted(epicas)),
-        check("El escenario de la báscula tiene el mismo nombre en vistas de dos módulos o más", compartido, globales),
+        check("El escenario de la báscula tiene el mismo nombre en vistas de dos módulos o más", compartido,
+              {e: sorted(ep) for e, ep in globales.items()}),
         check("El spec lista el escenario global", compartido and any(e in spec for e in compartido), compartido),
         check("El gráfico de temperatura es un SVG estático", svg, svg[:2]),
         check("El informe describe las tres olas", tres_olas(notas), ""),

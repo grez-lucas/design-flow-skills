@@ -4,6 +4,7 @@ Uso: python3 -m unittest discover -s tests/pruebas -v
 """
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -599,6 +600,38 @@ class CorridaDeReferencia(unittest.TestCase):
         fallan = self.fallan(self.calificar(mutar))
         self.assertEqual(set(fallan), {"Las vistas no usan el data-state ajeno del mockup", "revisar.py no tiene hallazgos que bloquean"})
         self.assertIn("no declara: full", fallan["revisar.py no tiene hallazgos que bloquean"])
+
+
+ESCENARIO_GLOBAL = """
+import importlib.util, json, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("grade", sys.argv[1])
+grade = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(grade)
+out = Path(sys.argv[2])
+htmls = {out / "repo" / "design" / "vistas" / e / "v.html": '<body data-escenarios="normal, bascula-desconectada">'
+         for e in ("semilla", "inventario", "compostaje", "socios")}
+htmls[out / "repo" / "design" / "vistas" / "socios" / "v.html"] = '<body data-escenarios="normal">'
+res = grade.extra_grande(out, htmls, out / "sin-tokens.css")
+print(json.dumps(next(r for r in res if r["text"].startswith("El escenario de la báscula"))))
+"""
+
+
+class EscenarioDeLaBascula(unittest.TestCase):
+    def test_la_evidencia_no_depende_del_orden_del_hash(self):
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, out)
+        (out / "notas.md").write_text("Informe.\n")
+        resultados = set()
+        for semilla in ("0", "1", "2", "3", "4", "5"):
+            r = subprocess.run([sys.executable, "-B", "-c", ESCENARIO_GLOBAL, str(PRUEBAS / "html-a-vista" / "grade.py"), str(out)],
+                               capture_output=True, text=True, env={**os.environ, "PYTHONHASHSEED": semilla})
+            self.assertEqual(r.returncode, 0, r.stderr)
+            resultados.add(r.stdout)
+        self.assertEqual(len(resultados), 1, resultados)
+        chequeo = json.loads(resultados.pop())
+        self.assertTrue(chequeo["passed"])
+        self.assertEqual(chequeo["evidence"], str({"bascula-desconectada": ["compostaje", "inventario", "semilla"]}))
 
 
 if __name__ == "__main__":
