@@ -145,7 +145,10 @@ class Veredictos(unittest.TestCase):
                          {"marco": "no aprobada", "lista": "aprobada"})
 
 
-VISTAS_ITERACION_3 = {"semilla/marco.html", "inventario/lista.html", "socios/ajustes.html"}
+VISTAS_ITERACION_3 = {"semilla/marco.html", "inventario/lista.html", "inventario/detalle.html", "inventario/movimientos.html",
+                      "compostaje/resumen.html", "compostaje/pilas.html", "socios/socios.html", "socios/cuotas.html",
+                      "socios/ajustes.html"}
+APROBADAS_ITERACION_3 = VISTAS_ITERACION_3 - {"semilla/marco.html"}
 
 
 class MoverAprobadas(unittest.TestCase):
@@ -181,23 +184,55 @@ class MoverAprobadas(unittest.TestCase):
     def revision(self, texto):
         (self.trabajo / "ola-3" / "revision.md").write_text(texto)
 
-    def correr(self):
-        return subprocess.run([sys.executable, "-B", str(SCRIPT), str(self.trabajo), str(self.repo)], capture_output=True, text=True)
+    def correr(self, *extra):
+        return subprocess.run([sys.executable, "-B", str(SCRIPT), str(self.trabajo), str(self.repo), *extra],
+                              capture_output=True, text=True)
 
     def en_repo(self):
         return {p.relative_to(self.repo / "design" / "vistas").as_posix() for p in (self.repo / "design" / "vistas").rglob("*.html")} \
             if (self.repo / "design" / "vistas").is_dir() else set()
 
-    def test_la_revision_de_la_iteracion_3_deja_fuera_el_marco(self):
+    def test_la_revision_de_la_iteracion_3_sin_pendientes_no_mueve_nada(self):
+        """En eval-3 de la iteración 3 el revisor no aprobó el marco: sin nombrarlo como pendiente, no entra nada."""
         self.vistas(*VISTAS_ITERACION_3)
         self.revision((FIX / "revision-iteracion-3.md").read_text())
         r = self.correr()
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertEqual(self.en_repo(), {"inventario/lista.html", "socios/ajustes.html"})
+        self.assertEqual(self.en_repo(), set())
+        self.assertEqual((self.repo / "design" / "components.css").read_text(), "/* components.css del repositorio */\n")
+        self.assertIn("No se movió nada", r.stdout)
+        self.assertIn("--pendientes", r.stdout)
         fuera = r.stdout.split("Fuera del repositorio")[1]
-        self.assertIn("design/vistas/semilla/marco.html", fuera)
-        self.assertIn("no aprobada", fuera)
+        self.assertRegex(fuera, r"design/vistas/semilla/marco\.html: no aprobada")
+
+    def test_la_revision_de_la_iteracion_3_con_el_marco_pendiente_mueve_las_8(self):
+        self.vistas(*VISTAS_ITERACION_3)
+        self.revision((FIX / "revision-iteracion-3.md").read_text())
+        r = self.correr("--pendientes", "marco")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.en_repo(), APROBADAS_ITERACION_3)
+        self.assertEqual(len(self.en_repo()), 8)
         self.assertEqual((self.repo / "design" / "components.css").read_text(), "/* components.css integrado */\n")
+        pendientes = r.stdout.split("## Pendientes")[1]
+        self.assertRegex(pendientes, r"design/vistas/semilla/marco\.html: no aprobada")
+        self.assertNotIn("Fuera del repositorio", r.stdout)
+
+    def test_pendientes_que_no_coinciden_con_lo_que_queda_fuera_no_mueven_nada(self):
+        self.vistas(*VISTAS_ITERACION_3)
+        self.revision((FIX / "revision-iteracion-3.md").read_text())
+        casos = {"nombra una aprobada en vez del marco": ("lista", "marco", "lista"),
+                 "nombra el marco y una aprobada": ("marco,ajustes", None, "ajustes"),
+                 "nombra una vista que no existe": ("marco,mapa", None, "mapa")}
+        for caso, (pendientes, sin_nombrar, de_mas) in casos.items():
+            with self.subTest(caso=caso):
+                r = self.correr("--pendientes", pendientes)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertEqual(self.en_repo(), set())
+                self.assertIn("No se movió nada", r.stdout)
+                aviso = r.stdout.split("No se movió nada")[1].split("\n\n")[0]
+                if sin_nombrar:
+                    self.assertRegex(aviso, rf"quedan fuera sin nombrar: {sin_nombrar}\b")
+                self.assertRegex(aviso, rf"no quedan fuera: {de_mas}\b")
 
     def test_todo_aprobado_mueve_todo_y_sale_con_0(self):
         self.vistas("riego/panel.html", "riego/historial.html")
@@ -212,8 +247,12 @@ class MoverAprobadas(unittest.TestCase):
         self.revision((FIX / "revision-segunda.md").read_text())
         r = self.correr()
         self.assertEqual(r.returncode, 1)
-        self.assertEqual(self.en_repo(), {"riego/panel.html"})
+        self.assertEqual(self.en_repo(), set())
         self.assertRegex(r.stdout, r"design/vistas/riego/calendario\.html.*sin veredicto")
+        r = self.correr("--pendientes", "calendario")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(self.en_repo(), {"riego/panel.html"})
+        self.assertRegex(r.stdout.split("## Pendientes")[1], r"design/vistas/riego/calendario\.html.*sin veredicto")
 
     def test_vista_que_ya_estaba_igual_en_el_repositorio_no_necesita_veredicto(self):
         self.vistas("pedidos/listado.html", carpeta=self.repo / "design")
@@ -235,10 +274,12 @@ class MoverAprobadas(unittest.TestCase):
     def test_sin_ninguna_aprobada_no_mueve_los_compartidos(self):
         self.vistas("semilla/marco.html")
         self.revision((FIX / "revision-iteracion-3.md").read_text())
-        r = self.correr()
-        self.assertEqual(r.returncode, 1)
-        self.assertEqual(self.en_repo(), set())
-        self.assertEqual((self.repo / "design" / "components.css").read_text(), "/* components.css del repositorio */\n")
+        for extra in ([], ["--pendientes", "marco"]):
+            with self.subTest(extra=extra):
+                r = self.correr(*extra)
+                self.assertEqual(r.returncode, 1)
+                self.assertEqual(self.en_repo(), set())
+                self.assertEqual((self.repo / "design" / "components.css").read_text(), "/* components.css del repositorio */\n")
 
     def test_archivo_de_trabajo_en_la_copia_no_entra(self):
         self.vistas("riego/panel.html")

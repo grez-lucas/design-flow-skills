@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Mueve al repositorio de diseño solo las vistas que el revisor aprobó.
 
-Uso: python3 -B aprobadas.py <trabajo> <repo-de-diseño>
+Uso: python3 -B aprobadas.py <trabajo> <repo-de-diseño> [--pendientes <vista>[,<vista>...]]
 
 Lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/repo/design/. Cada vista de la copia que es
 nueva o distinta de la del repositorio entra solo si su último veredicto es "aprobada" y tiene en disco lo que el
 revisor lee, <trabajo>/ola-2/<vista>/contrato.md y <trabajo>/ola-3/inventario/<vista>.json; `tokens.css`,
-`components.css` y `proto.js` entran si cambiaron y entró alguna vista. Lo demás queda fuera y se lista: vistas no
-aprobadas o sin veredicto, dos vistas con el mismo nombre y cualquier otro archivo de la copia (contratos,
-inventarios). Las secciones del spec no las toca.
+`components.css` y `proto.js` entran si cambiaron y entró alguna vista. Las secciones del spec no las toca.
 
-Sale con 0 si todo entró, 1 si algo quedó fuera (lo aprobado ya se movió) y 2 si falta revision.md o la copia.
+Si alguna vista queda fuera (no aprobada, sin veredicto, sin contrato o inventario, o con otra del mismo nombre), no
+mueve nada. Con --pendientes, que nombra las vistas que ya tuvieron su segunda revisión y siguen sin aprobarse, mueve
+las aprobadas solo si las que quedan fuera son exactamente esas; si no coinciden, no mueve nada y dice cuáles sobran o
+faltan. Cualquier otro archivo de la copia (contratos, inventarios) no entra y se lista.
+
+Sale con 0 si entró todo lo que no es pendiente, 1 si no movió nada o dejó fuera un archivo, y 2 si el uso es
+incorrecto o falta revision.md o la copia.
 """
 import re
 import shutil
@@ -23,6 +27,7 @@ FORMATO = re.compile(r"## (?P<vista>[^\s:,]+)(?:, segunda revisión)?: (?:(?P<no
 VEREDICTO = re.compile(r"(?:^|[:|·(-])\s*(no\s+)?aprobada\b")
 SIN_NOMBRE = re.compile(r"[\s#|>-]*(?:veredicto|decisi[oó]n)?(?:\s+final)?\s*")
 Veredicto = namedtuple("Veredicto", "estado huella")
+Resultado = namedtuple("Resultado", "movidos pendientes fuera problema")
 
 
 def palabra(valor):
@@ -101,8 +106,11 @@ def sin_evidencia(trabajo, vista):
     return " ni ".join(f"`{r}`" for r in faltan)
 
 
-def mover(trabajo, repo):
-    """Copia al repositorio lo aprobado y devuelve (movidos, fuera): rutas bajo design/ y (ruta, motivo)."""
+def mover(trabajo, repo, pendientes=()):
+    """Copia al repositorio lo aprobado si las vistas que quedan fuera son exactamente `pendientes`.
+
+    Devuelve un Resultado: movidos (rutas bajo design/), pendientes y fuera ((ruta, motivo)), y problema, el motivo
+    por el que no se movió nada, o None."""
     copia, design = trabajo / "ola-3" / "repo" / "design", repo / "design"
     candidatos = cambiados(copia, design)
     vistas = [p for p in candidatos if p.parts[0] == "vistas" and p.suffix == ".html"]
@@ -111,18 +119,31 @@ def mover(trabajo, repo):
     for v in vistas:
         por_nombre.setdefault(v.stem, []).append(v)
     veredicto = veredictos((trabajo / "ola-3" / "revision.md").read_text(errors="ignore"), list(por_nombre))
-    entran, fuera = [], []
+    entran, sin_aprobar, fuera = [], [], []
     for v in vistas:
         if len(por_nombre[v.stem]) > 1:
-            fuera.append((v, f"hay otra vista con el mismo nombre, `{v.stem}`, y el veredicto no dice de cuál es"))
+            sin_aprobar.append((v, f"hay otra vista con el mismo nombre, `{v.stem}`, y el veredicto no dice de cuál es"))
         elif veredicto[v.stem] != "aprobada":
-            fuera.append((v, {None: "sin veredicto en revision.md",
-                              "fuera de formato": f"su último encabezado en revision.md no sigue el formato `## {v.stem}: aprobada "
-                                                  "sha256:<huella>` o `## <vista>: no aprobada`"}.get(veredicto[v.stem], veredicto[v.stem])))
+            sin_aprobar.append((v, {None: "sin veredicto en revision.md",
+                                    "fuera de formato": f"su último encabezado en revision.md no sigue el formato `## {v.stem}: "
+                                                        "aprobada sha256:<huella>` o `## <vista>: no aprobada`"}.get(veredicto[v.stem], veredicto[v.stem])))
         elif falta := sin_evidencia(trabajo, v.stem):
-            fuera.append((v, f"aprobada, pero sin {falta}: el revisor aprueba leyendo el contrato y el inventario"))
+            sin_aprobar.append((v, f"aprobada, pero sin {falta}: el revisor aprueba leyendo el contrato y el inventario"))
         else:
             entran.append(v)
+    afuera, nombradas = {v.stem for v, _ in sin_aprobar}, set(pendientes)
+    problema = None
+    if afuera != nombradas:
+        if not nombradas:
+            problema = (f"No se movió nada: quedan fuera {', '.join(sorted(afuera))}. Una vista fuera vuelve a su subagente de "
+                        "la ola 2 y a una segunda revisión; si ya la tuvo y sigue sin aprobarse, nómbrala con "
+                        "`--pendientes <vista>[,<vista>...]` y va al informe como pendiente.")
+        else:
+            detalle = [f"quedan fuera sin nombrar: {', '.join(sorted(afuera - nombradas))}" if afuera - nombradas else "",
+                       f"nombradas que no quedan fuera: {', '.join(sorted(nombradas - afuera))}" if nombradas - afuera else ""]
+            problema = ("No se movió nada: `--pendientes` tiene que nombrar exactamente las vistas que quedan fuera; "
+                        + "; ".join(d for d in detalle if d) + ".")
+        entran = []
     for p in otros:
         if str(p) not in COMPARTIDOS:
             fuera.append((p, "no es una vista ni un archivo compartido"))
@@ -133,34 +154,52 @@ def mover(trabajo, repo):
     for p in entran:
         (design / p).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(copia / p, design / p)
-    return [Path("design") / p for p in entran], [(Path("design") / p, m) for p, m in fuera]
+    d = Path("design")
+    if problema:
+        fuera = sin_aprobar + fuera
+    return Resultado([d / p for p in entran], [] if problema else [(d / p, m) for p, m in sin_aprobar],
+                     [(d / p, m) for p, m in fuera], problema)
 
 
-def main():
-    if len(sys.argv) != 3:
+def main(argv):
+    args, pendientes = list(argv[1:]), []
+    if "--pendientes" in args:
+        i = args.index("--pendientes")
+        if i + 1 >= len(args):
+            print(__doc__)
+            return 2
+        pendientes = [v.strip() for v in args[i + 1].split(",") if v.strip()]
+        del args[i:i + 2]
+    if len(args) != 2 or not pendientes and "--pendientes" in argv:
         print(__doc__)
         return 2
-    trabajo, repo = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
+    trabajo, repo = Path(args[0]).resolve(), Path(args[1]).resolve()
     revision, copia = trabajo / "ola-3" / "revision.md", trabajo / "ola-3" / "repo" / "design"
     for ruta, falta in ((revision, "el revisor no dejó su veredicto"), (copia, "no hay copia integrada")):
         if not ruta.exists():
             print(f"No existe `{ruta}`: {falta}. No se movió nada.")
             return 2
-    movidos, fuera = mover(trabajo, repo)
+    r = mover(trabajo, repo, pendientes)
     print("# Vistas al repositorio\n")
+    if r.problema:
+        print(r.problema + "\n")
     print("## Movido\n")
-    for p in movidos:
+    for p in r.movidos:
         print(f"- {p.as_posix()}")
-    if not movidos:
+    if not r.movidos:
         print("- Nada.")
-    if fuera:
-        print("\n## Fuera del repositorio\n")
-        for p, motivo in fuera:
+    if r.pendientes:
+        print("\n## Pendientes\n")
+        for p, motivo in r.pendientes:
             print(f"- {p.as_posix()}: {motivo}")
-        print("\nUna vista fuera vuelve a su subagente de la ola 2 y a una segunda revisión; si ya la tuvo, va al informe "
-              "como pendiente. Un archivo que no es vista ni compartido es de la carpeta de trabajo y no entra.")
-    return 1 if fuera else 0
+        print("\nVan al informe como pendientes, con lo que el revisor dijo que falta.")
+    if r.fuera:
+        print("\n## Fuera del repositorio\n")
+        for p, motivo in r.fuera:
+            print(f"- {p.as_posix()}: {motivo}")
+        print("\nUn archivo que no es vista ni compartido es de la carpeta de trabajo y no entra.")
+    return 1 if r.problema or r.fuera else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv))

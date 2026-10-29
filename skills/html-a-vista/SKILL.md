@@ -88,14 +88,22 @@ Con `references/olas.md`, sección "Ola 3":
 
 1. Integras tú, sin subagente: armas `components.css` final con lo nuevo de cada contrato, dejas las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corres `python3 -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia. Con navegador, sacas aquí las capturas por escenario, del original y de la vista (`references/escenarios.md`, sección "Capturas"): tienen que existir antes de que el revisor empiece. Sin navegador, la verificación queda en el inventario y el informe lo dice.
 2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, le pasas las rutas de las capturas del original y de la vista por escenario, y las compara lado a lado. Deja cada veredicto en `<trabajo>/ola-3/revision.md` con el formato de `references/olas.md`, para que se lea sin interpretar.
-3. Una vista no aprobada no la corriges tú, aunque el arreglo sea de una línea: vuelve una vez a su subagente de la ola 2 con las notas del revisor, la integras de nuevo y el revisor la mira otra vez. El revisor es la única mirada que no armó la vista; si la corrige quien integra, entra al repositorio sin que nadie independiente la haya visto. Si en esa segunda revisión sigue sin aprobarse, queda fuera y va al informe como pendiente.
+3. Una vista no aprobada no la corriges tú, aunque el arreglo sea de una línea: vuelve una vez a su subagente de la ola 2 con las notas del revisor, la integras de nuevo y el revisor la mira otra vez. El revisor es la única mirada que no armó la vista; si la corrige quien integra, entra al repositorio sin que nadie independiente la haya visto. Si en esa segunda revisión sigue sin aprobarse, queda fuera, la nombras con `--pendientes` en el paso siguiente y va al informe como pendiente.
 4. Mueves al repositorio con el script, no copiando a mano:
 
    ```
    python3 -B <ruta-de-esta-skill>/scripts/aprobadas.py <trabajo> <repo-de-diseño>
    ```
 
-   Copia de `<trabajo>/ola-3/repo/` solo las vistas cuyo último veredicto en `revision.md` es "aprobada" y que tienen en disco su contrato y su inventario, lo que el revisor tuvo que leer, y `tokens.css`, `components.css` y `proto.js` si cambiaron. Lista lo que dejó fuera (no aprobada, sin veredicto, sin contrato o inventario, archivos de trabajo) y sale con 1 si dejó algo: cada vista fuera vuelve a su subagente o, si ya tuvo su segunda revisión, va al informe como pendiente. Las secciones del spec que haya que actualizar las copias tú.
+   Copia de `<trabajo>/ola-3/repo/` solo las vistas cuyo último veredicto en `revision.md` es "aprobada" y que tienen en disco su contrato y su inventario, lo que el revisor tuvo que leer, y `tokens.css`, `components.css` y `proto.js` si cambiaron. Si una sola vista queda fuera (no aprobada, sin veredicto, sin contrato o inventario), no mueve nada y sale con 1: esa vista vuelve a su subagente y a la segunda revisión. Así una vista no aprobada no se pierde en silencio entre las que sí entraron.
+
+   Cuando una vista ya tuvo su segunda revisión y sigue sin aprobarse, nómbrala como pendiente para mover las demás:
+
+   ```
+   python3 -B <ruta-de-esta-skill>/scripts/aprobadas.py <trabajo> <repo-de-diseño> --pendientes <vista>[,<vista>...]
+   ```
+
+   Con `--pendientes` mueve las aprobadas solo si las vistas que quedan fuera son exactamente las nombradas; si sobra o falta una, no mueve nada y dice cuál. Nunca nombres una vista que no tuvo su segunda revisión. Cada pendiente va al informe con lo que el revisor dijo que falta. Las secciones del spec que haya que actualizar las copias tú.
 
 ### 9. Guardar
 
