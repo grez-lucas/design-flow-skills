@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Huerta · Entregas en React</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+function App() {
+  const [estado, setEstado] = React.useState('cargando');
+  const [prioridad, setPrioridad] = React.useState('normal');
+  const [estadoPago, setEstadoPago] = React.useState('pagado');
+  return (<main>
+    <select value={estado} onChange={e => setEstado(e.target.value)}>
+      <option value="normal">Con datos</option><option value="vacio">Sin datos</option><option value="cargando">Cargando</option>
+    </select>
+    <h1>Entregas de la semana</h1>
+    <select value={prioridad} onChange={e => setPrioridad(e.target.value)}><option>baja</option><option>normal</option></select>
+    <p>Pago: {estadoPago}</p>
+  </main>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

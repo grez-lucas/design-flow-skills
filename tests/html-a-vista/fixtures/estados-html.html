@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Huerta · Entregas</title>
+</head>
+<body>
+<header class="barra">
+  <strong>Huerta</strong>
+  <label>Ver pantalla como <select id="ver-como" onchange="mostrarEstado(this.value)">
+    <option value="normal">Normal</option><option value="vacio">Vacío</option>
+    <option value="cargando">Cargando</option><option value="error">Error</option>
+  </select></label>
+</header>
+<main>
+  <section id="entregas-page">
+    <h1>Entregas de la semana</h1>
+    <label>Prioridad <select name="prioridad" onchange="guardarPrioridad(this.value)"><option>Baja</option><option>Normal</option><option>Alta</option></select></label>
+    <table><tr><td>Pedido 12</td><td>Estado: Pagado</td></tr></table>
+  </section>
+</main>
+<script>
+let estado = 'normal';
+let filtro = 'normal';
+function mostrarEstado(valor) { estado = valor; document.body.dataset.estado = valor; }
+function guardarPrioridad(valor) { console.log(valor); }
+</script>
+</body>
+</html>

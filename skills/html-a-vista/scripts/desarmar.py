@@ -22,6 +22,7 @@ import json
 import math
 import re
 import sys
+import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -34,9 +35,18 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "met
 CONTENEDORES = {"div", "section", "main", "article", "aside", "dialog", "form", "template"}
 PANTALLA = re.compile(r"(^|-)(page|pagina|screen|pantalla|view|vista|panel|tab|step|paso|route|ruta)s?(-|$|\d)")
 SUPERPOSICION = re.compile(r"(^|-)(modal|dialog|dialogo|drawer|overlay|popover|pop|sheet)s?(-|$|\d)")
-DEMO = re.compile(r"\bdemo\b|\bsimul\w*|salir de (la )?(demo|simulaci)|modo (prueba|demo)|\bprototipo\b", re.I)
+DEMO = re.compile(r"\bdemo\b|\bsimul\w*|salir de (la )?(demo|simulaci)|modo (prueba|demo)|\bprototipo\b|\b(?:e?scenarios?)\b",
+                  re.I)
 PALABRAS_PROTO = {"demo", "sim", "simular", "simulate", "simulation", "simulacion", "mode", "modo", "modes", "modos",
                   "fake", "mock", "escenario", "escenarios", "scenario", "scenarios"}
+# Escenarios base de spec-a-html y sus nombres en inglés: un selector con dos o más, o una variable de estado que
+# arranca en uno, cambia la pantalla entera, no un dato de ella.
+ESCENARIOS_BASE = {"normal", "vacio", "cargando", "error", "sin-permiso", "muchos-datos", "empty", "loading"}
+NOMBRES_DE_ESTADO = {"estado", "estados", "state", "states"}
+# Un atributo JSX entre llaves puede tener ">" (e => ...): se salta entero.
+ATRIBUTOS = r"((?:[^>{]|\{[^}]*\})*)"
+SELECT = re.compile(rf"<select\b{ATRIBUTOS}>(.*?)</select\s*>", re.S | re.I)
+OPCION = re.compile(rf"<option\b{ATRIBUTOS}>(.*?)</option\s*>", re.S | re.I)
 TIPOS_MODULO = {"text/plain", "text/html", "text/template", "text/x-template"}
 COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)")
 NOMBRADO = re.compile(r"(?<![\w-])(red|blue|green|black|white|gray|grey|orange|yellow|purple|pink|brown)(?![\w-])", re.I)
@@ -71,6 +81,40 @@ def n_lineas(texto):
 
 def kebab(s):
     return re.sub(r"([a-z0-9])([A-Z])", r"\1-\2", s).replace("_", "-").lower()
+
+
+def normalizado(s):
+    """Texto de un control como nombre de escenario: sin tildes, en minúsculas y con guiones (Sin permiso es sin-permiso)."""
+    sin_tildes = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", sin_tildes.lower()).strip("-")
+
+
+def selectores_de_estado(texto):
+    """Selectores (<select> en HTML, en JSX o en un string de JS) con dos o más escenarios base entre sus opciones,
+    por valor o por texto: [(offset, texto de las opciones, llamadas del manejador de cambio)]."""
+    out = []
+    for m in SELECT.finditer(texto):
+        opciones = [(re.search(r"""\bvalue\s*=\s*["']([^"']*)""", a), texto_plano(t)) for a, t in OPCION.findall(m.group(2))]
+        base = [o for o in opciones if {normalizado(o[1]), normalizado(o[0].group(1)) if o[0] else ""} & ESCENARIOS_BASE]
+        if len(base) >= 2:
+            manejador = re.search(r"""\bon[Cc]hange\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\}(?=[\s>]))""", m.group(1), re.S)
+            llamadas = re.findall(r"([A-Za-z_$][\w$]*)\s*\(", "".join(g or "" for g in manejador.groups())) if manejador else []
+            out.append((m.start(), " / ".join(t for _, t in opciones), llamadas))
+    return out
+
+
+def declaradas(js):
+    """(nombre, offset, valor inicial si es un string) de cada función y variable de js, también las desestructuradas
+    (const [escenario, setEscenario] = useState('normal')) y las de useState, ref o signal."""
+    out = []
+    for m in re.finditer(r"\bfunction\s+([A-Za-z_$][\w$]*)|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*|\[[^\]]*\]|\{[^}]*\})\s*=\s*"
+                         r"""(?:(?:React\.)?(?:useState|ref|signal|useSignal)\s*\(\s*)?(?:(["'])([^"']*)\3)?""", js):
+        if m.group(1):
+            out.append((m.group(1), m.start(), None))
+            continue
+        for n in re.findall(r"[A-Za-z_$][\w$]*", re.sub(r":\s*[A-Za-z_$][\w$]*", "", m.group(2))):
+            out.append((n, m.start(), m.group(4)))
+    return out
 
 
 def nombre_archivo(s):
@@ -548,12 +592,21 @@ class Parte:
                 es_nombre = es_nombre or re.search(r"[;{}]|=>", limpio)
                 if limpio and DEMO.search(limpio) and not es_nombre and limpio not in [t["texto"] for t in textos_js]:
                     textos_js.append({"texto": limpio, "origen": "js"})
+        selectores = selectores_de_estado(self.texto)
+        vistos = {t["texto"] for t in L.textos_demo} | {t["texto"] for t in textos_js}
+        textos_sel = [{"texto": t, "linea": linea(self.texto, i), "etiqueta": "select"} for i, t, _ in selectores
+                      if not any(v in t for v in vistos)]
+        llamadas = {n for _, _, ll in selectores for n in ll}
+        decl = declaradas(js)
+        de_estado = {n for n, _, v in decl if set(kebab(n).split("-")) & NOMBRES_DE_ESTADO and v is not None
+                     and normalizado(v) in ESCENARIOS_BASE}
+        # El setter de una variable de estado desestructurada va con ella: const [estado, setEstado] = useState(...).
+        de_estado |= {n for n, i, _ in decl for m, j, _ in decl if m in de_estado and i == j}
         funciones = []
-        patron = r"\bfunction\s+([A-Za-z_$][\w$]*)|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*="
-        for m in re.finditer(patron, js):
-            n = m.group(1) or m.group(2)
-            if set(kebab(n).split("-")) & PALABRAS_PROTO and n not in [f["nombre"] for f in funciones]:
-                funciones.append({"nombre": n, "linea_en_js": linea(js, m.start())})
+        for n, i, _ in decl:
+            if (set(kebab(n).split("-")) & PALABRAS_PROTO or n in de_estado or n in llamadas) \
+                    and n not in [f["nombre"] for f in funciones]:
+                funciones.append({"nombre": n, "linea_en_js": linea(js, i)})
 
         recursos = list(L.recursos)
         for s in L.estilos + L.inline:
@@ -584,7 +637,7 @@ class Parte:
             "valores": valores,
             "data_state": L.data_state + [{"valor": v, "origen": "js"} for v in dict.fromkeys(
                 a or b for a, b in re.findall(r"""data-state\s*=\s*(?:"([^"]+)"|'([^']+)')""", js))],
-            "controles": {"por_texto": [{k: v for k, v in t.items() if v is not None} for t in L.textos_demo] + textos_js,
+            "controles": {"por_texto": [{k: v for k, v in t.items() if v is not None} for t in L.textos_demo] + textos_js + textos_sel,
                           "por_funcion": funciones},
             "animaciones": {"keyframes": len(re.findall(r"@(?:-webkit-)?keyframes\b", css)),
                             "setTimeout": len(re.findall(r"\bsetTimeout\s*\(", js)),

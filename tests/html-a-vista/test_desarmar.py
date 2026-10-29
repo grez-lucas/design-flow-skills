@@ -143,6 +143,20 @@ class DocumentoUnico(Base):
         r = self.manifiesto_aparte("react-cdn.html")["partes"][0]
         self.assertIn("Simular plan vencido", " ".join(c["texto"] for c in r["controles"]["por_texto"]))
 
+    def test_selector_de_estados_y_su_variable_en_html_y_en_react(self):
+        """Un <select> cuyas opciones son escenarios base (normal, vacío, cargando, error...) es un control de
+        prototipo, aunque su rótulo no diga demo ni escenario; también la variable de estado que arranca en uno de
+        ellos y la función que el selector llama. Un selector de prioridad con "Normal" o un "Estado: Pagado" no."""
+        casos = {
+            "estados-html.html": ([("Normal / Vacío / Cargando / Error", 10, "select")], ["estado", "mostrarEstado"]),
+            "estados-react.html": ([("Con datos / Sin datos / Cargando", 18, "select")], ["estado", "setEstado"]),
+        }
+        for fixture, (textos, funciones) in casos.items():
+            with self.subTest(fixture=fixture):
+                p = self.manifiesto_aparte(fixture)["partes"][0]
+                self.assertEqual([(c["texto"], c.get("linea"), c.get("etiqueta")) for c in p["controles"]["por_texto"]], textos)
+                self.assertEqual([f["nombre"] for f in p["controles"]["por_funcion"]], funciones)
+
     def test_resumen_para_el_plan(self):
         self.manifiesto("documento.html")
         resumen = (self.trabajo / "resumen.md").read_text()
@@ -514,6 +528,14 @@ class MockupsChicos(unittest.TestCase):
                           "regar-modal": ("superposicion", "Regar ahora"), "_resto": ("resto", "Panel de riego")})
         self.assertIn("Simular tanque vacío", (trabajo / markup["_resto"]["archivo"]).read_text(), "el menú DEMO vive en el marco")
         self.assertFalse(m["requiere_render"])
+
+    def test_el_selector_escenario_del_react_es_control_de_prototipo(self):
+        """El mockup de las evals 7 y 8 cambia de escenario con un <select> rotulado "Escenario:" y un useState."""
+        m, trabajo = self.desarmar("react")
+        c = m["partes"][0]["controles"]
+        self.assertEqual([x["texto"] for x in c["por_texto"]], ["Escenario:"])
+        self.assertEqual([f["nombre"] for f in c["por_funcion"]], ["escenario", "setEscenario"])
+        self.assertIn('textos "Escenario:" (JS); funciones escenario, setEscenario', (trabajo / "resumen.md").read_text())
 
     def test_react_por_cdn_requiere_render(self):
         m, trabajo = self.desarmar("react")

@@ -14,7 +14,7 @@ Cómo los estados del mockup pasan a escenarios de la vista, y cómo se usa el n
 
 ## Controles de prototipo
 
-Un control de prototipo es un botón, menú, selector o barra dentro de la pantalla que solo sirve para cambiar de caso: "DEMO", "Simular espera", "Salir de demo", "ver como persona natural", un `<select>` de "plan vigente / plan expirado". El script los lista como candidatos por texto y por nombre de función (`demoSet`, `simularError`, `DEMO_MODES`, `setMode`).
+Un control de prototipo es un botón, menú, selector o barra dentro de la pantalla que solo sirve para cambiar de caso: "DEMO", "Simular espera", "Salir de demo", "ver como persona natural", un `<select>` de "plan vigente / plan expirado". El script los lista como candidatos por texto ("DEMO", "Simular", "Escenario:"), por selector (un `<select>`, en HTML o en JSX, con dos o más escenarios base entre sus opciones: normal, vacío, cargando, error) y por nombre de función o variable (`demoSet`, `simularError`, `DEMO_MODES`, `setMode`, `const [escenario, setEscenario] = useState(...)`, una variable `estado` que arranca en un escenario base, y la función que llama el selector). Son candidatos: un selector de prioridad con "Normal" o un "Estado: Pagado" en una tabla no lo son, y el script no los lista.
 
 - Cada estado que activa es un escenario en `data-escenarios`, con nombre en minúsculas y guiones (`sensor-sin-senal`, `plan-vencido`), y los bloques que cambian llevan `data-state`.
 - Para saber qué cambia, lee la función que el control llama: qué clases pone en `<body>`, qué textos reemplaza, qué bloques muestra.
