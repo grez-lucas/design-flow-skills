@@ -1,6 +1,6 @@
-## panel: aprobada
+## riego/panel: aprobada
 
-## historial: no aprobada
+## riego/historial: no aprobada
 - Falta el escenario vacío.
 
-## historial, segunda revisión: aprobada
+## riego/historial, segunda revisión: aprobada

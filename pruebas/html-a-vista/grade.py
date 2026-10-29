@@ -9,8 +9,10 @@ subagentes de la ola 2 y, en las corridas que se detienen, subagentes y lecturas
 
 Uso: python3 grade.py <iteración> [--historico]
 
---historico lee el veredicto del revisor también en los formatos de antes del formato fijo de la skill; es solo para
-las iteraciones 1 y 2. Sin él, el veredicto se lee como lo lee aprobadas.py.
+--historico lee el veredicto del revisor por el nombre de archivo de la vista y en los formatos de antes del formato
+fijo de la skill; es para las iteraciones 1, 2 y 3, cuyos revisores escribieron `## <vista>: ...` sin la épica, y deja
+sus notas como estaban. Sin él, el veredicto se lee como lo lee aprobadas.py: por ruta, `## <épica>/<vista>: ...`, y
+una corrida de esas iteraciones falla el chequeo del revisor.
 """
 import hashlib
 import json
@@ -26,7 +28,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(SKILLS / "html-a-vista" / "scripts"))
 sys.path.insert(0, str(REVISAR.parent))
 import tokens as T  # noqa: E402
-from aprobadas import palabra, veredictos  # noqa: E402
+from aprobadas import clave, palabra, veredictos  # noqa: E402
 from desarmar import DEMO  # noqa: E402
 from revisar import keyframes  # noqa: E402
 
@@ -303,16 +305,17 @@ def chequeo_ola2(out, nombres):
                   f"sin subagente propio: {faltan}; subagentes de la ola 2: {ola2[:10]}")]
 
 
-def chequeo_revisor(out, nombres, historico=False):
-    """Toda vista que llegó al repositorio tiene "aprobada" como último veredicto en trabajo/ola-3/revision.md. Con
-    historico, también en los formatos que escribieron los revisores antes del formato fijo (iteraciones 1 y 2)."""
+def chequeo_revisor(out, vistas, historico=False):
+    """Toda vista que llegó al repositorio, nombrada por su ruta <épica>/<vista>, tiene "aprobada" como último veredicto
+    en trabajo/ola-3/revision.md. Con historico, también por su nombre suelto y en los formatos que escribieron los
+    revisores antes del formato fijo (iteraciones 1 a 3)."""
     revision = out / "trabajo" / "ola-3" / "revision.md"
     texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
     if not revision.is_file():
         return [check(texto, False, "sin trabajo/ola-3/revision.md")]
-    v = veredictos(revision.read_text(errors="ignore"), nombres, historico=historico)
+    v = veredictos(revision.read_text(errors="ignore"), vistas, historico=historico)
     malas = {n: x for n, x in v.items() if x != "aprobada"}
-    return [check(texto, nombres and not malas, malas or v)]
+    return [check(texto, vistas and not malas, malas or v)]
 
 
 def chequeos_parada(out, mockup, motivo):
@@ -398,7 +401,7 @@ def calificar(name, out, iteracion, historico=False):
     rep, htmls, tok = repositorio(out, cfg, iteracion, mockup, con_ds, fixture_repo)
     res += rep
     res += chequeo_ola2(out, [v.stem for v in htmls])
-    res += chequeo_revisor(out, [v.stem for v in htmls], historico)
+    res += chequeo_revisor(out, [clave(v.relative_to(out / "repo" / "design")) for v in htmls], historico)
     if mockup == "grande":
         res += extra_grande(out, htmls, tok)
     if mockup == "chico" and not con_ds:

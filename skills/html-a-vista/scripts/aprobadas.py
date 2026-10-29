@@ -3,22 +3,22 @@
 
 Uso:
   python3 -B aprobadas.py huella <trabajo>/ola-3/repo/design/vistas/<épica>/<vista>.html
-  python3 -B aprobadas.py mover <trabajo> <repo-de-diseño> [--pendientes <vista>[,<vista>...]]
+  python3 -B aprobadas.py mover <trabajo> <repo-de-diseño> [--pendientes <épica>/<vista>[,<épica>/<vista>...]]
 
 huella  imprime `sha256:<hex>`, la huella de lo que el revisor ve de una vista: el sha256 de las líneas que daría
         `sha256sum` (o `shasum -a 256`) desde design/ sobre la vista y los compartidos que existan, en este orden:
         `vistas/<épica>/<vista>.html`, `tokens.css`, `components.css`, `proto.js`. Cambia si cambia la vista o
-        cualquiera de los compartidos que la pintan. El revisor la escribe en su veredicto:
-        `## <vista>: aprobada sha256:<hex>`.
+        cualquiera de los compartidos que la pintan. El revisor la escribe en su veredicto, que nombra la vista por
+        su ruta bajo vistas/ sin `.html`: `## <épica>/<vista>: aprobada sha256:<hex>`.
 
 mover   lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/repo/design/. Cada vista de la copia que
         es nueva o distinta de la del repositorio entra solo si su último veredicto es "aprobada" con una huella igual
-        a la de la copia, y tiene en disco lo que el revisor lee, <trabajo>/ola-2/<vista>/contrato.md y
-        <trabajo>/ola-3/inventario/<vista>.json; `tokens.css`, `components.css` y `proto.js` entran si cambiaron y
+        a la de la copia, y tiene en disco lo que el revisor lee, <trabajo>/ola-2/<épica>/<vista>/contrato.md y
+        <trabajo>/ola-3/inventario/<épica>/<vista>.json; `tokens.css`, `components.css` y `proto.js` entran si cambiaron y
         entró alguna vista. Las secciones del spec no las toca.
 
-        Si alguna vista queda fuera (no aprobada, sin veredicto, sin huella o con otra, sin contrato o inventario, o
-        con otra del mismo nombre), no mueve nada. Con --pendientes, que nombra las vistas que ya tuvieron su segunda
+        Si alguna vista queda fuera (no aprobada, sin veredicto, sin huella o con otra, sin contrato o inventario), no
+        mueve nada. Con --pendientes, que nombra las vistas que ya tuvieron su segunda
         revisión y siguen sin aprobarse, mueve las aprobadas solo si las que quedan fuera son exactamente esas; si no
         coinciden, no mueve nada y dice cuáles sobran o faltan. Cualquier otro archivo de la copia (contratos,
         inventarios) no entra y se lista.
@@ -51,20 +51,38 @@ def palabra(valor):
     return rf"(?<![\w-]){re.escape(valor)}(?![\w-])"
 
 
-def leer(revision, nombres, historico=False):
-    """Último veredicto del revisor por vista en revision.md: {vista: Veredicto(estado, huella) o None}.
+def clave(ruta):
+    """`<épica>/<vista>` de una vista, con la ruta relativa a design/ (vistas/<épica>/<vista>.html)."""
+    return Path(*Path(ruta).parts[1:]).with_suffix("").as_posix()
 
-    Por defecto lee solo el formato fijo, un encabezado por vista: `## <vista>: aprobada sha256:<huella>`,
-    `## <vista>: no aprobada`, y la segunda revisión al final como `## <vista>, segunda revisión: ...`. Vale el último
-    en el archivo. Cualquier otra línea que nombra una vista y dice "aprobada" o "no aprobada" (una viñeta, una negrita,
-    un encabezado con sangría, una frase, o el formato exacto dentro de un bloque de código) cuenta como veredicto
-    "fuera de formato": no aprueba, y tampoco deja en pie una aprobación anterior. Ante la duda, la vista no entra.
 
-    historico=True lee además lo que escribieron los revisores de las iteraciones 1 y 2, antes del formato fijo; lo
-    usa solo el calificador de esas corridas (pruebas/html-a-vista/grade.py --historico)."""
+def nombra(vista):
+    """Patrón de una línea que nombra la vista `<épica>/<vista>`: por su ruta o por su nombre suelto, que no sea parte
+    de otra ruta (lista no es compostaje/lista)."""
+    nombre = vista.rsplit("/", 1)[-1]
+    return re.compile("|".join(rf"(?<![\w/-]){re.escape(x.lower())}(?![\w/-])" for x in dict.fromkeys((vista, nombre))))
+
+
+def leer(revision, vistas, historico=False):
+    """Último veredicto del revisor por vista en revision.md: {<épica>/<vista>: Veredicto(estado, huella) o None}.
+
+    Por defecto lee solo el formato fijo, un encabezado por vista con su ruta: `## <épica>/<vista>: aprobada
+    sha256:<huella>`, `## <épica>/<vista>: no aprobada`, y la segunda revisión al final como
+    `## <épica>/<vista>, segunda revisión: ...`. Vale el último en el archivo. Cualquier otra línea que nombra una vista,
+    por su ruta o por su nombre suelto, y dice "aprobada" o "no aprobada" (el formato con el nombre suelto, una viñeta,
+    una negrita, un encabezado con sangría, una frase, o el formato exacto dentro de un bloque de código) cuenta como
+    veredicto "fuera de formato": no aprueba, y tampoco deja en pie una aprobación anterior. Ante la duda, la vista no
+    entra.
+
+    historico=True lee lo que escribieron los revisores de las iteraciones 1 a 3, por nombre de archivo y antes del
+    formato fijo; lo usa solo el calificador de esas corridas (pruebas/html-a-vista/grade.py --historico). Lee cada
+    vista por su nombre suelto; dos vistas con el mismo nombre en épicas distintas quedan sin veredicto."""
     if historico:
-        return {v: Veredicto(e, None) if e else None for v, e in _historico(revision, nombres).items()}
-    patrones = {v: re.compile(palabra(v.lower())) for v in nombres}
+        nombres = {v: v.rsplit("/", 1)[-1] for v in vistas}
+        unicos = [n for n in nombres.values() if list(nombres.values()).count(n) == 1]
+        leidos = _historico(revision, unicos)
+        return {v: Veredicto(leidos[n], None) if leidos.get(n) else None for v, n in nombres.items()}
+    patrones = {v: nombra(v) for v in vistas}
     ultimo, en_codigo = {}, False
     for linea in revision.splitlines():
         linea = linea.rstrip()
@@ -78,12 +96,12 @@ def leer(revision, nombres, historico=False):
             for v, p in patrones.items():
                 if p.search(linea.lower()):
                     ultimo[v] = Veredicto("fuera de formato", None)
-    return {v: ultimo.get(v) for v in nombres}
+    return {v: ultimo.get(v) for v in vistas}
 
 
-def veredictos(revision, nombres, historico=False):
+def veredictos(revision, vistas, historico=False):
     """Último veredicto por vista: "aprobada", "no aprobada", "fuera de formato" o None. Ver leer()."""
-    return {v: x.estado if x else None for v, x in leer(revision, nombres, historico).items()}
+    return {v: x.estado if x else None for v, x in leer(revision, vistas, historico).items()}
 
 
 def _historico(revision, nombres):
@@ -120,7 +138,8 @@ def cambiados(copia, destino):
 
 
 def sin_evidencia(trabajo, vista):
-    """Lo que el revisor tenía que leer y no está en disco: el contrato de la ola 2 y el inventario de la ola 3."""
+    """Lo que el revisor tenía que leer de la vista `<épica>/<vista>` y no está en disco: el contrato de la ola 2 y el
+    inventario de la ola 3."""
     faltan = [str(r.relative_to(trabajo)) for r in (trabajo / "ola-2" / vista / "contrato.md",
                                                      trabajo / "ola-3" / "inventario" / f"{vista}.json") if not r.is_file()]
     return " ni ".join(f"`{r}`" for r in faltan)
@@ -177,37 +196,33 @@ def mover(trabajo, repo, pendientes=()):
                              "correr la revisión de esas vistas.")
     vistas = [p for p in candidatos if p.parts[0] == "vistas" and p.suffix == ".html"]
     otros = [p for p in candidatos if p not in vistas]
-    por_nombre = {}
-    for v in vistas:
-        por_nombre.setdefault(v.stem, []).append(v)
-    leidos = leer((trabajo / "ola-3" / "revision.md").read_text(errors="ignore"), list(por_nombre))
-    veredicto = {v: x.estado if x else None for v, x in leidos.items()}
+    leidos = leer((trabajo / "ola-3" / "revision.md").read_text(errors="ignore"), [clave(v) for v in vistas])
     entran, sin_aprobar, fuera = [], [], []
     for v in vistas:
-        if len(por_nombre[v.stem]) > 1:
-            sin_aprobar.append((v, f"hay otra vista con el mismo nombre, `{v.stem}`, y el veredicto no dice de cuál es"))
-        elif veredicto[v.stem] != "aprobada":
+        k = clave(v)
+        estado = leidos[k].estado if leidos[k] else None
+        if estado != "aprobada":
             sin_aprobar.append((v, {None: "sin veredicto en revision.md",
-                                    "fuera de formato": f"su último veredicto en revision.md no sigue el formato `## {v.stem}: "
-                                                        "aprobada sha256:<huella>` o `## <vista>: no aprobada` (una "
+                                    "fuera de formato": f"su último veredicto en revision.md no sigue el formato `## {k}: "
+                                                        "aprobada sha256:<huella>` o `## <épica>/<vista>: no aprobada` (una "
                                                         "línea que la nombra y dice aprobada o no aprobada de otra forma "
-                                                        "no se lee) y vuelve al revisor"}.get(veredicto[v.stem], veredicto[v.stem])))
-        elif not leidos[v.stem].huella:
+                                                        "no se lee) y vuelve al revisor"}.get(estado, estado)))
+        elif not leidos[k].huella:
             sin_aprobar.append((v, "aprobada sin huella: el veredicto no dice qué versión de la vista vio el revisor"))
-        elif leidos[v.stem].huella != (actual := huella(copia / v)):
-            sin_aprobar.append((v, f"aprobada con la huella {leidos[v.stem].huella}, pero la copia tiene {actual}: la vista o un "
+        elif leidos[k].huella != (actual := huella(copia / v)):
+            sin_aprobar.append((v, f"aprobada con la huella {leidos[k].huella}, pero la copia tiene {actual}: la vista o un "
                                    "compartido cambió después de la revisión, y vuelve al revisor"))
-        elif falta := sin_evidencia(trabajo, v.stem):
+        elif falta := sin_evidencia(trabajo, k):
             sin_aprobar.append((v, f"aprobada, pero sin {falta}: el revisor aprueba leyendo el contrato y el inventario"))
         else:
             entran.append(v)
-    afuera, nombradas = {v.stem for v, _ in sin_aprobar}, set(pendientes)
+    afuera, nombradas = {clave(v) for v, _ in sin_aprobar}, set(pendientes)
     problema = None
     if afuera != nombradas:
         if not nombradas:
             problema = (f"No se movió nada: quedan fuera {', '.join(sorted(afuera))}. Una vista fuera vuelve a su subagente de "
                         "la ola 2 y a una segunda revisión; si ya la tuvo y sigue sin aprobarse, nómbrala con "
-                        "`--pendientes <vista>[,<vista>...]` y va al informe como pendiente.")
+                        "`--pendientes <épica>/<vista>[,<épica>/<vista>...]` y va al informe como pendiente.")
         else:
             detalle = [f"quedan fuera sin nombrar: {', '.join(sorted(afuera - nombradas))}" if afuera - nombradas else "",
                        f"nombradas que no quedan fuera: {', '.join(sorted(nombradas - afuera))}" if nombradas - afuera else ""]
@@ -234,7 +249,10 @@ def mover(trabajo, repo, pendientes=()):
 def lista_de_vistas(texto):
     vistas = [v.strip() for v in texto.split(",") if v.strip()]
     if not vistas:
-        raise argparse.ArgumentTypeError("nombra al menos una vista: --pendientes <vista>[,<vista>...]")
+        raise argparse.ArgumentTypeError("nombra al menos una vista: --pendientes <épica>/<vista>[,<épica>/<vista>...]")
+    sueltas = [v for v in vistas if not re.fullmatch(r"[^\s/,]+/[^\s/,]+", v)]
+    if sueltas:
+        raise argparse.ArgumentTypeError(f"nombra cada vista por su ruta, <épica>/<vista>, como en el veredicto: {', '.join(sueltas)}")
     return vistas
 
 

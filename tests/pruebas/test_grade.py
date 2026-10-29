@@ -465,13 +465,14 @@ Resultado: 2 aprobadas (marco, lista) y 1 no aprobadas (detalle-lote).
 """
 REVISION_FORMATO_FIJO = """# Revisión · ola 3
 
-## panel: aprobada
+## riego/panel: aprobada
 
-## historial: no aprobada
+## riego/historial: no aprobada
 - Falta el escenario vacío.
 
-## historial, segunda revisión: aprobada
+## riego/historial, segunda revisión: aprobada
 """
+REVISION_POR_NOMBRE = REVISION_FORMATO_FIJO.replace("## riego/", "## ")
 
 
 class VeredictoDelRevisor(unittest.TestCase):
@@ -483,13 +484,16 @@ class VeredictoDelRevisor(unittest.TestCase):
     def test_toda_vista_del_repositorio_tiene_aprobada_como_ultimo_veredicto(self):
         texto = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
         revision = self.out / "trabajo" / "ola-3" / "revision.md"
-        casos = {"vistas no aprobadas en el repositorio": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"], True, False),
-                 "solo lo aprobado en el repositorio": (REVISION_SIN_SEGUNDA, ["lista"], True, True),
-                 "aprobada en la segunda revisión": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"], True, True),
-                 "formato fijo": (REVISION_FORMATO_FIJO, ["panel", "historial"], False, True),
-                 "vista sin veredicto": (REVISION_FORMATO_FIJO, ["panel", "ajustes"], False, False),
-                 "formato informal sin --historico": (REVISION_CON_SEGUNDA_VUELTA, ["marco", "lista", "detalle-lote"], False, False),
-                 "formato informal sin --historico, solo lo aprobado": (REVISION_SIN_SEGUNDA, ["lista"], False, False)}
+        casos = {"vistas no aprobadas en el repositorio": (REVISION_SIN_SEGUNDA, ["e/marco", "e/lista", "e/ajustes"], True, False),
+                 "solo lo aprobado en el repositorio": (REVISION_SIN_SEGUNDA, ["e/lista"], True, True),
+                 "aprobada en la segunda revisión": (REVISION_CON_SEGUNDA_VUELTA, ["e/marco", "e/lista", "e/detalle-lote"], True, True),
+                 "formato fijo, por ruta": (REVISION_FORMATO_FIJO, ["riego/panel", "riego/historial"], False, True),
+                 "formato fijo, por ruta, con --historico": (REVISION_FORMATO_FIJO, ["riego/panel", "riego/historial"], True, True),
+                 "nombre suelto, como hasta la iteración 3, con --historico": (REVISION_POR_NOMBRE, ["riego/panel", "riego/historial"], True, True),
+                 "nombre suelto sin --historico": (REVISION_POR_NOMBRE, ["riego/panel", "riego/historial"], False, False),
+                 "vista sin veredicto": (REVISION_FORMATO_FIJO, ["riego/panel", "riego/ajustes"], False, False),
+                 "formato informal sin --historico": (REVISION_CON_SEGUNDA_VUELTA, ["e/marco", "e/lista", "e/detalle-lote"], False, False),
+                 "formato informal sin --historico, solo lo aprobado": (REVISION_SIN_SEGUNDA, ["e/lista"], False, False)}
         for caso, (texto_revision, nombres, historico, esperado) in casos.items():
             with self.subTest(caso=caso):
                 revision.parent.mkdir(parents=True, exist_ok=True)
@@ -497,7 +501,7 @@ class VeredictoDelRevisor(unittest.TestCase):
                 res = self.grade.chequeo_revisor(self.out, nombres, historico=historico)
                 self.assertEqual(next(r["passed"] for r in res if r["text"] == texto), esperado)
         revision.unlink()
-        res = self.grade.chequeo_revisor(self.out, ["lista"])
+        res = self.grade.chequeo_revisor(self.out, ["e/lista"])
         self.assertFalse(next(r["passed"] for r in res if r["text"] == texto))
 
 
@@ -571,6 +575,17 @@ class CorridaDeReferencia(unittest.TestCase):
             nota = json.loads((out.parent / "grading.json").read_text())
             resultados[" ".join(extra)] = next(e for e in nota["expectations"] if e["text"] == revisor)["passed"]
         self.assertEqual(resultados, {"": False, "--historico": True})
+
+    def test_una_corrida_con_el_veredicto_por_ruta_pasa_sin_historico(self):
+        """calificar lee el veredicto de cada vista del repositorio por su ruta, <épica>/<vista>, como aprobadas.py."""
+        it, out = self.armar()
+        (out / "trabajo" / "ola-3" / "revision.md").write_text(REVISION_FORMATO_FIJO)
+        revisor = "Toda vista del repositorio tiene \"aprobada\" como último veredicto del revisor"
+        for historico in (False, True):
+            with self.subTest(historico=historico):
+                res = self.grade.calificar("eval-5-demo-con-ds", out, it, historico=historico)
+                self.assertTrue(next(r for r in res if r["text"] == revisor)["passed"],
+                                next(r for r in res if r["text"] == revisor)["evidence"])
 
     def fallan(self, res):
         return {r["text"]: r["evidence"] for r in res if not r["passed"]}

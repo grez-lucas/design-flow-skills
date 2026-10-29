@@ -79,71 +79,93 @@ Veredicto: **aprobada**
 HUELLA = "sha256:" + "0123456789abcdef" * 4
 REVISION_CON_HUELLA = f"""# Revisión · ola 3
 
-## panel: aprobada {HUELLA}
+## riego/panel: aprobada {HUELLA}
 
-## historial: no aprobada
+## riego/historial: no aprobada
 - Falta el escenario vacío.
 
-## historial, segunda revisión: aprobada {HUELLA}
+## riego/historial, segunda revisión: aprobada {HUELLA}
 """
-REVISION_RECHAZO_FUERA_DE_FORMATO = f"""## lista: aprobada {HUELLA}
+REVISION_RECHAZO_FUERA_DE_FORMATO = f"""## inventario/lista: aprobada {HUELLA}
 
-## lista - no aprobada
+## inventario/lista - no aprobada
 - El revisor cambió de opinión, pero escribió el encabezado fuera del formato.
 """
+ITERACION_3 = {"marco": "semilla/marco", "lista": "inventario/lista", "ajustes": "socios/ajustes"}
 
 
 class Veredictos(unittest.TestCase):
     """Un solo lector de veredictos: lo usan el paso que mueve las vistas y el calificador de pruebas/html-a-vista.
-    Por defecto lee solo el formato fijo; los formatos de las iteraciones 1 y 2 se leen con historico=True."""
+    Por defecto lee solo el formato fijo, por ruta `<épica>/<vista>`; los formatos de las iteraciones 1 a 3, por
+    nombre de archivo, se leen con historico=True."""
 
     def test_formato_fijo_ultimo_veredicto_de_cada_vista(self):
         formato_fijo = (FIX / "revision-segunda.md").read_text()
         casos = {
-            "formato fijo de la skill": (formato_fijo, ["panel", "historial"], {"panel": "aprobada", "historial": "aprobada"}),
-            "revisión de eval-3, iteración 3": ((FIX / "revision-iteracion-3.md").read_text(), ["marco", "lista", "ajustes"],
-                                                {"marco": "no aprobada", "lista": "aprobada", "ajustes": "aprobada"}),
-            "con huella": (REVISION_CON_HUELLA, ["panel", "historial"], {"panel": "aprobada", "historial": "aprobada"}),
-            "vista que el revisor no nombra": (formato_fijo, ["panel", "historial", "ajustes"],
-                                               {"panel": "aprobada", "historial": "aprobada", "ajustes": None}),
+            "formato fijo de la skill": (formato_fijo, ["riego/panel", "riego/historial"],
+                                         {"riego/panel": "aprobada", "riego/historial": "aprobada"}),
+            "revisión de eval-3, iteración 3, por ruta": ((FIX / "revision-por-ruta.md").read_text(), list(ITERACION_3.values()),
+                                                          {"semilla/marco": "no aprobada", "inventario/lista": "aprobada",
+                                                           "socios/ajustes": "aprobada"}),
+            "con huella": (REVISION_CON_HUELLA, ["riego/panel", "riego/historial"],
+                           {"riego/panel": "aprobada", "riego/historial": "aprobada"}),
+            "vista que el revisor no nombra": (formato_fijo, ["riego/panel", "riego/historial", "riego/ajustes"],
+                                               {"riego/panel": "aprobada", "riego/historial": "aprobada", "riego/ajustes": None}),
             "un rechazo fuera de formato no deja en pie la aprobación anterior": (
-                REVISION_RECHAZO_FUERA_DE_FORMATO, ["lista"], {"lista": "fuera de formato"}),
+                REVISION_RECHAZO_FUERA_DE_FORMATO, ["inventario/lista"], {"inventario/lista": "fuera de formato"}),
         }
         for caso, (revision, nombres, esperado) in casos.items():
             with self.subTest(caso=caso):
                 self.assertEqual(aprobadas.veredictos(revision, nombres), esperado)
 
+    def test_el_veredicto_va_por_ruta_y_el_nombre_suelto_queda_fuera_de_formato(self):
+        """Dos vistas con el mismo nombre en épicas distintas se aprueban cada una por su ruta. El veredicto con el nombre
+        suelto, como lo escribieron los revisores hasta la iteración 3, no dice de cuál es: fuera de formato."""
+        revision = f"## compostaje/resumen: aprobada {HUELLA}\n## socios/resumen: no aprobada\n"
+        self.assertEqual(aprobadas.veredictos(revision, ["compostaje/resumen", "socios/resumen"]),
+                         {"compostaje/resumen": "aprobada", "socios/resumen": "no aprobada"})
+        self.assertEqual(aprobadas.veredictos((FIX / "revision-iteracion-3.md").read_text(), list(ITERACION_3.values())),
+                         {v: "fuera de formato" for v in ITERACION_3.values()})
+        self.assertEqual(aprobadas.veredictos(f"## resumen: aprobada {HUELLA}\n", ["compostaje/resumen", "socios/resumen"]),
+                         {"compostaje/resumen": "fuera de formato", "socios/resumen": "fuera de formato"})
+
     def test_cualquier_linea_fuera_de_formato_que_nombra_la_vista_anula_la_aprobacion(self):
         """Un rechazo posterior escrito en viñeta, en negrita, como encabezado con sangría o dentro de un bloque de código
         no se puede leer sin interpretar: cuenta como "fuera de formato" y la vista no entra. Ante la duda, bloquea."""
-        aprobada = f"## lista: aprobada {HUELLA}\n"
-        casos = {"viñeta": "- lista: no aprobada, el revisor cambió de opinión\n",
-                 "encabezado con sangría": "   ## lista: no aprobada\n",
-                 "negrita sin encabezado": "**lista: no aprobada**\n",
-                 "cita": "> lista: no aprobada\n",
-                 "frase": "Al final la lista queda no aprobada.\n",
-                 "veredicto exacto dentro de un bloque de código": f"```\n## lista: aprobada {HUELLA}\n```\n",
+        aprobada = f"## inventario/lista: aprobada {HUELLA}\n"
+        casos = {"viñeta": "- inventario/lista: no aprobada, el revisor cambió de opinión\n",
+                 "encabezado con sangría": "   ## inventario/lista: no aprobada\n",
+                 "negrita sin encabezado": "**inventario/lista: no aprobada**\n",
+                 "cita": "> inventario/lista: no aprobada\n",
+                 "frase con el nombre suelto": "Al final la lista queda no aprobada.\n",
+                 "veredicto exacto dentro de un bloque de código": f"```\n## inventario/lista: aprobada {HUELLA}\n```\n",
                  "aprobación en viñeta": "- lista: aprobada\n"}
         for caso, despues in casos.items():
             with self.subTest(caso=caso):
-                self.assertEqual(aprobadas.veredictos(aprobada + despues, ["lista", "ajustes"]),
-                                 {"lista": "fuera de formato", "ajustes": None})
+                self.assertEqual(aprobadas.veredictos(aprobada + despues, ["inventario/lista", "socios/ajustes"]),
+                                 {"inventario/lista": "fuera de formato", "socios/ajustes": None})
 
     def test_lineas_que_no_nombran_la_vista_o_no_dicen_aprobada_no_cuentan(self):
-        revision = (f"## lista: aprobada {HUELLA}\n- lista: los encabezados de la tabla siguen el original.\n"
-                    "- Los tokens de la tabla aprobada por producto.\n## Segunda revisión\n")
-        self.assertEqual(aprobadas.veredictos(revision, ["lista"]), {"lista": "aprobada"})
+        revision = (f"## inventario/lista: aprobada {HUELLA}\n- lista: los encabezados de la tabla siguen el original.\n"
+                    "- Los tokens de la tabla aprobada por producto.\n- compostaje/lista: no aprobada\n## Segunda revisión\n")
+        self.assertEqual(aprobadas.veredictos(revision, ["inventario/lista"]), {"inventario/lista": "aprobada"})
 
     def test_la_huella_es_la_del_ultimo_veredicto(self):
-        leidos = aprobadas.leer(REVISION_CON_HUELLA, ["panel", "historial"])
+        leidos = aprobadas.leer(REVISION_CON_HUELLA, ["riego/panel", "riego/historial"])
         self.assertEqual({v: (x.estado, x.huella) for v, x in leidos.items()},
-                         {"panel": ("aprobada", HUELLA), "historial": ("aprobada", HUELLA)})
-        sin = aprobadas.leer((FIX / "revision-segunda.md").read_text(), ["panel"])
-        self.assertEqual((sin["panel"].estado, sin["panel"].huella), ("aprobada", None))
+                         {"riego/panel": ("aprobada", HUELLA), "riego/historial": ("aprobada", HUELLA)})
+        sin = aprobadas.leer((FIX / "revision-segunda.md").read_text(), ["riego/panel"])
+        self.assertEqual((sin["riego/panel"].estado, sin["riego/panel"].huella), ("aprobada", None))
 
     def test_formatos_informales_solo_en_modo_historico(self):
-        """Los revisores de las iteraciones 1 y 2 escribieron el veredicto a su manera. El modo histórico los lee para
-        calificar esas corridas; el modo por defecto no aprueba ninguno, y marca el encabezado que no sigue el formato."""
+        """Los revisores de las iteraciones 1 y 2 escribieron el veredicto a su manera y por nombre de archivo. El modo
+        histórico los lee por el nombre de la vista para calificar esas corridas; el modo por defecto no aprueba
+        ninguno, y marca la línea que no sigue el formato."""
+        def rutas(*nombres):
+            return [f"e/{n}" for n in nombres]
+
+        def por_ruta(d):
+            return {f"e/{n}": x for n, x in d.items()}
         casos = {
             "sin segunda revisión": (REVISION_SIN_SEGUNDA, ["marco", "lista", "ajustes"],
                                      {"marco": "no aprobada", "lista": "aprobada", "ajustes": "no aprobada"},
@@ -160,12 +182,20 @@ class Veredictos(unittest.TestCase):
         }
         for caso, (revision, nombres, historico, estricto) in casos.items():
             with self.subTest(caso=caso):
-                self.assertEqual(aprobadas.veredictos(revision, nombres, historico=True), historico)
-                self.assertEqual(aprobadas.veredictos(revision, nombres), estricto)
+                self.assertEqual(aprobadas.veredictos(revision, rutas(*nombres), historico=True), por_ruta(historico))
+                self.assertEqual(aprobadas.veredictos(revision, rutas(*nombres)), por_ruta(estricto))
 
-    def test_el_modo_historico_lee_tambien_el_formato_fijo(self):
-        self.assertEqual(aprobadas.veredictos((FIX / "revision-iteracion-3.md").read_text(), ["marco", "lista"], historico=True),
-                         {"marco": "no aprobada", "lista": "aprobada"})
+    def test_el_modo_historico_lee_el_nombre_suelto_y_la_ruta(self):
+        """Las iteraciones 2 y 3 se califican con el nombre suelto; una corrida nueva, por ruta, también se lee."""
+        nombres = ["semilla/marco", "inventario/lista"]
+        esperado = {"semilla/marco": "no aprobada", "inventario/lista": "aprobada"}
+        for fixture in ("revision-iteracion-3.md", "revision-por-ruta.md"):
+            with self.subTest(fixture=fixture):
+                self.assertEqual(aprobadas.veredictos((FIX / fixture).read_text(), nombres, historico=True), esperado)
+
+    def test_el_modo_historico_no_adivina_entre_dos_vistas_con_el_mismo_nombre(self):
+        self.assertEqual(aprobadas.veredictos("## resumen: aprobada\n", ["compostaje/resumen", "socios/resumen"], historico=True),
+                         {"compostaje/resumen": None, "socios/resumen": None})
 
 
 VISTAS_ITERACION_3 = {"semilla/marco.html", "inventario/lista.html", "inventario/detalle.html", "inventario/movimientos.html",
@@ -196,13 +226,13 @@ class MoverAprobadas(unittest.TestCase):
             destino.write_text(f"<!doctype html><title>{ruta}</title>\n")
             if carpeta:
                 continue
-            nombre = Path(ruta).stem
+            clave = Path(ruta).with_suffix("").as_posix()
             if contrato:
-                (self.trabajo / "ola-2" / nombre).mkdir(parents=True, exist_ok=True)
-                (self.trabajo / "ola-2" / nombre / "contrato.md").write_text(f"# Contrato · {nombre}\n")
+                (self.trabajo / "ola-2" / clave).mkdir(parents=True, exist_ok=True)
+                (self.trabajo / "ola-2" / clave / "contrato.md").write_text(f"# Contrato · {clave}\n")
             if inventario:
-                (self.trabajo / "ola-3" / "inventario").mkdir(parents=True, exist_ok=True)
-                (self.trabajo / "ola-3" / "inventario" / f"{nombre}.json").write_text("{}\n")
+                (self.trabajo / "ola-3" / "inventario" / clave).parent.mkdir(parents=True, exist_ok=True)
+                (self.trabajo / "ola-3" / "inventario" / f"{clave}.json").write_text("{}\n")
 
     def huella(self, vista):
         r = subprocess.run([sys.executable, "-B", str(SCRIPT), "huella", str(vista)], capture_output=True, text=True)
@@ -214,8 +244,8 @@ class MoverAprobadas(unittest.TestCase):
         registra el revisor; las revisiones de las fixtures son anteriores a la huella."""
         if huellas:
             def firmar(m):
-                vista = next((self.copia / "vistas").rglob(f"{m.group(1)}.html"), None)
-                return m.group(0) + (f" {self.huella(vista)}" if vista else "")
+                vista = self.copia / "vistas" / f"{m.group(1)}.html"
+                return m.group(0) + (f" {self.huella(vista)}" if vista.is_file() else "")
             texto = re.sub(r"(?m)^## ([^\s:,]+)(?:, segunda revisión)?: aprobada$", firmar, texto)
         (self.trabajo / "ola-3" / "revision.md").write_text(texto)
 
@@ -230,7 +260,7 @@ class MoverAprobadas(unittest.TestCase):
     def test_la_revision_de_la_iteracion_3_sin_pendientes_no_mueve_nada(self):
         """En eval-3 de la iteración 3 el revisor no aprobó el marco: sin nombrarlo como pendiente, no entra nada."""
         self.vistas(*VISTAS_ITERACION_3)
-        self.revision((FIX / "revision-iteracion-3.md").read_text())
+        self.revision((FIX / "revision-por-ruta.md").read_text())
         r = self.correr()
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertEqual(self.en_repo(), set())
@@ -242,8 +272,8 @@ class MoverAprobadas(unittest.TestCase):
 
     def test_la_revision_de_la_iteracion_3_con_el_marco_pendiente_mueve_las_8(self):
         self.vistas(*VISTAS_ITERACION_3)
-        self.revision((FIX / "revision-iteracion-3.md").read_text())
-        r = self.correr("--pendientes", "marco")
+        self.revision((FIX / "revision-por-ruta.md").read_text())
+        r = self.correr("--pendientes", "semilla/marco")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.en_repo(), APROBADAS_ITERACION_3)
         self.assertEqual(len(self.en_repo()), 8)
@@ -254,10 +284,10 @@ class MoverAprobadas(unittest.TestCase):
 
     def test_pendientes_que_no_coinciden_con_lo_que_queda_fuera_no_mueven_nada(self):
         self.vistas(*VISTAS_ITERACION_3)
-        self.revision((FIX / "revision-iteracion-3.md").read_text())
-        casos = {"nombra una aprobada en vez del marco": ("lista", "marco", "lista"),
-                 "nombra el marco y una aprobada": ("marco,ajustes", None, "ajustes"),
-                 "nombra una vista que no existe": ("marco,mapa", None, "mapa")}
+        self.revision((FIX / "revision-por-ruta.md").read_text())
+        casos = {"nombra una aprobada en vez del marco": ("inventario/lista", "semilla/marco", "inventario/lista"),
+                 "nombra el marco y una aprobada": ("semilla/marco,socios/ajustes", None, "socios/ajustes"),
+                 "nombra una vista que no existe": ("semilla/marco,mapa/mapa", None, "mapa/mapa")}
         for caso, (pendientes, sin_nombrar, de_mas) in casos.items():
             with self.subTest(caso=caso):
                 r = self.correr("--pendientes", pendientes)
@@ -284,7 +314,7 @@ class MoverAprobadas(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertEqual(self.en_repo(), set())
         self.assertRegex(r.stdout, r"design/vistas/riego/calendario\.html.*sin veredicto")
-        r = self.correr("--pendientes", "calendario")
+        r = self.correr("--pendientes", "riego/calendario")
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertEqual(self.en_repo(), {"riego/panel.html"})
         self.assertRegex(r.stdout.split("## Pendientes")[1], r"design/vistas/riego/calendario\.html.*sin veredicto")
@@ -308,8 +338,8 @@ class MoverAprobadas(unittest.TestCase):
 
     def test_sin_ninguna_aprobada_no_mueve_los_compartidos(self):
         self.vistas("semilla/marco.html")
-        self.revision((FIX / "revision-iteracion-3.md").read_text())
-        for extra in ([], ["--pendientes", "marco"]):
+        self.revision((FIX / "revision-por-ruta.md").read_text())
+        for extra in ([], ["--pendientes", "semilla/marco"]):
             with self.subTest(extra=extra):
                 r = self.correr(*extra)
                 self.assertEqual(r.returncode, 1)
@@ -325,13 +355,26 @@ class MoverAprobadas(unittest.TestCase):
         self.assertFalse((self.repo / "design" / "vistas" / "riego" / "contrato.md").exists())
         self.assertIn("design/vistas/riego/contrato.md", r.stdout.split("Fuera del repositorio")[1])
 
-    def test_dos_vistas_con_el_mismo_nombre_quedan_fuera(self):
+    def test_dos_vistas_con_el_mismo_nombre_en_epicas_distintas_se_aprueban_por_ruta(self):
+        """Cada una con su veredicto, su contrato y su inventario por ruta: no se pisan ni se confunden."""
         self.vistas("riego/panel.html", "cosechas/panel.html")
-        self.revision((FIX / "revision-segunda.md").read_text())
+        self.revision("## riego/panel: aprobada\n## cosechas/panel: aprobada\n")
         r = self.correr()
-        self.assertEqual(r.returncode, 1)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.en_repo(), {"riego/panel.html", "cosechas/panel.html"})
+        self.assertTrue((self.trabajo / "ola-2" / "riego" / "panel" / "contrato.md").is_file())
+        self.assertTrue((self.trabajo / "ola-2" / "cosechas" / "panel" / "contrato.md").is_file())
+
+    def test_veredicto_con_el_nombre_suelto_no_aprueba(self):
+        self.vistas("riego/panel.html", "cosechas/panel.html")
+        huella = self.huella(self.copia / "vistas" / "riego" / "panel.html")
+        (self.trabajo / "ola-3" / "revision.md").write_text(f"## panel: aprobada {huella}\n")
+        r = self.correr()
+        self.assertEqual(r.returncode, 1, r.stdout)
         self.assertEqual(self.en_repo(), set())
-        self.assertIn("mismo nombre", r.stdout)
+        fuera = r.stdout.split("Fuera del repositorio")[1]
+        self.assertRegex(fuera, r"design/vistas/riego/panel\.html: .*no sigue el formato `## riego/panel: aprobada")
+        self.assertRegex(fuera, r"design/vistas/cosechas/panel\.html: .*no sigue el formato")
 
     def test_aprobada_sin_contrato_o_sin_inventario_queda_fuera(self):
         """El revisor aprueba leyendo el contrato y el inventario: en las iteraciones 1 y 2 el marco no tuvo contrato
@@ -343,8 +386,8 @@ class MoverAprobadas(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertEqual(self.en_repo(), set())
         fuera = r.stdout.split("Fuera del repositorio")[1]
-        self.assertRegex(fuera, r"design/vistas/riego/panel\.html: .*ola-2/panel/contrato\.md")
-        self.assertRegex(fuera, r"design/vistas/riego/historial\.html: .*ola-3/inventario/historial\.json")
+        self.assertRegex(fuera, r"design/vistas/riego/panel\.html: .*ola-2/riego/panel/contrato\.md")
+        self.assertRegex(fuera, r"design/vistas/riego/historial\.html: .*ola-3/inventario/riego/historial\.json")
 
     def test_la_huella_cubre_la_vista_y_los_compartidos(self):
         """sha256 de las líneas de sha256sum de la vista y de tokens.css, components.css y proto.js, relativas a design/."""
@@ -387,21 +430,29 @@ class MoverAprobadas(unittest.TestCase):
 
     def test_con_el_marco_pendiente_y_una_huella_que_no_coincide_no_mueve_nada(self):
         self.vistas(*VISTAS_ITERACION_3)
-        self.revision((FIX / "revision-iteracion-3.md").read_text())
+        self.revision((FIX / "revision-por-ruta.md").read_text())
         (self.copia / "vistas" / "inventario" / "lista.html").write_text("<!doctype html><title>lista cambiada</title>\n")
-        r = self.correr("--pendientes", "marco")
+        r = self.correr("--pendientes", "semilla/marco")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertEqual(self.en_repo(), set())
-        self.assertIn("quedan fuera sin nombrar: lista", r.stdout)
+        self.assertIn("quedan fuera sin nombrar: inventario/lista", r.stdout)
+
+    def test_pendientes_con_el_nombre_suelto_es_un_error_de_uso(self):
+        self.vistas(*VISTAS_ITERACION_3)
+        self.revision((FIX / "revision-por-ruta.md").read_text())
+        r = self.correr("--pendientes", "marco")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("<épica>/<vista>", r.stderr)
+        self.assertEqual(self.en_repo(), set())
 
     def test_rechazo_posterior_fuera_de_formato_no_mueve_nada(self):
         """Los tres casos con que la revisión final movía una vista que el revisor rechazó después de aprobarla."""
-        for caso, despues in {"viñeta": "- panel: no aprobada\n", "encabezado con sangría": "   ## panel: no aprobada\n",
-                              "negrita": "**panel: no aprobada**\n"}.items():
+        for caso, despues in {"viñeta": "- riego/panel: no aprobada\n", "encabezado con sangría": "   ## riego/panel: no aprobada\n",
+                              "negrita": "**riego/panel: no aprobada**\n"}.items():
             with self.subTest(caso=caso):
                 self.setUp()
                 self.vistas("riego/panel.html")
-                self.revision("## panel: aprobada\n\n## Segunda revisión\n" + despues)
+                self.revision("## riego/panel: aprobada\n\n## Segunda revisión\n" + despues)
                 r = self.correr()
                 self.assertEqual(r.returncode, 1, r.stdout)
                 self.assertEqual(self.en_repo(), set())
