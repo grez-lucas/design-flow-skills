@@ -4,7 +4,8 @@
 Uso: python3 -B aprobadas.py <trabajo> <repo-de-diseño>
 
 Lee <trabajo>/ola-3/revision.md y la copia integrada <trabajo>/ola-3/repo/design/. Cada vista de la copia que es
-nueva o distinta de la del repositorio entra solo si su último veredicto es "aprobada"; `tokens.css`,
+nueva o distinta de la del repositorio entra solo si su último veredicto es "aprobada" y tiene en disco lo que el
+revisor lee, <trabajo>/ola-2/<vista>/contrato.md y <trabajo>/ola-3/inventario/<vista>.json; `tokens.css`,
 `components.css` y `proto.js` entran si cambiaron y entró alguna vista. Lo demás queda fuera y se lista: vistas no
 aprobadas o sin veredicto, dos vistas con el mismo nombre y cualquier otro archivo de la copia (contratos,
 inventarios). Las secciones del spec no las toca.
@@ -63,6 +64,13 @@ def cambiados(copia, destino):
                                           and (destino / p.relative_to(copia)).read_bytes() == p.read_bytes()))
 
 
+def sin_evidencia(trabajo, vista):
+    """Lo que el revisor tenía que leer y no está en disco: el contrato de la ola 2 y el inventario de la ola 3."""
+    faltan = [str(r.relative_to(trabajo)) for r in (trabajo / "ola-2" / vista / "contrato.md",
+                                                     trabajo / "ola-3" / "inventario" / f"{vista}.json") if not r.is_file()]
+    return " ni ".join(f"`{r}`" for r in faltan)
+
+
 def mover(trabajo, repo):
     """Copia al repositorio lo aprobado y devuelve (movidos, fuera): rutas bajo design/ y (ruta, motivo)."""
     copia, design = trabajo / "ola-3" / "repo" / "design", repo / "design"
@@ -77,10 +85,12 @@ def mover(trabajo, repo):
     for v in vistas:
         if len(por_nombre[v.stem]) > 1:
             fuera.append((v, f"hay otra vista con el mismo nombre, `{v.stem}`, y el veredicto no dice de cuál es"))
-        elif veredicto[v.stem] == "aprobada":
-            entran.append(v)
-        else:
+        elif veredicto[v.stem] != "aprobada":
             fuera.append((v, veredicto[v.stem] or "sin veredicto en revision.md"))
+        elif falta := sin_evidencia(trabajo, v.stem):
+            fuera.append((v, f"aprobada, pero sin {falta}: el revisor aprueba leyendo el contrato y el inventario"))
+        else:
+            entran.append(v)
     for p in otros:
         if str(p) not in COMPARTIDOS:
             fuera.append((p, "no es una vista ni un archivo compartido"))

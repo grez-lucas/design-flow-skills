@@ -95,7 +95,7 @@ Con `references/olas.md`, sección "Ola 3":
    python3 -B <ruta-de-esta-skill>/scripts/aprobadas.py <trabajo> <repo-de-diseño>
    ```
 
-   Copia de `<trabajo>/ola-3/repo/` solo las vistas cuyo último veredicto en `revision.md` es "aprobada", y `tokens.css`, `components.css` y `proto.js` si cambiaron. Lista lo que dejó fuera (no aprobada, sin veredicto, archivos de trabajo) y sale con 1 si dejó algo: cada vista fuera vuelve a su subagente o, si ya tuvo su segunda revisión, va al informe como pendiente. Las secciones del spec que haya que actualizar las copias tú.
+   Copia de `<trabajo>/ola-3/repo/` solo las vistas cuyo último veredicto en `revision.md` es "aprobada" y que tienen en disco su contrato y su inventario, lo que el revisor tuvo que leer, y `tokens.css`, `components.css` y `proto.js` si cambiaron. Lista lo que dejó fuera (no aprobada, sin veredicto, sin contrato o inventario, archivos de trabajo) y sale con 1 si dejó algo: cada vista fuera vuelve a su subagente o, si ya tuvo su segunda revisión, va al informe como pendiente. Las secciones del spec que haya que actualizar las copias tú.
 
 ### 9. Guardar
 

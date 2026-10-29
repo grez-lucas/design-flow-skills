@@ -116,11 +116,21 @@ class MoverAprobadas(unittest.TestCase):
         shutil.copytree(self.repo / "design", self.copia)
         (self.copia / "components.css").write_text("/* components.css integrado */\n")
 
-    def vistas(self, *rutas, carpeta=None):
+    def vistas(self, *rutas, carpeta=None, contrato=True, inventario=True):
+        """Vistas en la copia integrada, cada una con su contrato de la ola 2 y su inventario de la ola 3."""
         for ruta in rutas:
             destino = (carpeta or self.copia) / "vistas" / ruta
             destino.parent.mkdir(parents=True, exist_ok=True)
             destino.write_text(f"<!doctype html><title>{ruta}</title>\n")
+            if carpeta:
+                continue
+            nombre = Path(ruta).stem
+            if contrato:
+                (self.trabajo / "ola-2" / nombre).mkdir(parents=True, exist_ok=True)
+                (self.trabajo / "ola-2" / nombre / "contrato.md").write_text(f"# Contrato · {nombre}\n")
+            if inventario:
+                (self.trabajo / "ola-3" / "inventario").mkdir(parents=True, exist_ok=True)
+                (self.trabajo / "ola-3" / "inventario" / f"{nombre}.json").write_text("{}\n")
 
     def revision(self, texto):
         (self.trabajo / "ola-3" / "revision.md").write_text(texto)
@@ -200,6 +210,19 @@ class MoverAprobadas(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertEqual(self.en_repo(), set())
         self.assertIn("mismo nombre", r.stdout)
+
+    def test_aprobada_sin_contrato_o_sin_inventario_queda_fuera(self):
+        """El revisor aprueba leyendo el contrato y el inventario: en las iteraciones 1 y 2 el marco no tuvo contrato
+        en la ola 2 y dos corridas no dejaron el inventario en disco."""
+        self.vistas("riego/panel.html", contrato=False)
+        self.vistas("riego/historial.html", inventario=False)
+        self.revision((FIX / "revision-segunda.md").read_text())
+        r = self.correr()
+        self.assertEqual(r.returncode, 1)
+        self.assertEqual(self.en_repo(), set())
+        fuera = r.stdout.split("Fuera del repositorio")[1]
+        self.assertRegex(fuera, r"design/vistas/riego/panel\.html: .*ola-2/panel/contrato\.md")
+        self.assertRegex(fuera, r"design/vistas/riego/historial\.html: .*ola-3/inventario/historial\.json")
 
     def test_sin_revision_no_mueve_nada(self):
         self.vistas("riego/panel.html")
