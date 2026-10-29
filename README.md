@@ -121,7 +121,7 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | :--- | :--- | :--- |
 | Node.js 22 o superior y `npx` | Las rondas de `grilling-es` y las revisiones de tickets y vistas de `spec-a-tickets` y `spec-a-html` en Lavish (`npx -y lavish-axi`), donde la persona responde con formularios y anota sobre la pantalla. | Las rondas y las revisiones van en el chat, y las vistas se abren a mano en el navegador. |
 | `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
-| `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
+| `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
 | Herramienta de subagentes en la sesión | Las tres olas de `html-a-vista`. | `html-a-vista` se detiene antes de leer el mockup. |
 | Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. | Un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. |
 | `git` | El commit y push al repositorio de diseño cuando el proyecto no tiene tracker. | No hay commit ni push: los archivos quedan solo en la máquina. |
@@ -166,7 +166,7 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 
 ## Pruebas
 
-Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar:
+Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar:
 
 ```
 python3 -m unittest discover -s tests/checklist-diseno -v

@@ -23,7 +23,7 @@ class RevisarSinBytecode(unittest.TestCase):
                 for llamada in llamadas:
                     self.assertRegex(llamada, r"^python3 -B ", llamada)
         texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
-        for script in ("desarmar.py", "tokens.py", "inventario.py", "revisar.py"):
+        for script in ("desarmar.py", "tokens.py", "inventario.py", "revisar.py", "aprobadas.py"):
             self.assertRegex(texto, rf"python3 -B [^`\n]*{script}", script)
 
 
