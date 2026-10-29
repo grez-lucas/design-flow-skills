@@ -48,6 +48,8 @@ FRAMEWORKS = [("react", re.compile(r"\breact(-dom)?([@./-]|$)", re.I)), ("vue", 
               ("babel", re.compile(r"babel", re.I)), ("tailwind", re.compile(r"tailwind", re.I)),
               ("preact", re.compile(r"\bpreact\b", re.I)), ("alpine", re.compile(r"alpinejs", re.I))]
 URL_CSS = re.compile(r"""url\(\s*["']?((?:https?:)?//[^"')\s]+)|@import\s+(?:url\(\s*)?["']((?:https?:)?//[^"']+)""", re.I)
+# Un string que abre una etiqueta, aunque la cierre otro string: '<polyline points="' + pts + '"/>'.
+ABRE_ETIQUETA = re.compile(r"<[a-zA-Z][\w:-]*(?=[\s/>]|$)")
 URL_JS = re.compile(r"""\bfrom\s+["'](https?://[^"']+)|\bimport\(\s*["'](https?://[^"']+)""")
 
 
@@ -587,7 +589,7 @@ class Parte:
             "animaciones": {"keyframes": len(re.findall(r"@(?:-webkit-)?keyframes\b", css)),
                             "setTimeout": len(re.findall(r"\bsetTimeout\s*\(", js)),
                             "setInterval": len(re.findall(r"\bsetInterval\s*\(", js))},
-            "js_arma_markup": len([l for l in literales_js(js) if re.search(r"<[a-zA-Z][^>]*>", l)]),
+            "js_arma_markup": len([l for l in literales_js(js) if ABRE_ETIQUETA.search(l)]),
         }, externos, frameworks
 
 

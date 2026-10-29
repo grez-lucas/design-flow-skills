@@ -430,6 +430,21 @@ class MockupGrande(unittest.TestCase):
         resumen = (self.trabajo / "resumen.md").read_text()
         self.assertIn('"Simular báscula desconectada" (línea 32)', resumen)
 
+    def test_el_svg_que_arma_el_js_queda_avisado(self):
+        compostaje = self.partes["tpl-compostaje"]
+        self.assertEqual(compostaje["js_arma_markup"], 1)
+        for otra in ("shell", "tpl-inventario", "tpl-socios"):
+            self.assertEqual(self.partes[otra]["js_arma_markup"], 0, otra)
+        resumen = (self.trabajo / "trozos" / "tpl-compostaje" / "markup" / "resumen-tab.html").read_text()
+        self.assertIn('<svg id="grafico-temp" viewBox="0 0 600 200" width="100%" height="200"></svg>', resumen,
+                      "en el markup el gráfico está vacío")
+        js = next(t for t in compostaje["trozos"] if t["tipo"] == "js")
+        self.assertIn("<polyline", (self.trabajo / js["archivo"]).read_text())
+        texto = (self.trabajo / "resumen.md").read_text().split("### tpl-compostaje")[1].split("###")[0]
+        self.assertIn("el JS arma markup en 1 strings", texto)
+        valores = {v["valor"]: v for v in compostaje["valores"]}
+        self.assertEqual(valores["#e8743b"]["js"], 1, "el color del trazo del SVG está en el JS")
+
     def test_ninguna_parte_ni_trozo_pasa_256_kb(self):
         self.assertGreater(self.original.stat().st_size, LIMITE, "el mockup entero sí pasa el límite")
         archivos = [p for p in self.trabajo.rglob("*") if p.is_file()]
