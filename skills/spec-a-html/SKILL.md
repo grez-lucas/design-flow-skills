@@ -16,6 +16,7 @@ design/
   tokens.css        design system: variables CSS
   components.css    componentes compartidos, solo con variables de tokens.css
   proto.js          cambia escenarios, anchos y tema; lo copia esta skill
+  fuentes/          la fuente del producto en .woff2, si tiene una propia
   vistas/<épica>/<vista>.html
 specs/<épica>/spec.md   cuando el proyecto no tiene tracker
 ```

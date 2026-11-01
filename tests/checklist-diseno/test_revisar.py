@@ -15,7 +15,8 @@ from unittest import mock
 
 RAIZ = Path(__file__).resolve().parents[2]
 SCRIPT = RAIZ / "skills" / "checklist-diseno" / "scripts" / "revisar.py"
-PROTO = RAIZ / "skills" / "spec-a-html" / "assets" / "proto.js"
+ASSETS = RAIZ / "skills" / "spec-a-html" / "assets"
+PROTO = ASSETS / "proto.js"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 spec = importlib.util.spec_from_file_location("revisar", SCRIPT)
@@ -376,6 +377,59 @@ class Revision(unittest.TestCase):
                     self.assertEqual(bloquea, [])
                 else:
                     self.assertTrue(any(motivo in b and f"`{archivo}`" in b for b in bloquea), bloquea)
+
+    def con_fuente(self, css, archivos=("fuentes/marca-regular.woff2",)):
+        """Agrega `css` a tokens.css y crea en design/ los archivos de fuente nombrados; devuelve lo que bloquea."""
+        for nombre in archivos:
+            (self.design / nombre).parent.mkdir(parents=True, exist_ok=True)
+            (self.design / nombre).write_bytes(b"wOF2")
+        tokens = self.design / "tokens.css"
+        tokens.write_text(tokens.read_text() + "\n" + css + "\n")
+        bloquea, _ = self.compartidos()
+        return bloquea
+
+    def test_fuente_local_en_design_fuentes_no_bloquea(self):
+        casos = {
+            "url sin comillas": '@font-face { font-family: "Marca"; src: url(fuentes/marca-regular.woff2) format("woff2"); }',
+            "url con comillas y ./": "@font-face{font-family:Marca;src:url('./fuentes/marca-regular.woff2') format('woff2');font-weight:400}",
+        }
+        for caso, css in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.assertEqual(self.con_fuente(css), [])
+
+    def test_fuente_mal_ubicada_o_inexistente_bloquea_nombrando_la_ruta(self):
+        casos = {
+            "archivo que no existe": ("@font-face{font-family:Marca;src:url(fuentes/otra.woff2)}", (), "`fuentes/otra.woff2`"),
+            "fuera de fuentes/": ("@font-face{font-family:Marca;src:url(marca.woff2)}", ("marca.woff2",), "`marca.woff2`"),
+            "fuera de design/": ("@font-face{font-family:Marca;src:url(../marca.woff2)}", ("../marca.woff2",), "`../marca.woff2`"),
+            "otro formato": ("@font-face{font-family:Marca;src:url(fuentes/marca.ttf)}", ("fuentes/marca.ttf",), "`fuentes/marca.ttf`"),
+            "embebida en data:": ("@font-face{font-family:Marca;src:url(data:font/woff2;base64,d09GMg==)}", (), "`data:"),
+            "segunda url mal": ("@font-face{font-family:Marca;src:url(fuentes/marca-regular.woff2) format('woff2'), url(marca.woff)}",
+                                ("fuentes/marca-regular.woff2", "marca.woff"), "`marca.woff`"),
+        }
+        for caso, (css, archivos, ruta) in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                bloquea = self.con_fuente(css, archivos)
+                self.assertTrue(any(ruta in b and "design/fuentes/" in b for b in bloquea), bloquea)
+
+    def test_fuente_externa_sigue_bloqueando(self):
+        casos = {
+            "Google Fonts con @import": "@import url(https://fonts.googleapis.com/css2?family=Marca);",
+            "woff2 de un CDN": "@font-face{font-family:Marca;src:url(https://fonts.example.com/marca.woff2)}",
+            "sin esquema": "@font-face{font-family:Marca;src:url(//fonts.example.com/marca.woff2)}",
+        }
+        for caso, css in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                self.assertTrue(any("recursos externos" in b for b in self.con_fuente(css)), caso)
+
+    def test_tokens_y_components_de_la_skill_pasan_sin_bloqueos(self):
+        shutil.copy(ASSETS / "tokens.css", self.design / "tokens.css")
+        shutil.copy(ASSETS / "components.css", self.design / "components.css")
+        bloquea, _ = self.compartidos()
+        self.assertEqual(bloquea, [])
 
     def test_solo_spec_resumen_con_spec(self):
         self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))

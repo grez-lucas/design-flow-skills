@@ -79,6 +79,7 @@ Todo vive en un repositorio de diseño por producto, separado del repositorio de
 design/
   tokens.css        design system: variables CSS (color, tipografía, espaciado, radios, sombras, temas)
   components.css    componentes compartidos, construidos sobre tokens.css
+  fuentes/          la fuente del producto en .woff2, si tiene una propia
   vistas/           un HTML semántico por vista o flujo
 specs/
   <épica>/
