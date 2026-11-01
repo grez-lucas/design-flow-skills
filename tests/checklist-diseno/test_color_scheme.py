@@ -98,15 +98,29 @@ class TemaBaseOscuro(unittest.TestCase):
             with self.subTest(caso=caso):
                 self.assertEqual(self.avisos(tokens)[0], [])
 
-    def test_no_avisa_si_no_puede_leer_el_fondo_o_el_texto(self):
+    def test_avisa_si_no_puede_comprobar_el_tema_base(self):
+        """Sin un fondo y un texto que se puedan leer no hay cómo saber si el tema base es oscuro: avisa, sin bloquear."""
         casos = {
             "sin --color-bg": ":root {\n  --color-text: #e8ebef;\n}\n",
             "sin --color-text": ":root {\n  --color-bg: #0f1216;\n}\n",
-            "con var()": ":root {\n  --color-bg: var(--color-surface);\n  --color-text: #e8ebef;\n}\n",
+            "sin ninguno de los dos": ":root {\n  --space-2: 8px;\n}\n",
+            "fondo con var()": ":root {\n  --color-bg: var(--color-surface);\n  --color-text: #e8ebef;\n}\n",
+            "texto con var()": ":root {\n  --color-bg: #0f1216;\n  --color-text: var(--color-ink);\n}\n",
+            "un color con nombre que no lee": ":root {\n  --color-bg: navy;\n  --color-text: #e8ebef;\n}\n",
+            "con color-scheme light": ":root {\n  color-scheme: light;\n  --color-bg: var(--color-surface);\n  --color-text: #e8ebef;\n}\n",
         }
         for caso, tokens in casos.items():
             with self.subTest(caso=caso):
-                self.assertEqual(self.avisos(tokens)[0], [])
+                avisos, bloquea = self.avisos(tokens)
+                self.assertEqual(len(avisos), 1, avisos)
+                self.assertIn("no puede comprobar", avisos[0])
+                self.assertIn("`--color-bg`", avisos[0])
+                self.assertIn("`--color-text`", avisos[0])
+                self.assertEqual(bloquea, [])
+
+    def test_no_avisa_si_no_puede_comprobarlo_pero_declara_color_scheme_dark(self):
+        tokens = ":root {\n  color-scheme: dark;\n  --color-bg: var(--color-surface);\n  --color-text: #e8ebef;\n}\n"
+        self.assertEqual(self.avisos(tokens)[0], [])
 
     def test_la_plantilla_declara_color_scheme_en_cada_tema(self):
         tokens = revisar.strip_comments((ASSETS / "tokens.css").read_text())

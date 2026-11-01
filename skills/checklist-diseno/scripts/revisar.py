@@ -478,13 +478,22 @@ def tema_base_oscuro(css):
 
 
 def avisos_de_tema(design):
-    """Aviso si el tema base de `tokens.css` es oscuro y `:root` (o `html`) no declara `color-scheme: dark`."""
+    """Aviso, sin bloquear, si el tema base de `tokens.css` es oscuro y `:root` (o `html`) no declara
+    `color-scheme: dark`, o si no se puede comprobar porque `--color-bg` o `--color-text` faltan o no son colores
+    literales."""
     tok = design / "tokens.css"
     if not tok.exists():
         return []
     css = strip_comments(tok.read_text())
     esquema = color_scheme(css, (":root", "html")) or ""
-    if not tema_base_oscuro(css) or set(esquema.split()) - {"only"} == {"dark"}:
+    if set(esquema.split()) - {"only"} == {"dark"}:
+        return []
+    oscuro = tema_base_oscuro(css)
+    if oscuro is None:
+        return ["La revisión no puede comprobar si el tema base de `tokens.css` es oscuro, porque `--color-bg` o `--color-text` de "
+                "`:root` faltan o no son un color que se pueda leer (por ejemplo, un `var()`). Defínelos con su valor en "
+                "`:root`; si el tema base es oscuro, declara también `color-scheme: dark`."]
+    if not oscuro:
         return []
     hoy = f"hoy declara `color-scheme: {esquema}`" if esquema else "no declara `color-scheme`"
     return [f"`tokens.css` tiene el tema base oscuro (en `:root`, `--color-bg` es más oscuro que `--color-text`) sin "
