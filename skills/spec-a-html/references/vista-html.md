@@ -35,12 +35,40 @@ Parte de `assets/vista.html`. La estructura es:
 - `<body data-escenarios>` lista los escenarios de la vista, separados por coma. El primero es el que se ve al abrir.
 - `<body data-no-aplica>` lista los escenarios base que no aplican, cada uno con su motivo: `data-no-aplica="sin-permiso: todos los roles ven esta vista; muchos-datos: la pantalla tiene pocas opciones fijas"`. Escenarios base: normal, vacio, cargando, error, sin-permiso, muchos-datos.
 - Un elemento con `data-state="a b"` se ve solo en los escenarios `a` o `b`. Un elemento sin `data-state` se ve siempre. Así, el header y la navegación se escriben una vez y solo cambia lo que de verdad cambia.
-- `muchos-datos` muestra la versión con volumen real: textos largos, nombres que no caben, tablas de 50 filas. Para no inflar el archivo, escribe tres o cuatro filas variadas y marca el contenedor con `data-repeat="50"`: `proto.js` clona las filas en ese escenario.
+- `muchos-datos` muestra la versión con volumen real: textos largos, nombres que no caben, tablas de 50 filas. Para no inflar el archivo, escribe tres o cuatro filas variadas y marca el contenedor con `data-repeat="50"`: `proto.js` clona las filas en ese escenario. Para que las copias no repitan los mismos nombres, pon en la celda una lista de valores separados por `;`: `<td data-valores="Bruno Díaz; Carla Ruiz; Diego Soto">Ana Pérez</td>`. La fila escrita muestra su texto, y cada copia de esa fila toma el valor siguiente de la lista; al acabarse, la lista vuelve a empezar. Úsalo en las columnas que más se notan repetidas (nombres, montos, fechas); el resto puede repetirse.
 - `cargando` usa `.skeleton`, no spinners sueltos.
 - `sin-permiso` muestra lo que ve un usuario sin acceso, no una pantalla en blanco.
 - Los escenarios propios del spec se nombran en minúsculas con guiones: `plan-expirado`, `pago-rechazado`.
 
-`proto.js` arma un panel fuera del frame con los escenarios y los anchos (390, 1280 y 1440), y lee `?escenario=` y `?ancho=` de la URL. Si `tokens.css` define un tema oscuro, el panel suma un grupo "Tema" con `claro` y `oscuro`, y la URL acepta `?tema=claro|oscuro`; la vista abre en claro salvo `?tema=oscuro`. `?proto=0` esconde el panel para una captura limpia y respeta `?tema=`. No escribas otros controles de prototipo, tampoco un selector de tema propio.
+`proto.js` arma un panel fuera del frame con los escenarios y los anchos (390, 1280 y 1440), y lee `?escenario=` y `?ancho=` de la URL. El panel abre abajo a la derecha; su botón "Cambiar de lado" lo pasa a la izquierda cuando tapa un aviso o un botón de la pantalla, y la URL lo recuerda con `?panel=izquierda`. Si `tokens.css` define un tema oscuro, el panel suma un grupo "Tema" con `claro` y `oscuro`, y la URL acepta `?tema=claro|oscuro`; la vista abre en claro salvo `?tema=oscuro`. `?proto=0` esconde el panel para una captura limpia y respeta `?tema=`. No escribas otros controles de prototipo, tampoco un selector de tema propio.
+
+## Modales y avisos
+
+El frame (`<main data-frame>`) es la pantalla: `components.css` lo deja con posición relativa y al menos el alto de la ventana. Un modal o un aviso se posiciona dentro del frame, no de la ventana, para que el selector de ancho de `proto.js` también lo achique y la captura a 390 muestre lo que ve un teléfono. Nada de `position: fixed` en la vista: un elemento fijo se mide contra la ventana y queda fuera del frame.
+
+```html
+<main data-frame>
+  ...
+  <!-- al confirmar: anula el pedido y vuelve al listado con un aviso de éxito -->
+  <div class="modal" data-state="confirmar-anulacion">
+    <dialog open class="modal__dialog" aria-labelledby="titulo-anular">
+      <h2 id="titulo-anular">¿Anular el pedido 10482?</h2>
+      <p>El cliente recibe un correo con el detalle.</p>
+      <div class="modal__actions">
+        <button type="button" class="btn">Cancelar</button>
+        <button type="button" class="btn btn--danger">Anular pedido</button>
+      </div>
+    </dialog>
+  </div>
+  <div class="toast-region" data-state="anulado">
+    <p class="alert alert--success" role="status">Pedido 10482 anulado.</p>
+  </div>
+</main>
+```
+
+- El modal es un escenario de la vista que lo abre, con su nombre (`confirmar-anulacion`), y va al final del frame. `.modal` es el velo que cubre el frame, y `<dialog open>` el cuadro, que mide `--size-modal` como máximo y nunca más que el frame.
+- Los avisos van en `.toast-region`, abajo a la derecha del frame, con los componentes de `.alert`.
+- Un drawer o un popover sigue la misma idea: posición absoluta dentro del frame. Si se repite entre vistas, va a `components.css` como `.modal`.
 
 ## Reglas
 
