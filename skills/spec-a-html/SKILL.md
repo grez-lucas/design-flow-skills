@@ -19,6 +19,7 @@ design/
   fuentes/          la fuente del producto en .woff2, si tiene una propia
   vistas/<épica>/<vista>.html
 specs/<épica>/spec.md   cuando el proyecto no tiene tracker
+.gitignore          con `.lavish/`, donde Lavish guarda sus archivos de revisión
 ```
 
 ## Por qué el formato es liviano
@@ -61,6 +62,8 @@ Busca el design system en este orden y para en el primero que exista:
 Antes de crear o cambiar `tokens.css`, muestra la propuesta (colores con su uso, tipografía, escala de espacios) y pide confirmación. Un cambio en el design system afecta a todas las vistas y lo revisa diseño en la planificación; dilo cuando ocurra.
 
 Si `design/components.css` o `design/proto.js` no existen, créalos desde `assets/components.css` y `assets/proto.js`. `proto.js` se copia sin modificar.
+
+Revisa también que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`; si no la tiene, agrégala, y crea el archivo si falta. Lavish guarda ahí los archivos de cada revisión, que no son diseño: sin esa línea, producto los ve como cambios sin guardar después de cada commit.
 
 La convención de nombres y las reglas de los tokens están en `references/design-system.md`. Léela antes de escribir o extender `tokens.css` o `components.css`.
 
@@ -125,7 +128,7 @@ diseno(alertas): listado con estados vacío, error y muchos datos
 Tickets: US-ALERT-002
 ```
 
-Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, y `git add specs/<épica>/` si tocaste algo ahí; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
+Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add specs/<épica>/` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. Si el push falla por permisos, explica el error en simple y que el TL es quien da los accesos.
 

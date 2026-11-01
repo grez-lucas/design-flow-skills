@@ -51,7 +51,7 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
                     for linea in texto.splitlines():
                         for argumentos in re.findall(r"`git add ([^`]*)`", linea):
                             rutas = [a for a in argumentos.split() if a != "--"]
-                            if rutas and all(r.startswith(("design/", "specs/")) for r in rutas):
+                            if rutas and all(r.startswith(("design/", "specs/")) or r == ".gitignore" for r in rutas):
                                 permitidos.append(argumentos)
                             else:
                                 self.assertIn("nunca", linea.lower(), linea)
@@ -64,6 +64,18 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
                     texto = ruta.read_text(encoding="utf-8")
                     self.assertIn("skills-lock.json", texto)
                     self.assertIn("el resumen", texto.lower())
+
+
+class LavishFueraDelCommit(unittest.TestCase):
+    """Las skills que crean `design/` dejan `.lavish/` en el `.gitignore` del repositorio de diseño y lo suben."""
+    SKILLS_QUE_CREAN_DESIGN = ("spec-a-html", "html-a-vista")
+
+    def test_agregan_lavish_al_gitignore_y_lo_suben_en_el_commit(self):
+        for skill in self.SKILLS_QUE_CREAN_DESIGN:
+            texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(skill=skill):
+                self.assertRegex(texto, r"`\.lavish/`[^\n]*`\.gitignore`|`\.gitignore`[^\n]*`\.lavish/`")
+                self.assertIn("`git add .gitignore`", texto)
 
 
 class NombreDelSiguientePaso(unittest.TestCase):

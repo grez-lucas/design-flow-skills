@@ -85,6 +85,7 @@ specs/
   <épica>/
     spec.md
     tickets/NN-titulo.md   solo si el proyecto no tiene tracker
+.gitignore          con .lavish/, los archivos de las revisiones en Lavish
 ```
 
 El formato es liviano a propósito: los agentes leen estos archivos en cada tarea. Un HTML enlaza `tokens.css` y `components.css`, no usa frameworks por CDN, y muestra sus estados con `?escenario=` o un panel `data-proto`, nunca con controles dentro de la pantalla. Tampoco lleva JavaScript propio ni animaciones con `@keyframes`, ni en la vista ni en `components.css` o `tokens.css`: `checklist-diseno` lo bloquea en toda vista, la que arma producto con `spec-a-html` y la que sale de un mockup con `html-a-vista`. El movimiento va como comentario de intención junto al elemento, y el comportamiento como comentario o criterio del ticket, porque DEV lee el HTML como requisito.
