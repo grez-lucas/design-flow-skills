@@ -92,6 +92,12 @@ Agrega una línea al inicio del spec, en el tracker o en `specs/<épica>/spec.md
 
 En la misma edición, completa "Tickets" en "Enlaces" con los identificadores reales. Desde ahí, el spec no se reescribe: los tickets son la fuente de lo que se acepta.
 
-### 9. Cerrar
+### 9. Guardar en el repositorio de diseño
+
+Si la sesión escribió en el repositorio de diseño (los tickets sin tracker, el spec congelado en `specs/<épica>/spec.md`), haz commit y push a la rama actual después de mostrar el resumen y pedir la confirmación, con el mensaje `tickets(<épica>): <resumen>`, por ejemplo `tickets(recordatorios): US-REC-001 y US-REC-002 desde el spec`. Un solo commit al final, para que los tickets y el spec congelado lleguen juntos. Agrega solo la carpeta de la épica, con `git add specs/<épica>/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit. Si la sesión no escribió nada en el repositorio, no hay commit.
+
+El push va a la rama actual, con `git push` (o `git push -u origin HEAD` si la rama todavía no existe en el servidor). Si el servidor lo rechaza porque la rama está protegida, pasa el commit a una rama nueva con `git switch -c tickets/<épica>` y `git push -u origin tickets/<épica>`, deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que la rama está protegida, que los tickets quedaron en `tickets/<épica>` y que el TL los revisa y hace el merge request. Si esa rama ya existe, no la reemplaces: dilo y deja que el TL decida. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
+
+### 10. Cerrar
 
 Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso: en una sesión nueva, `spec-a-html` con el mismo spec para dibujar las vistas. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
