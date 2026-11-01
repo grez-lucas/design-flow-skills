@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Prueba · Lista</title>
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <script>
+    // Propio del fixture, no de una vista: deja en <body> el texto de cada <li>,
+    // separado por "|", y el display calculado del frame.
+    window.addEventListener("load", function () {
+      document.body.dataset.pruebaItems = Array.from(document.querySelectorAll("li"))
+        .map(function (li) { return li.textContent.trim(); }).join("|");
+      document.body.dataset.pruebaDisplay = getComputedStyle(document.querySelector("[data-frame]")).display;
+    });
+  </script>
+  <style>
+    main { display: grid; gap: var(--space-4); }
+  </style>
+</head>
+<body data-escenarios="normal, muchos-datos">
+  <main data-frame>
+    <ul data-repeat="5">
+      <li data-valores="Bruno Díaz; Carla Ruiz">Ana Pérez</li>
+    </ul>
+  </main>
+</body>
+</html>
