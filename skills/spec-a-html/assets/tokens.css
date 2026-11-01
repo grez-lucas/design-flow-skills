@@ -15,6 +15,7 @@
   --color-warning: #b26b00;
   --color-danger: #c62828;
   --color-info: #0b7285;
+  --color-overlay: rgba(16, 24, 40, 0.45);
 
   --font-family-base: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-family-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -51,6 +52,7 @@
   --size-topbar: 56px;
   --size-sidebar: 240px;
   --size-content-max: 1200px;
+  --size-modal: 480px;
 }
 
 [data-theme="dark"] {
@@ -64,4 +66,5 @@
   --color-text-muted: #9aa4b2;
   --color-primary: #6f95ff;
   --color-primary-contrast: #0f1216;
+  --color-overlay: rgba(0, 0, 0, 0.6);
 }

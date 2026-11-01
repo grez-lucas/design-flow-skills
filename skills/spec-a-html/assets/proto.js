@@ -1,10 +1,13 @@
 // proto.js: escenarios, anchos y tema de las vistas de design/. Se copia sin modificar.
 // Lee <body data-escenarios>, muestra los elementos [data-state] del escenario activo,
 // clona filas en [data-repeat] para "muchos-datos" y arma un panel fuera del frame.
+// En cada copia, un elemento con data-valores="a; b; c" toma el valor siguiente de la
+// lista, para que las filas clonadas no se repitan.
 // El tema oscuro aparece solo si tokens.css define [data-theme="dark"]: se detecta
 // comparando --color-bg, --color-surface y --color-text con y sin data-theme, porque
 // Chrome no deja leer cssRules de una hoja enlazada cuando la vista se abre como file://.
 // URL: ?escenario=<nombre>  ?ancho=390|1280|1440  ?tema=claro|oscuro  ?proto=0 (sin panel)
+//      ?panel=izquierda|derecha (el lado del panel; "Cambiar de lado" lo alterna)
 (function () {
   var params = new URLSearchParams(location.search);
   var body = document.body;
@@ -26,7 +29,14 @@
       if (nombre !== "muchos-datos") return;
       var total = parseInt(el.dataset.repeat, 10) || 50;
       for (var i = base.length; i < total; i++) {
-        el.appendChild(base[i % base.length].cloneNode(true));
+        var copia = base[i % base.length].cloneNode(true);
+        var vuelta = Math.floor(i / base.length) - 1;
+        copia.querySelectorAll("[data-valores]").forEach(function (celda) {
+          var valores = celda.dataset.valores.split(";")
+            .map(function (v) { return v.trim(); }).filter(Boolean);
+          if (valores.length) celda.textContent = valores[vuelta % valores.length];
+        });
+        el.appendChild(copia);
       }
     });
     body.dataset.escenario = nombre;
@@ -80,9 +90,26 @@
   var panel = document.createElement("aside");
   panel.setAttribute("data-proto", "");
   panel.setAttribute("aria-label", "Panel de prototipo");
-  panel.style.cssText = "position:fixed;right:8px;bottom:8px;z-index:2147483647;" +
+  panel.style.cssText = "position:fixed;bottom:8px;z-index:2147483647;" +
     "background:#111;color:#fff;font:12px/1.4 system-ui,sans-serif;padding:8px;" +
     "border-radius:6px;max-width:240px;opacity:.92";
+  var lado = params.get("panel") === "izquierda" ? "izquierda" : "derecha";
+
+  function aplicarLado() {
+    panel.style.left = lado === "izquierda" ? "8px" : "";
+    panel.style.right = lado === "derecha" ? "8px" : "";
+  }
+
+  function boton(texto, activo, onClick) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = texto;
+    b.style.cssText = "margin:2px;padding:2px 6px;border:1px solid #555;border-radius:4px;" +
+      "background:" + (activo ? "#fff;color:#111" : "transparent;color:#fff") +
+      ";cursor:pointer;font:inherit";
+    b.addEventListener("click", onClick);
+    return b;
+  }
 
   function grupo(titulo, valores, activo, onClick) {
     var g = document.createElement("div");
@@ -92,14 +119,7 @@
     t.style.opacity = ".7";
     g.appendChild(t);
     valores.forEach(function (v) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.textContent = v;
-      b.style.cssText = "margin:2px;padding:2px 6px;border:1px solid #555;border-radius:4px;" +
-        "background:" + (String(v) === String(activo) ? "#fff;color:#111" : "transparent;color:#fff") +
-        ";cursor:pointer;font:inherit";
-      b.addEventListener("click", function () { onClick(v); });
-      g.appendChild(b);
+      g.appendChild(boton(v, String(v) === String(activo), function () { onClick(v); }));
     });
     return g;
   }
@@ -118,9 +138,15 @@
         aplicarTema(v); actualizarUrl("tema", v); render();
       }));
     }
+    // Para no tapar un aviso o un botón de la pantalla, el panel se pasa al otro lado.
+    grupos.push(boton("Cambiar de lado", false, function () {
+      lado = lado === "derecha" ? "izquierda" : "derecha";
+      aplicarLado(); actualizarUrl("panel", lado);
+    }));
     panel.replaceChildren.apply(panel, grupos);
   }
 
+  aplicarLado();
   render();
   body.appendChild(panel);
 })();

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba · Modal</title>
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+  <script>
+    // Propio del fixture, no de una vista: deja en <body> los rectángulos del frame,
+    // del velo, del diálogo, del aviso y de la ventana, que --dump-dom no muestra.
+    window.addEventListener("load", function () {
+      function rect(selector) {
+        var r = document.querySelector(selector).getBoundingClientRect();
+        return [r.left, r.top, r.right, r.bottom].map(Math.round).join(",");
+      }
+      document.body.dataset.pruebaFrame = rect("[data-frame]");
+      document.body.dataset.pruebaVelo = rect(".modal");
+      document.body.dataset.pruebaDialogo = rect(".modal__dialog");
+      document.body.dataset.pruebaAviso = rect(".toast-region .alert");
+      document.body.dataset.pruebaVentana = [0, 0, innerWidth, innerHeight].join(",");
+    });
+  </script>
+</head>
+<body data-escenarios="confirmar">
+  <main data-frame>
+    <h1>Pedidos</h1>
+    <p>Listado corto: el frame queda más bajo que la ventana.</p>
+    <div class="modal" data-state="confirmar">
+      <dialog open class="modal__dialog" aria-labelledby="titulo-anular">
+        <h2 id="titulo-anular">¿Anular el pedido 10482 de Comercial Los Andes de Ejemplo Limitada?</h2>
+        <p>El pedido vuelve a borrador y el cliente recibe un correo en contacto@example.com con el detalle de la anulación y el plazo de devolución del pago.</p>
+        <button type="button" class="btn">Cancelar</button>
+        <button type="button" class="btn btn--danger">Anular pedido</button>
+      </dialog>
+    </div>
+    <div class="toast-region" data-state="confirmar">
+      <p class="alert alert--success" role="status">Se guardó el borrador del pedido 10482 con todos los cambios del formulario.</p>
+    </div>
+  </main>
+</body>
+</html>
