@@ -456,6 +456,15 @@ class Revision(unittest.TestCase):
         bloquea, _ = self.compartidos()
         self.assertEqual(bloquea, [])
 
+    def test_font_face_en_components_css_bloquea(self):
+        """El `@font-face` va solo en `tokens.css`, aunque la fuente esté bien ubicada."""
+        (self.design / "fuentes").mkdir()
+        (self.design / "fuentes" / "marca-regular.woff2").write_bytes(b"wOF2")
+        comp = self.design / "components.css"
+        comp.write_text(comp.read_text() + "\n@font-face{font-family:Marca;src:url(fuentes/marca-regular.woff2)}\n")
+        bloquea, _ = self.compartidos()
+        self.assertTrue(any("`components.css`" in b and "@font-face" in b and "tokens.css" in b for b in bloquea), bloquea)
+
     def test_font_face_en_la_vista_bloquea(self):
         limpia = (FIXTURES / "limpia.html").read_text()
         casos = {
