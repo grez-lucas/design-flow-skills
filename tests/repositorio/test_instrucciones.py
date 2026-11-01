@@ -80,5 +80,17 @@ class CapturasEnSpecAHtml(unittest.TestCase):
         self.assertRegex(self.capturas, r"Sin navegador[^.]*dilo[^.]*sigue")
 
 
+class DatosFueraDelSpecEnElChecklist(unittest.TestCase):
+    """Issue 24: el checklist tiene un paso explícito para datos o textos de la vista que el spec no menciona."""
+
+    def test_la_revision_de_criterio_busca_datos_y_textos_que_el_spec_no_menciona(self):
+        texto = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
+        criterio = seccion(texto, "Revisión de criterio", 3)
+        paso = [l for l in criterio.splitlines() if l.startswith("- **Datos o textos")]
+        self.assertEqual(len(paso), 1, "falta el paso de datos o textos que el spec no menciona")
+        self.assertIn("el spec no menciona", paso[0])
+        self.assertIn("ante la duda, bloquea", paso[0].lower())
+
+
 if __name__ == "__main__":
     unittest.main()
