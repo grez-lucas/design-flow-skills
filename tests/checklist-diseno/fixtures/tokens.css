@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light;
+  --color-bg: #f7f8fa;
   --color-text: #1b1f24;
   --color-danger: #c62828;
   --space-2: 8px;

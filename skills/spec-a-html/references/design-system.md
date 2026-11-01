@@ -41,7 +41,7 @@ El tema claro va en `:root`. Un tema oscuro, si el producto lo tiene, va en `[da
 
 Cada tema declara su `color-scheme`: `light` en `:root` y `dark` en `[data-theme="dark"]`, como en `assets/tokens.css`. Sin `color-scheme: dark`, el navegador dibuja claras las barras de desplazamiento, los selectores, las casillas y los campos de fecha aunque el fondo sea oscuro.
 
-Un producto que es solo oscuro no tiene tema claro: el oscuro es el tema base y va en `:root`, con `color-scheme: dark`, sin bloque `[data-theme="dark"]`. Así el panel de `proto.js` no muestra el grupo "Tema", porque no hay otro tema que elegir. `revisar.py` de `checklist-diseno` avisa si el tema de `:root` es oscuro (`--color-bg` más oscuro que `--color-text`) y no declara `color-scheme: dark`.
+Un producto que es solo oscuro no tiene tema claro: el oscuro es el tema base y va en `:root`, con `color-scheme: dark`, sin bloque `[data-theme="dark"]`. Así el panel de `proto.js` no muestra el grupo "Tema", porque no hay otro tema que elegir. `revisar.py` de `checklist-diseno` avisa si el tema de `:root` es oscuro (`--color-bg` más oscuro que `--color-text`) y no declara `color-scheme: dark`, y también si no puede comprobarlo porque `--color-bg` o `--color-text` faltan en `:root` o no tienen un color escrito (un `var()`, por ejemplo).
 
 Con el tema oscuro definido, el panel de `proto.js` suma un grupo "Tema" y la vista acepta `?tema=oscuro`, que pone `data-theme="dark"` en `<html>`. `proto.js` detecta el tema comparando `--color-bg`, `--color-surface` y `--color-text` con y sin `data-theme`, así que el bloque oscuro redefine al menos uno de esos tres. No lee las reglas de `tokens.css` porque Chrome las bloquea cuando la vista se abre como `file://`.
 
