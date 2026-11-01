@@ -89,6 +89,8 @@ specs/
   <épica>/
     spec.md
     tickets/NN-titulo.md   solo si el proyecto no tiene tracker
+.claude/
+  pm-conventions.md        convenciones de gestión, o dónde están
 .gitignore          con .lavish/, los archivos de las revisiones en Lavish
 ```
 
@@ -113,7 +115,7 @@ Con otro agente, la alternativa es `npx skills` (Node.js 22.20 o superior):
 npx skills add grez-lucas/design-flow-skills -a <agente>
 ```
 
-`npx skills add` instala las skills por proyecto, en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills --help` lista las opciones. Con `-g, --global` instala a nivel de usuario, sin dejar archivos en el repositorio de diseño. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`.
+`npx skills add` instala las skills por proyecto, en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills --help` lista las opciones. Con `-g, --global` instala a nivel de usuario, sin dejar archivos en el repositorio de diseño. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`, y `spec-a-tickets` además `.claude/pm-conventions.md` cuando guarda dónde están las convenciones de gestión del proyecto.
 
 ---
 

@@ -1,6 +1,6 @@
 # Plantilla de story
 
-Plantilla por defecto cuando el proyecto no tiene `.claude/pm-conventions.md`. Se copia tal cual: los encabezados, los emojis y el orden son los que DEV espera encontrar.
+Plantilla por defecto cuando el proyecto no tiene convenciones de gestión, ni en `.claude/pm-conventions.md` ni en el lugar al que ese archivo apunta. Se copia tal cual: los encabezados, los emojis y el orden son los que DEV espera encontrar.
 
 ## Plantilla
 

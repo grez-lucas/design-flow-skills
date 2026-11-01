@@ -48,7 +48,7 @@ Como <rol>, quiero <capacidad>, para <beneficio>.
 
 ## Reglas de redacción
 
-- Un ID por historia. Si el proyecto tiene formato de ID (por ejemplo en su `.claude/pm-conventions.md`), úsalo; si no, `US-<ÁREA>-NNN` con un código corto de la épica en mayúsculas.
+- Un ID por historia. Si el proyecto tiene formato de ID (por ejemplo en su `.claude/pm-conventions.md` o en las convenciones a las que ese archivo apunta), úsalo; si no, `US-<ÁREA>-NNN` con un código corto de la épica en mayúsculas.
 - Una historia es una capacidad. Si la frase lleva "y" entre dos acciones distintas ("reservar y pagar"), son dos historias.
 - Cada escenario tiene un resultado que se ve: un mensaje, un dato, una pantalla, un correo. "Funciona bien" no es un resultado.
 - En "Estados por vista", si un estado base no aplica, dilo: "sin permiso: no aplica, todos los roles ven esta vista".

@@ -32,9 +32,19 @@ Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda. Si
 
 ### 3. Leer las convenciones del proyecto
 
-Busca `.claude/pm-conventions.md` en el repositorio de diseño y, si no está, en el repositorio de código si está a mano. Si existe, manda: usa su tracker, su plantilla, sus labels, su formato de título y su estado inicial.
+Busca `.claude/pm-conventions.md` en el repositorio de diseño y, si no está, en el repositorio de código si está a mano. Si el archivo apunta a otro lugar, una ruta o una URL, lee las convenciones ahí; si la sesión no puede abrirlas, pide que las peguen. Las convenciones mandan: usa su tracker, su plantilla, sus labels, su formato de título y de ID y su estado inicial.
 
-Si no existe, usa la plantilla de `references/plantilla-story.md` y pregunta solo lo que no puedes ver: si hay tracker y cuál. Sin tracker, los tickets van como archivos markdown.
+Si no las encuentras, no supongas que no hay: pregunta a la persona dónde están. Suelen vivir en otro repositorio del producto o en una wiki, con reglas que pesan, como qué documento manda sobre otro o el formato de ID del tracker. Acepta una ruta o una URL, aunque esté fuera del repositorio de diseño, léelas ahí y guarda el puntero en `.claude/pm-conventions.md` del repositorio de diseño, para que la próxima sesión las encuentre sin preguntar:
+
+```markdown
+# Convenciones de gestión
+
+Las convenciones de gestión de este proyecto están en <ruta o URL>.
+```
+
+Una ruta local solo existe en las máquinas que la tienen: si las convenciones están en un repositorio con URL, guarda la URL. El puntero entra en el commit de los tickets (paso 9).
+
+Si la persona dice que no hay convenciones, no escribas el puntero: usa la plantilla de `references/plantilla-story.md` y pregunta solo lo que no puedes ver: si hay tracker y cuál. Sin tracker, los tickets van como archivos markdown.
 
 ### 4. Cortar
 
@@ -48,7 +58,7 @@ Si una historia depende de otra (no se puede ver el listado de invitaciones sin 
 
 Sigue la plantilla del proyecto o la de `references/plantilla-story.md`. Lo esencial:
 
-- **Título** con el identificador del spec si lo trae (`[US-REC-001] Ver facturas vencidas`). Si no lo trae, usa el formato de las convenciones; sin convenciones, `[US-<ÁREA>-NNN]`, con un código corto de la épica en mayúsculas.
+- **Título** con el formato de ID de las convenciones cuando lo definen (`INV-12: Registrar ingreso de mercadería`), también si el spec trae otro identificador: el ticket se busca en el tracker por ese ID. El identificador del spec queda en el cuerpo, junto al enlace al spec, para rastrear la historia. Si el tracker asigna el ID al crear el ticket, no lo inventes: el ticket queda con el que devuelve el tracker. Sin formato en las convenciones, usa el identificador del spec si lo trae (`[US-REC-001] Ver facturas vencidas`) y, si no lo trae, `[US-<ÁREA>-NNN]`, con un código corto de la épica en mayúsculas.
 - **Descripción**: la historia "Como, quiero, para" y un párrafo de contexto tomado del spec.
 - **Criterios de aceptación**: un escenario por bloque, con "Dado, cuando, entonces" y "Y" para resultados adicionales. Afirman comportamiento y datos que se ven, nunca rutas de archivos ni detalles de implementación: las rutas envejecen y el comportamiento no. Los estados del spec (vacío, error, sin permiso, plan expirado) se vuelven escenarios cuando el spec dice qué pasa en ellos.
 - **Pruebas**: redacta los flujos E2E a partir de los escenarios. Deja las pruebas unitarias y de integración marcadas "Lo completa DEV": producto no tiene cómo validarlas.
@@ -94,7 +104,7 @@ En la misma edición, completa "Tickets" en "Enlaces" con los identificadores re
 
 ### 9. Guardar en el repositorio de diseño
 
-Si la sesión escribió en el repositorio de diseño (los tickets sin tracker, el spec congelado en `specs/<épica>/spec.md`), haz commit y push a la rama actual después de mostrar el resumen y pedir la confirmación, con el mensaje `tickets(<épica>): <resumen>`, por ejemplo `tickets(recordatorios): US-REC-001 y US-REC-002 desde el spec`. Un solo commit al final, para que los tickets y el spec congelado lleguen juntos. Agrega solo la carpeta de la épica, con `git add specs/<épica>/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit. Si la sesión no escribió nada en el repositorio, no hay commit.
+Si la sesión escribió en el repositorio de diseño (los tickets sin tracker, el spec congelado en `specs/<épica>/spec.md`, el puntero a las convenciones), haz commit y push a la rama actual después de mostrar el resumen y pedir la confirmación, con el mensaje `tickets(<épica>): <resumen>`, por ejemplo `tickets(recordatorios): US-REC-001 y US-REC-002 desde el spec`. Un solo commit al final, para que los tickets, el spec congelado y el puntero lleguen juntos. Agrega solo la carpeta de la épica, con `git add specs/<épica>/`, y el puntero si lo escribiste en esta sesión, con `git add specs/<épica>/ .claude/pm-conventions.md`, o solo `git add .claude/pm-conventions.md` si los tickets fueron al tracker y `specs/<épica>/` no cambió; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit. Si la sesión no escribió nada en el repositorio, no hay commit.
 
 El push va a la rama actual, con `git push` (o `git push -u origin HEAD` si la rama todavía no existe en el servidor). Si el servidor lo rechaza porque la rama está protegida, pasa el commit a una rama nueva con `git switch -c tickets/<épica>` y `git push -u origin tickets/<épica>`, deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que la rama está protegida, que los tickets quedaron en `tickets/<épica>` y que el TL los revisa y hace el merge request. Si esa rama ya existe, no la reemplaces: dilo y deja que el TL decida. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
 

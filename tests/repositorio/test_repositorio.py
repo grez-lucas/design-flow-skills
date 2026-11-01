@@ -29,6 +29,9 @@ class RevisarSinBytecode(unittest.TestCase):
 
 class CommitSoloDeDesignYSpecs(unittest.TestCase):
     SKILLS_CON_COMMIT = ("grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
+    # Q87: el puntero a las convenciones de gestión entra en el commit de los tickets, y solo ese archivo de .claude/.
+    FUERA_DE_DESIGN_Y_SPECS = {"spec-a-tickets": {".claude/pm-conventions.md"}}
+    PROHIBIDOS = {"-A", "."}
 
     def archivos_con_commit(self, skill):
         return [
@@ -53,8 +56,13 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
                             rutas = [a for a in argumentos.split() if a != "--"]
                             if rutas and all(r.startswith(("design/", "specs/")) or r == ".gitignore" for r in rutas):
                                 permitidos.append(argumentos)
-                            else:
+                            elif set(rutas) <= self.PROHIBIDOS:
                                 self.assertIn("nunca", linea.lower(), linea)
+                            else:
+                                extra = self.FUERA_DE_DESIGN_Y_SPECS.get(skill, set())
+                                fuera = [r for r in rutas if not r.startswith(("design/", "specs/"))]
+                                self.assertTrue(set(fuera) <= extra, argumentos)
+                                permitidos.append(argumentos)
                     self.assertTrue(permitidos, "no da un git add limitado a design/ y specs/")
 
     def test_el_resumen_antes_del_push_lista_solo_lo_que_entra_al_commit(self):
@@ -140,6 +148,26 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         for tipo in sorted(set(self.TIPOS.values())):
             with self.subTest(tipo=tipo):
                 self.assertIn(f"`{tipo}/<épica>`", readme)
+
+
+class PunteroALasConvenciones(unittest.TestCase):
+    """Q87: el puntero a las convenciones va en `.claude/pm-conventions.md`, en el mismo commit que los tickets."""
+
+    PUNTERO = ".claude/pm-conventions.md"
+
+    def adds(self, ruta):
+        return re.findall(r"`git add ([^`]*)`", ruta.read_text(encoding="utf-8"))
+
+    def test_spec_a_tickets_agrega_el_puntero_junto_con_la_carpeta_de_la_epica(self):
+        self.assertIn(f"specs/<épica>/ {self.PUNTERO}", self.adds(SKILLS / "spec-a-tickets" / "SKILL.md"))
+
+    def test_ninguna_otra_skill_agrega_el_puntero(self):
+        for skill in CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT:
+            if skill == "spec-a-tickets":
+                continue
+            for ruta in sorted((SKILLS / skill).rglob("*.md")):
+                with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
+                    self.assertFalse([a for a in self.adds(ruta) if ".claude/" in a])
 
 
 class NombreDelSiguientePaso(unittest.TestCase):
