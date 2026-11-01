@@ -56,7 +56,7 @@ El script agrupa los colores por color base dentro del umbral y dentro de su tem
 
 ## Tema oscuro
 
-Si el mockup tiene tema claro y oscuro (bloques `[data-theme="dark"]`, `.dark` o `prefers-color-scheme` en el manifiesto), el claro va en `:root` y el oscuro en `[data-theme="dark"]`, que redefine solo `--color-*`. El tema que trae cada valor en la salida de `tokens.py` dice a qué bloque va: uno con "dark" u "oscuro" al oscuro, los demás al claro. Mapea los valores del tema oscuro contra los tokens del bloque oscuro. Si el mockup abre en oscuro, igual el claro va en `:root`: `proto.js` abre en claro y suma el control de tema cuando `tokens.css` define el oscuro.
+Si el mockup tiene tema claro y oscuro (bloques `[data-theme="dark"]`, `.dark` o `prefers-color-scheme` en el manifiesto), el claro va en `:root` y el oscuro en `[data-theme="dark"]`, que redefine solo `--color-*` y `color-scheme`. El tema que trae cada valor en la salida de `tokens.py` dice a qué bloque va: uno con "dark" u "oscuro" al oscuro, los demás al claro. Mapea los valores del tema oscuro contra los tokens del bloque oscuro. Si el mockup abre en oscuro, igual el claro va en `:root`: `proto.js` abre en claro y suma el control de tema cuando `tokens.css` define el oscuro. Si el mockup es solo oscuro, sin tema claro, el oscuro va en `:root` con `color-scheme: dark` y no hay bloque `[data-theme="dark"]`. Los dos casos están en `spec-a-html`, `references/design-system.md`, sección "Temas".
 
 ## Verificar antes de escribir
 

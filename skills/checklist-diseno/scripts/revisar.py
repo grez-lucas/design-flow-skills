@@ -5,6 +5,7 @@ Uso: python3 revisar.py <repo-de-diseño> [vista.html ...]
 Sin vistas, revisa todas las de design/vistas/. Imprime un informe en markdown y
 termina con código 1 si hay algún hallazgo que bloquea.
 """
+import math
 import re
 import sys
 from html.parser import HTMLParser
@@ -322,7 +323,173 @@ def revisar_compartidos(design, definidos):
         raros = sorted(n for n in re.findall(r"(--[\w-]+)\s*:", t) if not n.startswith(prefijos))
         if raros:
             avisa.append(f"`tokens.css` tiene nombres fuera de la convención de prefijos: {raros[:8]}.")
+    avisa += avisos_de_tema(design)
     return bloquea, avisa
+
+
+def reglas_de_primer_nivel(css):
+    """(selector, cuerpo) de cada regla de primer nivel, en orden de aparición. Entra a los bloques `@layer`, que no
+    cambian a qué aplica una regla; salta `@media`, `@supports` y las demás reglas @, que la condicionan."""
+    reglas, prof, desde, selector = [], 0, 0, ""
+    for i, c in enumerate(css):
+        if c == "{":
+            if prof == 0:
+                selector, desde = css[desde:i].split(";")[-1].strip(), i + 1
+            prof += 1
+        elif c == "}" and prof:
+            prof -= 1
+            if prof == 0:
+                if re.match(r"@layer\b", selector, re.I):
+                    reglas += reglas_de_primer_nivel(css[desde:i])
+                elif not selector.startswith("@"):
+                    reglas.append((selector, css[desde:i]))
+                desde = i + 1
+    return reglas
+
+
+def selector_normal(selector):
+    """El selector sin espacios ni comillas simples; `html:root` es `:root`."""
+    s = re.sub(r"\s+", "", selector).replace("'", '"')
+    return ":root" if s.lower() == "html:root" else s
+
+
+def declaraciones(css, selector):
+    """Las declaraciones de las reglas de primer nivel cuyo selector incluye `selector`, sin `!important`; la última
+    manda."""
+    buscado = selector_normal(selector)
+    valores = {}
+    for sel, cuerpo in reglas_de_primer_nivel(css):
+        if buscado not in (selector_normal(s) for s in sel.split(",")):
+            continue
+        for decl in cuerpo.split(";"):
+            nombre, dos_puntos, valor = decl.partition(":")
+            nombre = nombre.strip()
+            if dos_puntos and nombre:
+                valor = re.sub(r"\s*!\s*important\s*$", "", valor.strip(), flags=re.I)
+                valores[nombre if nombre.startswith("--") else nombre.lower()] = valor
+    return valores
+
+
+def color_scheme(css, selectores):
+    """El `color-scheme` del primer selector de `selectores` que lo declara, en minúsculas, o None."""
+    for selector in selectores:
+        valor = declaraciones(css, selector).get("color-scheme")
+        if valor is not None:
+            return " ".join(valor.lower().split())
+    return None
+
+
+NOMBRES_DE_COLOR = {"black": (0, 0, 0), "white": (255, 255, 255)}
+
+
+def angulo(texto):
+    """Un ángulo de CSS (`deg`, `turn`, `rad`, `grad` o un número en grados) en grados."""
+    m = re.fullmatch(r"(-?[\d.]+)(deg|turn|rad|grad)?", texto)
+    if not m:
+        raise ValueError(texto)
+    return float(m.group(1)) * {None: 1, "deg": 1, "turn": 360, "rad": 180 / math.pi, "grad": 0.9}[m.group(2)]
+
+
+def numero(texto, cien=1.0):
+    """Un número de CSS; un porcentaje vale `cien` en 100%, y `none`, 0."""
+    if texto == "none":
+        return 0.0
+    return float(texto[:-1]) / 100 * cien if texto.endswith("%") else float(texto)
+
+
+def oklab_a_rgb(l, a, b):
+    """sRGB de 0 a 255 de un color OKLab."""
+    l_, m_, s_ = (l + 0.3963377774 * a + 0.2158037573 * b, l - 0.1055613458 * a - 0.0638541728 * b,
+                  l - 0.0894841775 * a - 1.2914855480 * b)
+    l3, m3, s3 = l_ ** 3, m_ ** 3, s_ ** 3
+    lineales = (4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+                -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+                -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3)
+
+    def gamma(c):
+        c = min(max(c, 0.0), 1.0)
+        return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+    return tuple(gamma(c) * 255 for c in lineales)
+
+
+def leer_color(valor):
+    """(r, g, b) de 0 a 255 de un color hex, `rgb()`, `hsl()`, `oklab()`, `oklch()`, `black` o `white`, o None si no
+    es un color literal que se pueda leer."""
+    valor = valor.strip().lower()
+    if valor in NOMBRES_DE_COLOR:
+        return NOMBRES_DE_COLOR[valor]
+    m = re.fullmatch(r"#([0-9a-f]{3,8})", valor)
+    if m and len(m.group(1)) in (3, 4, 6, 8):
+        h = m.group(1)
+        h = "".join(c * 2 for c in h) if len(h) <= 4 else h
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    m = re.fullmatch(r"(rgba?|hsla?|oklab|oklch)\(([^)]*)\)", valor)
+    if not m:
+        return None
+    partes = re.split(r"[\s,/]+", m.group(2).strip())[:3]
+    if len(partes) < 3:
+        return None
+    funcion = m.group(1)
+    try:
+        if funcion.startswith("rgb"):
+            return tuple(numero(p, 255) for p in partes)
+        if funcion == "oklab":
+            return oklab_a_rgb(numero(partes[0]), numero(partes[1], 0.4), numero(partes[2], 0.4))
+        if funcion == "oklch":
+            l, c, h = numero(partes[0]), numero(partes[1], 0.4), math.radians(0 if partes[2] == "none" else angulo(partes[2]))
+            return oklab_a_rgb(l, c * math.cos(h), c * math.sin(h))
+        h = angulo(partes[0]) % 360 / 360
+        s, l = (numero(p) for p in partes[1:])
+        s, l = (x / 100 if not p.endswith("%") else x for x, p in zip((s, l), partes[1:]))
+    except ValueError:
+        return None
+    q = l * (1 + s) if l < 0.5 else l + s - l * s
+    p = 2 * l - q
+
+    def canal(t):
+        t %= 1
+        if t < 1 / 6:
+            return p + (q - p) * 6 * t
+        if t < 1 / 2:
+            return q
+        if t < 2 / 3:
+            return p + (q - p) * (2 / 3 - t) * 6
+        return p
+    return tuple(canal(h + d) * 255 for d in (1 / 3, 0, -1 / 3))
+
+
+def luminancia(rgb):
+    """Luminancia relativa de WCAG 2."""
+    def lineal(c):
+        c = min(max(c, 0), 255) / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = map(lineal, rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def tema_base_oscuro(css):
+    """True si en `:root` el fondo (`--color-bg`) tiene menos luminancia que el texto (`--color-text`), False si no,
+    None si alguno de los dos falta o no es un color literal."""
+    raiz = declaraciones(css, ":root")
+    fondo, texto = (leer_color(raiz.get(n, "")) for n in ("--color-bg", "--color-text"))
+    if fondo is None or texto is None:
+        return None
+    return luminancia(fondo) < luminancia(texto)
+
+
+def avisos_de_tema(design):
+    """Aviso si el tema base de `tokens.css` es oscuro y `:root` (o `html`) no declara `color-scheme: dark`."""
+    tok = design / "tokens.css"
+    if not tok.exists():
+        return []
+    css = strip_comments(tok.read_text())
+    esquema = color_scheme(css, (":root", "html")) or ""
+    if not tema_base_oscuro(css) or set(esquema.split()) - {"only"} == {"dark"}:
+        return []
+    hoy = f"hoy declara `color-scheme: {esquema}`" if esquema else "no declara `color-scheme`"
+    return [f"`tokens.css` tiene el tema base oscuro (en `:root`, `--color-bg` es más oscuro que `--color-text`) sin "
+            f"`color-scheme: dark` ({hoy}): el navegador dibuja claras las barras de desplazamiento y los controles "
+            "nativos. Agrega `color-scheme: dark;` en `:root`."]
 
 
 def main():

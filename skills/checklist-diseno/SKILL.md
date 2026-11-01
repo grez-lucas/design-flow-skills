@@ -37,6 +37,7 @@ Si no hay Python en la máquina, revisa a mano, y dilo en el informe. Una vista 
 - Que no cargue recursos externos, tampoco desde CSS (`@import`, `url()`), ni la vista ni `components.css` ni `tokens.css`.
 - Que cite sus tickets en `<meta name="tickets">` o, si es una vista sin ticket, su spec en `<meta name="spec">`, con la ruta del spec relativa a la raíz del repositorio (`specs/<épica>/spec.md`). Si trae los dos, mandan los tickets y el spec es contexto. Un `<meta name="spec">` declarado tiene que apuntar a un archivo que existe dentro del repositorio, aunque haya tickets.
 - Que no tenga dominios que parezcan reales ni texto de relleno.
+- Que, si el tema de `:root` en `tokens.css` es oscuro (`--color-bg` más oscuro que `--color-text`), declare ahí `color-scheme: dark`: sin eso las barras de desplazamiento y los controles nativos salen claros. Va en "Conviene mirar".
 
 ### 3. Revisión de criterio
 

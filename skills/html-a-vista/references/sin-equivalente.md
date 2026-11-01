@@ -8,7 +8,7 @@ Qué pasa con lo que el mockup tiene y la convención de vista no admite. Una vi
 | Lógica JS: filtros, validaciones, cálculos, ordenamientos | Comentario junto al elemento: `<!-- filtra la lista por zona; "Todas" muestra todo -->` | Un ítem "Criterio para el ticket:" por regla, en "Dado, cuando, entonces" |
 | Gráfico dibujado por JS o por una librería (canvas, Chart.js, SVG armado en un string) | SVG estático con datos ficticios, colores con `var(--color-*)` en `fill` o `stroke` | Qué gráfico era y de qué datos sale |
 | Modal, drawer, popover | `<dialog open>` o el bloque dentro de un escenario de la vista que lo abre | |
-| Tema claro y oscuro | `[data-theme="dark"]` en `tokens.css`, solo `--color-*`. Nada en la vista: el control de tema lo pone `proto.js` | |
+| Tema claro y oscuro | `[data-theme="dark"]` en `tokens.css`, solo `--color-*` y `color-scheme: dark`; un mockup solo oscuro va en `:root` con `color-scheme: dark` (`spec-a-html`, `references/design-system.md`, sección "Temas"). Nada en la vista: el control de tema lo pone `proto.js` | |
 | `toggleTheme()` u otra función definida y nunca llamada | Nada | Se menciona como conflicto en "Lo que no se pudo ver" |
 | Variantes A, B y C de una pantalla | Solo la elegida | Cuál se eligió y quién la eligió |
 | Imágenes, fotos, avatares | Marcador: un bloque con la proporción y un texto ("Foto de la parcela") o iniciales | |

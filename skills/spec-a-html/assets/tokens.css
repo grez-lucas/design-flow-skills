@@ -1,6 +1,8 @@
 /* tokens.css: design system del producto. Un nivel, semántico, en inglés.
    anchos: 390 móvil, 1280 escritorio, 1440 escritorio amplio */
 :root {
+  color-scheme: light;
+
   --color-bg: #f7f8fa;
   --color-surface: #ffffff;
   --color-surface-alt: #f0f2f5;
@@ -52,6 +54,8 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
+
   --color-bg: #0f1216;
   --color-surface: #171b21;
   --color-surface-alt: #1f242c;
