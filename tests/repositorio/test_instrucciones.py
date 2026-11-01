@@ -103,15 +103,31 @@ class CapturasEnSpecAHtml(unittest.TestCase):
 
 
 class DatosFueraDelSpecEnElChecklist(unittest.TestCase):
-    """Issue 24: el checklist tiene un paso explícito para datos o textos de la vista que el spec no menciona."""
+    """El checklist tiene un paso explícito, y uno solo, para datos o textos de la vista que el spec no menciona."""
+
+    def setUp(self):
+        texto = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
+        self.vinetas = [l for l in seccion(texto, "Revisión de criterio", 3).splitlines() if l.startswith("- **")]
+
+    def vineta(self, titulo):
+        encontradas = [l for l in self.vinetas if l.startswith(f"- **{titulo}**")]
+        self.assertEqual(len(encontradas), 1, f"no hay una viñeta {titulo!r}: {[l[:40] for l in self.vinetas]}")
+        return encontradas[0]
 
     def test_la_revision_de_criterio_busca_datos_y_textos_que_el_spec_no_menciona(self):
-        texto = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
-        criterio = seccion(texto, "Revisión de criterio", 3)
-        paso = [l for l in criterio.splitlines() if l.startswith("- **Datos o textos")]
-        self.assertEqual(len(paso), 1, "falta el paso de datos o textos que el spec no menciona")
-        self.assertIn("el spec no menciona", paso[0])
-        self.assertIn("ante la duda, bloquea", paso[0].lower())
+        paso = self.vineta("Datos o textos fuera del spec")
+        self.assertRegex(paso, r"Un dato que el spec no menciona \([^)]*\) bloquea:")
+        self.assertRegex(paso, r"Un texto que contradice al spec o a otro texto del mismo escenario \([^)]*\) también bloquea\.")
+        self.assertRegex(paso, r"Ante la duda, bloquea y se pregunta en la planificación\.")
+
+    def test_lo_que_sobra_deja_los_datos_al_paso_de_datos_o_textos(self):
+        sobra = self.vineta("Lo que sobra")
+        self.assertNotIn("columna", sobra)
+        self.assertRegex(sobra, r"Los datos y los textos se revisan en \"Datos o textos fuera del spec\"\.")
+
+    def test_la_verosimilitud_de_los_datos_no_se_confunde_con_el_paso_de_datos_fuera_del_spec(self):
+        self.assertFalse([l for l in self.vinetas if l.startswith("- **Datos**")])
+        self.vineta("Datos ficticios")
 
 
 if __name__ == "__main__":
