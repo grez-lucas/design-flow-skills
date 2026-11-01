@@ -319,6 +319,9 @@ def revisar_compartidos(design, definidos):
             bloquea.append(sin_animacion(f"`{archivo}` ", animadas))
         if EXTERNAL.search(sin_escapes(strip_comments(css))):
             bloquea.append(f"`{archivo}` carga recursos externos (CDN, fuentes, imágenes remotas).")
+        if archivo != "tokens.css" and FONT_FACE.search(sin_escapes(strip_comments(css))):
+            bloquea.append(f"`{archivo}` declara un `@font-face`. La fuente del producto se declara una sola vez, en `tokens.css`, "
+                           "con el archivo en `design/fuentes/`.")
         fuentes, otras = urls_locales(css, design)
         if fuentes:
             bloquea.append(f"`{archivo}` carga {', '.join(f'`{r}`' for r in fuentes)} en un `@font-face`. La fuente del producto va "
