@@ -57,7 +57,13 @@ Con el tema oscuro definido, el panel de `proto.js` suma un grupo "Tema" y la vi
 
 ## Extraer del código
 
-Si el código del producto está en la máquina, los valores reales están ahí. Busca en este orden según el stack y traslada cada valor al token que corresponde por uso:
+Si el código del producto está en la máquina, los valores reales están ahí. Mira primero la parte del producto que se diseña, no el producto entero: un módulo puede tener colores propios que el tema del framework no refleja.
+
+1. Busca variables CSS (`--*`) en las hojas globales y en los componentes de esa parte (`grep -rn -- "--[a-z]"` sobre sus carpetas). Si las hay, son el design system de esa parte, antes que las del framework: si el `$primary` del framework no coincide con el `--<prefijo>-primary` que usan sus pantallas, manda el que se ve en esas pantallas. Una variable que se repite en una hoja global y en un componente es un solo token.
+2. Si no hay variables propias, sigue con la tabla por stack.
+3. Cuando hay más de una fuente (variables de la zona y tema del framework, dos hojas con valores distintos, dos variantes de un mismo botón), muestra a la persona de dónde sale cada valor y pídele que confirme de qué parte del producto sale el design system antes de escribir `tokens.css`.
+
+Traslada cada valor al token que corresponde por uso. Por stack:
 
 | Stack | Dónde mirar |
 | :--- | :--- |
