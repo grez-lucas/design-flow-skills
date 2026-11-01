@@ -32,7 +32,7 @@ EXTERNO = re.compile(r"(?:https?:)?//", re.I)
 ESQUEMA = re.compile(r"[a-z][\w+.-]*:", re.I)
 COMPARTIDOS_CSS = ("tokens.css", "components.css")
 FONT_FACE = re.compile(r"@font-face\s*\{([^}]*)\}", re.I)
-URL = re.compile(r"""url\(\s*["']?([^"')\s]+)""", re.I)
+URL = re.compile(r"""url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))""", re.I)
 
 
 class Vista(HTMLParser):
@@ -149,19 +149,27 @@ def resolver(ref, desde):
     return (desde / ref).resolve()
 
 
-def fuentes_mal_ubicadas(css, design):
-    """Las `url()` de un `@font-face` que no llevan a un `.woff2` que existe en `design/fuentes/`. Las externas no
-    cuentan aquí: las bloquea la regla de recursos externos."""
+def urls(css):
+    """Lo que va dentro de cada `url()`, con o sin comillas."""
+    return [a or b or c for a, b, c in URL.findall(css)]
+
+
+def urls_locales(css, design):
+    """Las `url()` locales de un CSS compartido que no se admiten, en dos listas: las de un `@font-face` que no llevan
+    a un `.woff2` que existe directo en `design/fuentes/`, y las de fuera de un `@font-face` (imágenes, `data:`), salvo
+    `url(#id)`. Las externas no cuentan aquí: las bloquea la regla de recursos externos."""
+    css = sin_escapes(strip_comments(css))
     fuentes = (design / "fuentes").resolve()
-    malas = []
-    for bloque in FONT_FACE.findall(sin_escapes(strip_comments(css))):
-        for ref in URL.findall(bloque):
+    malas_fuentes = []
+    for bloque in FONT_FACE.findall(css):
+        for ref in urls(bloque):
             if EXTERNO.match(ref):
                 continue
             ruta = resolver(ref, design)
             if ruta is None or ruta.parent != fuentes or ruta.suffix.lower() != ".woff2" or not ruta.is_file():
-                malas.append(ref[:40])
-    return malas
+                malas_fuentes.append(ref[:40])
+    otras = [r[:40] for r in urls(FONT_FACE.sub("", css)) if r and not EXTERNO.match(r) and not r.startswith("#")]
+    return malas_fuentes, otras
 
 
 def sin_animacion(archivo, nombres):
@@ -248,6 +256,9 @@ def revisar_vista(path, repo, definidos):
     animadas = keyframes(css_vista)
     if animadas:
         bloquea.append(sin_animacion("La vista ", animadas))
+    if FONT_FACE.search(sin_escapes(strip_comments(css_vista))):
+        bloquea.append("La vista declara un `@font-face`. La fuente del producto se declara una sola vez, en `tokens.css`, "
+                       "con el archivo en `design/fuentes/`.")
     no_definidos = sorted(set(VAR.findall(css_vista)) - definidos)
     if no_definidos:
         bloquea.append(f"Variables que `tokens.css` no define: {', '.join(no_definidos)}.")
@@ -306,12 +317,16 @@ def revisar_compartidos(design, definidos):
         animadas = keyframes(css)
         if animadas:
             bloquea.append(sin_animacion(f"`{archivo}` ", animadas))
-        if EXTERNAL.search(strip_comments(css)):
+        if EXTERNAL.search(sin_escapes(strip_comments(css))):
             bloquea.append(f"`{archivo}` carga recursos externos (CDN, fuentes, imágenes remotas).")
-        fuentes = fuentes_mal_ubicadas(css, design)
+        fuentes, otras = urls_locales(css, design)
         if fuentes:
             bloquea.append(f"`{archivo}` carga {', '.join(f'`{r}`' for r in fuentes)} en un `@font-face`. La fuente del producto va "
-                           "como archivo `.woff2` en `design/fuentes/`, con una `url()` relativa que llega a él.")
+                           "como archivo `.woff2` directo en `design/fuentes/`, con una `url()` relativa que llega a él.")
+        if otras:
+            bloquea.append(f"`{archivo}` carga {', '.join(f'`{r}`' for r in otras)} con `url()`. La única `url()` local de los "
+                           "archivos compartidos es la fuente del producto en `design/fuentes/`: los íconos van como SVG inline "
+                           "en la vista y las imágenes como marcador.")
         locales = imports_locales(css)
         if locales:
             bloquea.append(f"`{archivo}` importa {', '.join(f'`{r}`' for r in locales)} con `@import`. Los archivos compartidos "
