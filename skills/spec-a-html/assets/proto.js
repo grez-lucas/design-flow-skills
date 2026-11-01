@@ -7,7 +7,7 @@
 // comparando --color-bg, --color-surface y --color-text con y sin data-theme, porque
 // Chrome no deja leer cssRules de una hoja enlazada cuando la vista se abre como file://.
 // URL: ?escenario=<nombre>  ?ancho=390|1280|1440  ?tema=claro|oscuro  ?proto=0 (sin panel)
-//      ?panel=izquierda|derecha (el lado del panel; "Cambiar de lado" lo alterna)
+//      ?panel=izquierda|derecha (el lado del panel, izquierda por defecto; "Cambiar de lado" lo alterna)
 (function () {
   var params = new URLSearchParams(location.search);
   var body = document.body;
@@ -31,7 +31,9 @@
       for (var i = base.length; i < total; i++) {
         var copia = base[i % base.length].cloneNode(true);
         var vuelta = Math.floor(i / base.length) - 1;
-        copia.querySelectorAll("[data-valores]").forEach(function (celda) {
+        var conValores = Array.from(copia.querySelectorAll("[data-valores]"));
+        if (copia.hasAttribute("data-valores")) conValores.unshift(copia);
+        conValores.forEach(function (celda) {
           var valores = celda.dataset.valores.split(";")
             .map(function (v) { return v.trim(); }).filter(Boolean);
           if (valores.length) celda.textContent = valores[vuelta % valores.length];
@@ -93,7 +95,8 @@
   panel.style.cssText = "position:fixed;bottom:8px;z-index:2147483647;" +
     "background:#111;color:#fff;font:12px/1.4 system-ui,sans-serif;padding:8px;" +
     "border-radius:6px;max-width:240px;opacity:.92";
-  var lado = params.get("panel") === "izquierda" ? "izquierda" : "derecha";
+  // Abre a la izquierda: los avisos (.toast-region) van abajo a la derecha del frame.
+  var lado = params.get("panel") === "derecha" ? "derecha" : "izquierda";
 
   function aplicarLado() {
     panel.style.left = lado === "izquierda" ? "8px" : "";

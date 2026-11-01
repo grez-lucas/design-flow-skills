@@ -11,8 +11,9 @@ body {
 [hidden] { display: none !important; }
 body:not([data-escenario]) [data-state] { display: none; }
 /* El frame es la pantalla: modales y avisos se posicionan dentro de él, no de la ventana,
-   para que el selector de ancho de proto.js también los achique. */
-[data-frame] { position: relative; display: flow-root; min-height: 100vh; }
+   para que el selector de ancho de proto.js también los achique.
+   :where() deja la regla sin especificidad: el <style> de la vista le gana, por ejemplo con main { display: grid }. */
+:where([data-frame]) { position: relative; display: flow-root; min-height: 100vh; }
 
 .btn {
   display: inline-flex; align-items: center; gap: var(--space-2);

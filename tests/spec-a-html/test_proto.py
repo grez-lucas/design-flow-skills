@@ -189,6 +189,11 @@ class ModalYAvisoEnElFrame(EnChrome):
             with self.subTest(clave=clave):
                 self.assertTrue(dentro(rect(dom.body[clave]), frame), f"{dom.body[clave]} fuera de {frame}")
 
+    def test_el_style_de_la_vista_manda_sobre_el_frame(self):
+        """`main { display: grid }` en la vista le gana a la regla del frame de components.css."""
+        dom = self.vista(self.TOKENS, vista="lista.html")
+        self.assertEqual(dom.body["data-prueba-display"], "grid")
+
     def test_un_frame_corto_llena_la_ventana_sin_hacerla_crecer(self):
         """El velo cubre toda la pantalla aunque haya poco contenido, y el frame no suma scroll."""
         dom = self.vista(self.TOKENS, "ancho=390&proto=0", vista="modal.html")
@@ -200,24 +205,25 @@ class ModalYAvisoEnElFrame(EnChrome):
 class PanelMovible(EnChrome):
     """El panel de proto.js se pasa de lado para no tapar un aviso, y la URL lo recuerda."""
 
-    def test_abre_a_la_derecha(self):
+    def test_abre_a_la_izquierda_lejos_de_los_avisos(self):
+        """`.toast-region` va abajo a la derecha del frame: el panel abre en la esquina opuesta."""
         estilo = self.vista("tokens-claro.css").panel_attrs["style"]
-        self.assertIn("right: 8px", estilo)
-        self.assertNotIn("left", estilo)
+        self.assertIn("left: 8px", estilo)
+        self.assertNotIn("right", estilo)
 
-    def test_cambiar_de_lado_lo_pasa_a_la_izquierda_y_lo_anota_en_la_url(self):
+    def test_cambiar_de_lado_lo_pasa_a_la_derecha_y_lo_anota_en_la_url(self):
         dom = self.vista("tokens-claro.css", "clic=Cambiar de lado")
-        self.assertIn("left: 8px", dom.panel_attrs["style"])
-        self.assertNotIn("right", dom.panel_attrs["style"])
-        self.assertIn("panel=izquierda", dom.body["data-prueba-url"])
-
-    def test_panel_izquierda_en_la_url_abre_a_la_izquierda_y_vuelve(self):
-        dom = self.vista("tokens-claro.css", "panel=izquierda&clic=Cambiar de lado")
         self.assertIn("right: 8px", dom.panel_attrs["style"])
+        self.assertNotIn("left", dom.panel_attrs["style"])
         self.assertIn("panel=derecha", dom.body["data-prueba-url"])
 
+    def test_panel_derecha_en_la_url_abre_a_la_derecha_y_vuelve(self):
+        dom = self.vista("tokens-claro.css", "panel=derecha&clic=Cambiar de lado")
+        self.assertIn("left: 8px", dom.panel_attrs["style"])
+        self.assertIn("panel=izquierda", dom.body["data-prueba-url"])
+
     def test_los_grupos_no_cambian(self):
-        self.assertEqual(self.vista("tokens-oscuro.css", "panel=izquierda").grupos, ["Escenario", "Ancho", "Tema"])
+        self.assertEqual(self.vista("tokens-oscuro.css", "panel=derecha").grupos, ["Escenario", "Ancho", "Tema"])
 
 
 @unittest.skipIf(CHROME is None, "No hay Chrome: google-chrome, chromium o Playwright en ~/.cache/ms-playwright.")
@@ -229,10 +235,16 @@ class RepetirConValores(EnChrome):
         self.assertEqual(dom.filas, ["Ana Pérez", "Beatriz Rojas", "Bruno Díaz", "Elena Vidal",
                                      "Carla Ruiz", "Fabián Mora", "Diego Soto"])
 
-    def test_la_lista_vuelve_a_empezar_cuando_se_acaba(self):
+    def test_con_valores_suficientes_ninguna_fila_se_repite(self):
         dom = self.vista("tokens-claro.css", "escenario=muchos-datos", vista="repetir.html")
         self.assertEqual(len(dom.filas), 7)
         self.assertEqual(len(set(dom.filas)), 7)
+
+    def test_en_la_fila_misma_y_la_lista_vuelve_a_empezar_cuando_se_acaba(self):
+        """`data-valores` en el hijo directo del contenedor (un <li>), con más copias que valores."""
+        dom = self.vista("tokens-claro.css", "escenario=muchos-datos", vista="lista.html")
+        self.assertEqual(dom.body["data-prueba-items"].split("|"),
+                         ["Ana Pérez", "Bruno Díaz", "Carla Ruiz", "Bruno Díaz", "Carla Ruiz"])
 
     def test_normal_muestra_solo_las_filas_escritas(self):
         dom = self.vista("tokens-claro.css", "escenario=normal", vista="repetir.html")
