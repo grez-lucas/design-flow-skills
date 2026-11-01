@@ -53,7 +53,7 @@ Si la vista ya existe en `design/vistas/<épica>/`, es una edición. Antes de to
 Busca el design system en este orden y para en el primero que exista:
 
 1. `design/tokens.css` en el repositorio de diseño. Si está, úsalo tal cual; no agregues tokens sin preguntar.
-2. El código del producto, si está en la máquina. Extrae los valores siguiendo `references/design-system.md`, sección "Extraer del código".
+2. El código del producto, si está en la máquina. Extrae los valores de la parte del producto que se diseña, siguiendo `references/design-system.md`, sección "Extraer del código".
 3. Una marca, una guía o un mockup que entregue producto o diseño. Extrae los valores de ahí.
 4. Desde cero, con la plantilla `assets/tokens.css`.
 
