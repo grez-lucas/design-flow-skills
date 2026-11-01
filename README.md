@@ -150,6 +150,29 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
    `node` debe mostrar `v22` o un número mayor, `npx` un número, y el último una descripción de Lavish sin errores. Si algo falla, las skills funcionan igual en el chat.
 5. Abre Claude Code de escritorio en la carpeta del repositorio de diseño, escribe `/` y busca `flujo-diseno:`: tienen que aparecer las skills del plugin.
 
+### Acceso de escritura al repositorio de diseño
+
+Las skills hacen commit y push a la rama principal del repositorio de diseño. Antes de la primera sesión, quien la usa necesita tres cosas, y conviene comprobarlas antes de escribir el primer spec:
+
+1. **Permiso para empujar a la rama principal.** Si la rama está protegida, la cuenta necesita un rol que la protección admita: en GitLab, la protección por defecto deja empujar solo a `Maintainer`, y con `Developer` el push se rechaza. Si el equipo prefiere no dar ese rol, se trabaja en una rama con merge request o pull request.
+2. **Credenciales de git.** Por HTTPS, la contraseña es un token personal con permiso de escritura (`write_repository` en GitLab; en GitHub, un token con acceso al repositorio). Para no pedirla en cada push, un ayudante de credenciales: en Windows, Git Credential Manager, que viene con Git for Windows; en macOS, `git config --global credential.helper osxkeychain`; en Linux, `git config --global credential.helper libsecret` si está instalado, o `store`, que guarda el token sin cifrar.
+3. **El certificado del servidor, si es corporativo.** Un error `SSL certificate problem: unable to get local issuer certificate` indica que git no confía en la autoridad que firmó el certificado del servidor. Pide el certificado raíz (`.pem`) a TI y apúntalo solo para ese servidor:
+
+   ```
+   git config --global http.https://<servidor>/.sslCAInfo <ruta-al-certificado.pem>
+   ```
+
+   No uses `http.sslVerify false`: desactiva la verificación para todo servidor.
+
+Para comprobarlo, desde la carpeta del repositorio de diseño:
+
+```
+git fetch
+git push --dry-run
+```
+
+Los dos tienen que terminar sin error. Eso confirma las credenciales y el certificado, no el permiso sobre la rama: `--dry-run` no pasa por las reglas de protección del servidor, así que el rol se confirma en la configuración de miembros del repositorio. En Claude Code de escritorio, la primera vez que una skill corre `git push` la app pide permiso: hay que aceptarlo para que el spec y las vistas lleguen al repositorio.
+
 ---
 
 ## Estado
