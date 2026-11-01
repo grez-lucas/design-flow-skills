@@ -74,8 +74,21 @@ class LavishFueraDelCommit(unittest.TestCase):
         for skill in self.SKILLS_QUE_CREAN_DESIGN:
             texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(skill=skill):
-                self.assertRegex(texto, r"`\.lavish/`[^\n]*`\.gitignore`|`\.gitignore`[^\n]*`\.lavish/`")
+                self.assertRegex(texto, r"`\.gitignore`[^\n]*tenga la línea `\.lavish/`")
                 self.assertIn("`git add .gitignore`", texto)
+
+
+class OlaUnoConModalYAvisos(unittest.TestCase):
+    """La ola 1 de html-a-vista arma components.css y tokens.css con las piezas que la convención de vista da por
+    hechas: la regla del frame, el modal, los avisos y sus tokens."""
+
+    def test_la_ola_1_nombra_el_frame_el_modal_los_avisos_y_sus_tokens(self):
+        texto = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+        ola_1 = texto.split("## Ola 2")[0]
+        for pieza in ("`:where([data-frame])`", "`.modal`", "`.modal__dialog`", "`.modal__actions`", "`.toast-region`",
+                      "`--color-overlay`", "`--size-modal`"):
+            with self.subTest(pieza=pieza):
+                self.assertIn(pieza, ola_1)
 
 
 class NombreDelSiguientePaso(unittest.TestCase):
