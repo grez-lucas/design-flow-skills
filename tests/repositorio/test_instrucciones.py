@@ -45,7 +45,8 @@ class DesignSystemDesdeLaZonaDelProducto(unittest.TestCase):
 
 
 class CapturasEnSpecAHtml(unittest.TestCase):
-    """Q89: con navegador, capturas por escenario y ancho, revisadas contra el spec antes de pedir el visto bueno."""
+    """Con navegador, capturas por escenario y ancho, revisadas contra el spec antes de pedir el visto bueno. Las regex
+    toman la oración entera que fija la decisión, para que una negación no pase."""
 
     def setUp(self):
         self.texto = (SKILLS / "spec-a-html" / "SKILL.md").read_text(encoding="utf-8")
@@ -68,21 +69,37 @@ class CapturasEnSpecAHtml(unittest.TestCase):
         comandos = [l for l in self.capturas.splitlines() if "--screenshot=" in l]
         self.assertTrue(comandos, "el paso no da el comando de la captura")
         for comando in comandos:
-            self.assertIn("--window-size=<ancho>,", comando)
+            self.assertRegex(comando, r"--window-size=<ancho>,\d+ ")
             self.assertIn("?escenario=<escenario>", comando)
             self.assertIn("proto=0", comando)
 
-    def test_las_capturas_quedan_fuera_del_repositorio_de_diseno(self):
-        for destino in re.findall(r"--screenshot=(\S+)", self.capturas):
-            self.assertFalse(destino.startswith(("design/", "specs/", "<repo>")), destino)
-            self.assertNotIn("/design/", destino)
+    def test_las_vistas_largas_se_capturan_enteras(self):
+        self.assertRegex(self.capturas, r"Si la vista es más larga que la ventana[^.]*repite la captura con `--window-size=<ancho>,3000`")
+        self.assertIn("full_page=True", self.capturas)
+
+    def test_dice_como_saber_si_hay_navegador(self):
+        self.assertIn("command -v google-chrome chromium chromium-browser", self.capturas)
+        self.assertRegex(self.capturas, r"python3 -c \"import playwright\"")
+
+    def test_las_capturas_quedan_en_la_carpeta_de_trabajo_fuera_del_repositorio(self):
+        destinos = re.findall(r"--screenshot=(\S+)", self.capturas)
+        self.assertTrue(destinos)
+        for destino in destinos:
+            self.assertTrue(destino.startswith("<trabajo>/"), destino)
+        self.assertRegex(self.capturas, r"en una carpeta de trabajo fuera del repositorio[^.]*para que no entren al commit")
 
     def test_con_navegador_son_obligatorias_y_se_revisan_contra_el_spec(self):
-        self.assertIn("obligatorias", self.capturas)
-        self.assertRegex(self.capturas, r"contra el spec")
+        self.assertRegex(self.capturas, r"Con navegador en la sesión \([^)]*\), las capturas son obligatorias antes de mostrarle la vista a la persona\.")
+        self.assertRegex(self.capturas, r"Mira cada captura y revísala contra el spec:")
+
+    def test_un_cambio_en_un_archivo_compartido_se_vuelve_a_capturar_en_todas_las_vistas(self):
+        self.assertRegex(self.capturas, r"Si corregiste `components\.css` o `tokens\.css`, vuelve a capturar todas las vistas")
+
+    def test_el_tema_oscuro_se_captura_solo_si_hay_bloque_oscuro(self):
+        self.assertRegex(self.capturas, r'Si `tokens\.css` define `\[data-theme="dark"\]`, repite cada escenario en un ancho con `&tema=oscuro`')
 
     def test_sin_navegador_lo_dice_y_sigue(self):
-        self.assertRegex(self.capturas, r"Sin navegador[^.]*dilo[^.]*sigue")
+        self.assertRegex(self.capturas, r"Sin navegador en la sesión, dilo en una línea[^.]*y sigue\.")
 
 
 class DatosFueraDelSpecEnElChecklist(unittest.TestCase):

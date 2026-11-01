@@ -85,7 +85,7 @@ Sigue `references/vista-html.md`, que trae la plantilla y las reglas. Lo esencia
 
 ### 7. Capturas
 
-`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona.
+`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona. Para saber si hay navegador: `command -v google-chrome chromium chromium-browser`, o `python3 -c "import playwright"` para Playwright.
 
 Saca una por escenario y por ancho de referencia (los del comentario de `tokens.css`, por defecto 390, 1280 y 1440) en una carpeta de trabajo fuera del repositorio, por ejemplo la que da `mktemp -d`, para que no entren al commit:
 
@@ -93,9 +93,11 @@ Saca una por escenario y por ancho de referencia (los del comentario de `tokens.
 google-chrome --headless=new --disable-gpu --window-size=<ancho>,900 --screenshot=<trabajo>/<vista>-<escenario>-<ancho>.png "file://<ruta-absoluta-del-repo>/design/vistas/<épica>/<vista>.html?escenario=<escenario>&proto=0"
 ```
 
-El binario puede llamarse `chromium` o `chromium-browser`. `proto=0` saca el panel de la captura. Si `tokens.css` define el tema oscuro, repite cada escenario en un ancho con `&tema=oscuro`.
+El binario puede llamarse `chromium` o `chromium-browser`. `proto=0` saca el panel de la captura. Chrome captura solo lo que entra en la ventana. Si la vista es más larga que la ventana (muchos datos, un formulario largo, el pie de un modal), repite la captura con `--window-size=<ancho>,3000`. Con Playwright, la misma URL con `page.set_viewport_size({"width": <ancho>, "height": 900})`, `page.goto(...)` y `page.screenshot(path=..., full_page=True)`, que ya sale entera.
 
-Mira cada captura y revísala contra el spec: que cada escenario muestre lo que piden "Estados por vista" y los criterios, que nada se corte, se superponga ni se salga de la pantalla en 390, que los textos de un mismo escenario no se contradigan, y que no aparezcan datos o textos que el spec no menciona. Corrige, vuelve a capturar lo que cambió y, al pasar a la revisión, dile a la persona cuántas capturas revisaste y qué corregiste.
+Si `tokens.css` define `[data-theme="dark"]`, repite cada escenario en un ancho con `&tema=oscuro`. Un producto solo oscuro no lo necesita: su tema base ya es el oscuro.
+
+Mira cada captura y revísala contra el spec: que cada escenario muestre lo que piden "Estados por vista" y los criterios, que nada se corte, se superponga ni se salga de la pantalla en 390, que los textos de un mismo escenario no se contradigan, y que no aparezcan datos o textos que el spec no menciona. Corrige y vuelve a capturar lo que cambió. Si corregiste `components.css` o `tokens.css`, vuelve a capturar todas las vistas del pedido, porque el cambio las toca a todas. Al pasar a la revisión, dile a la persona cuántas capturas revisaste y qué corregiste.
 
 Sin navegador en la sesión, dilo en una línea, que la revisión visual queda en manos de la persona en el paso siguiente, y sigue.
 
