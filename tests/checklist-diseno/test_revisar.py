@@ -392,11 +392,16 @@ class Revision(unittest.TestCase):
         casos = {
             "url sin comillas": '@font-face { font-family: "Marca"; src: url(fuentes/marca-regular.woff2) format("woff2"); }',
             "url con comillas y ./": "@font-face{font-family:Marca;src:url('./fuentes/marca-regular.woff2') format('woff2');font-weight:400}",
+            "nombre con espacios": ('@font-face{font-family:Marca;src:url("fuentes/Marca Regular.woff2") format("woff2")}',
+                                    ("fuentes/Marca Regular.woff2",)),
         }
         for caso, css in casos.items():
             with self.subTest(caso=caso):
                 self.setUp()
-                self.assertEqual(self.con_fuente(css), [])
+                if isinstance(css, tuple):
+                    self.assertEqual(self.con_fuente(*css), [])
+                else:
+                    self.assertEqual(self.con_fuente(css), [])
 
     def test_fuente_mal_ubicada_o_inexistente_bloquea_nombrando_la_ruta(self):
         casos = {
@@ -405,6 +410,10 @@ class Revision(unittest.TestCase):
             "fuera de design/": ("@font-face{font-family:Marca;src:url(../marca.woff2)}", ("../marca.woff2",), "`../marca.woff2`"),
             "otro formato": ("@font-face{font-family:Marca;src:url(fuentes/marca.ttf)}", ("fuentes/marca.ttf",), "`fuentes/marca.ttf`"),
             "embebida en data:": ("@font-face{font-family:Marca;src:url(data:font/woff2;base64,d09GMg==)}", (), "`data:"),
+            "en una subcarpeta de fuentes/": ("@font-face{font-family:Marca;src:url('fuentes/marca/regular.woff2')}",
+                                              ("fuentes/marca/regular.woff2",), "`fuentes/marca/regular.woff2`"),
+            "con espacios y mal ubicada": ('@font-face{font-family:Marca;src:url("Marca Regular.woff2")}',
+                                           ("Marca Regular.woff2",), "`Marca Regular.woff2`"),
             "segunda url mal": ("@font-face{font-family:Marca;src:url(fuentes/marca-regular.woff2) format('woff2'), url(marca.woff)}",
                                 ("fuentes/marca-regular.woff2", "marca.woff"), "`marca.woff`"),
         }
@@ -419,11 +428,45 @@ class Revision(unittest.TestCase):
             "Google Fonts con @import": "@import url(https://fonts.googleapis.com/css2?family=Marca);",
             "woff2 de un CDN": "@font-face{font-family:Marca;src:url(https://fonts.example.com/marca.woff2)}",
             "sin esquema": "@font-face{font-family:Marca;src:url(//fonts.example.com/marca.woff2)}",
+            "https escrito con escape": '@font-face{font-family:Marca;src:url("\\68ttps://fonts.example.com/marca.woff2")}',
+            "// escrito con escapes": "@font-face{font-family:Marca;src:url(\\2f\\2f fonts.example.com/marca.woff2)}",
         }
         for caso, css in casos.items():
             with self.subTest(caso=caso):
                 self.setUp()
                 self.assertTrue(any("recursos externos" in b for b in self.con_fuente(css)), caso)
+
+    def test_url_local_que_no_es_la_fuente_bloquea_en_los_compartidos(self):
+        casos = {
+            "imagen local en components.css": ("components.css", ".logo{background:url(img/logo.png)}", "`img/logo.png`"),
+            "data: en components.css": ("components.css", ".chevron{background:url('data:image/svg+xml;utf8,<svg/>')}", "`data:"),
+            "imagen local en tokens.css": ("tokens.css", ":root{--x:1px} .fondo{background:url(fondo.jpg)}", "`fondo.jpg`"),
+        }
+        for caso, (archivo, css, ruta) in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                (self.design / archivo).write_text((self.design / archivo).read_text() + "\n" + css + "\n")
+                bloquea, _ = self.compartidos()
+                self.assertTrue(any(ruta in b and f"`{archivo}`" in b for b in bloquea), bloquea)
+
+    def test_url_a_un_id_del_documento_no_bloquea(self):
+        """`url(#degradado)` apunta a un SVG de la misma página, no a un archivo."""
+        comp = self.design / "components.css"
+        comp.write_text(comp.read_text() + "\n.grafico path{fill:url(#degradado)}\n")
+        bloquea, _ = self.compartidos()
+        self.assertEqual(bloquea, [])
+
+    def test_font_face_en_la_vista_bloquea(self):
+        limpia = (FIXTURES / "limpia.html").read_text()
+        casos = {
+            "archivo local": "@font-face{font-family:Marca;src:url(../../marca.ttf)}",
+            "embebida": "@font-face{font-family:Marca;src:url(data:font/woff2;base64,d09GMg==)}",
+            "la de design/fuentes": "@font-face{font-family:Marca;src:url(../../fuentes/marca-regular.woff2)}",
+        }
+        for caso, css in casos.items():
+            with self.subTest(caso=caso):
+                bloquea, _ = self.revisar_texto(limpia.replace("</head>", f"<style>{css}</style>\n</head>"))
+                self.assertTrue(any("@font-face" in b and "tokens.css" in b for b in bloquea), bloquea)
 
     def test_tokens_y_components_de_la_skill_pasan_sin_bloqueos(self):
         shutil.copy(ASSETS / "tokens.css", self.design / "tokens.css")
