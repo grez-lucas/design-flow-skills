@@ -83,7 +83,23 @@ Sigue `references/vista-html.md`, que trae la plantilla y las reglas. Lo esencia
 - Datos ficticios y verosímiles, sin nombres, dominios ni marcas de clientes reales.
 - La vista cita sus tickets en `<meta name="tickets">`.
 
-### 7. Revisión con la persona
+### 7. Capturas
+
+`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona.
+
+Saca una por escenario y por ancho de referencia (los del comentario de `tokens.css`, por defecto 390, 1280 y 1440) en una carpeta de trabajo fuera del repositorio, por ejemplo la que da `mktemp -d`, para que no entren al commit:
+
+```
+google-chrome --headless=new --disable-gpu --window-size=<ancho>,900 --screenshot=<trabajo>/<vista>-<escenario>-<ancho>.png "file://<ruta-absoluta-del-repo>/design/vistas/<épica>/<vista>.html?escenario=<escenario>&proto=0"
+```
+
+El binario puede llamarse `chromium` o `chromium-browser`. `proto=0` saca el panel de la captura. Si `tokens.css` define el tema oscuro, repite cada escenario en un ancho con `&tema=oscuro`.
+
+Mira cada captura y revísala contra el spec: que cada escenario muestre lo que piden "Estados por vista" y los criterios, que nada se corte, se superponga ni se salga de la pantalla en 390, que los textos de un mismo escenario no se contradigan, y que no aparezcan datos o textos que el spec no menciona. Corrige, vuelve a capturar lo que cambió y, al pasar a la revisión, dile a la persona cuántas capturas revisaste y qué corregiste.
+
+Sin navegador en la sesión, dilo en una línea, que la revisión visual queda en manos de la persona en el paso siguiente, y sigue.
+
+### 8. Revisión con la persona
 
 Si la sesión tiene terminal y `npx` disponible, abre la vista con Lavish para que la persona anote sobre la pantalla:
 
@@ -96,7 +112,7 @@ Aplica cada anotación y vuelve a esperar con `poll --agent-reply "<qué cambias
 
 Sin terminal, indica la ruta del archivo para abrirlo en el navegador, y cómo ver un escenario: `listado.html?escenario=vacio`.
 
-### 8. Guardar
+### 9. Guardar
 
 Cuando la persona dé el visto bueno, haz commit y push a `main` del repositorio de diseño. El historial de commits reemplaza la revisión: el mensaje dice qué vista cambió, qué tickets cubre y, en una edición, por qué.
 
@@ -110,6 +126,6 @@ Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, y `git ad
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. Si el push falla por permisos, explica el error en simple y que el TL es quien da los accesos.
 
-### 9. Siguiente paso
+### 10. Siguiente paso
 
 Cierra diciendo qué quedó (vistas, escenarios, si cambió el design system) y que antes de la planificación del sprint conviene correr `checklist-diseno` sobre las vistas nuevas. Si el design system cambió, avisa que diseño lo revisa en la planificación. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:checklist-diseno`; con `npx skills`, `checklist-diseno`.

@@ -123,7 +123,7 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
 | `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
 | Herramienta de subagentes en la sesión | Las tres olas de `html-a-vista`. | `html-a-vista` se detiene antes de leer el mockup. |
-| Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. | Un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. |
+| Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. En `spec-a-html`, las capturas por escenario y ancho que se revisan contra el spec antes de la revisión con la persona. | En `html-a-vista`, un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. En `spec-a-html`, la skill dice que no hay capturas y sigue: la revisión visual queda en manos de la persona. |
 | `git` | El commit y push al repositorio de diseño cuando el proyecto no tiene tracker. | No hay commit ni push: los archivos quedan solo en la máquina. |
 
 ### Primer setup en Windows
