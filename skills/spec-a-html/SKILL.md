@@ -135,7 +135,7 @@ Muestra el resumen de archivos antes de hacer push, solo con los que entran en e
 Antes de escribir el primer archivo en el repositorio de diseño, no recién al hacer el commit, corre `git fetch` y mira en qué rama estás, porque cambiar de rama con archivos sin guardar puede fallar:
 
 - En la rama principal (la que muestra `git symbolic-ref --short refs/remotes/origin/HEAD`, sin `origin/`; si no responde, la línea `HEAD branch` de `git remote show origin`): guarda ahí.
-- En `diseno/<épica>` o `diseno/<épica>-<n>` de esta misma épica: guarda ahí si la rama sigue en el servidor, es decir, si `git ls-remote --exit-code --heads origin <rama>` termina sin error.
+- En cualquier rama del flujo de esta misma épica, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, con o sin sufijo (`-2`, `-3`): guarda ahí si la rama sigue en el servidor (`git ls-remote --exit-code --heads origin <rama>` termina sin error), para que el merge request que ya está abierto sume este trabajo.
 - En una rama que ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró: si `git log --oneline @{upstream}..HEAD` no muestra commits, vuelve a la principal con `git switch <principal>` y `git pull --ff-only`, y guarda ahí. Si muestra commits, si no puede comparar o si `git switch` o `git pull --ff-only` fallan, para y explica.
 - En cualquier otra rama, para y explica en simple en qué rama estás, que el trabajo de esta épica no va ahí y que el TL dice cómo seguir.
 

@@ -149,11 +149,21 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         for skill, tipo in self.TIPOS.items():
             with self.subTest(skill=skill):
                 texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
-                for fragmento in ("`git fetch`", f"`{tipo}/<épica>-<n>`", "`git ls-remote --exit-code --heads origin <rama>`",
+                for fragmento in ("`git fetch`", "`git ls-remote --exit-code --heads origin <rama>`",
                                   "`git log --oneline @{upstream}..HEAD`", "`git switch <principal>` y `git pull --ff-only`",
                                   "para y explica"):
                     self.assertIn(fragmento, texto)
                 self.assertLess(texto.index("`git fetch`"), texto.index(f"git switch -c {tipo}/<épica>"))
+
+    def test_guarda_en_cualquier_rama_del_flujo_de_la_misma_epica(self):
+        """Q96: `spec/`, `tickets/` o `diseno/` de la misma épica, con o sin sufijo, con upstream vivo."""
+        for skill in self.TIPOS:
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                linea = next(l for l in texto.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
+                for rama in ("`spec/<épica>`", "`tickets/<épica>`", "`diseno/<épica>`", "con o sin sufijo"):
+                    self.assertIn(rama, linea)
+        self.assertIn("cualquier rama del flujo de esa misma épica", self.readme())
 
     def test_la_rama_nueva_toma_el_primer_sufijo_libre(self):
         """Q91: si `<tipo>/<épica>` ya existe en local o en el servidor, `-2`, `-3`."""
