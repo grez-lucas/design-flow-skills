@@ -22,7 +22,8 @@ def seccion(texto, titulo, nivel):
 
 
 class DesignSystemDesdeLaZonaDelProducto(unittest.TestCase):
-    """Issue 21: las variables CSS de la parte del producto que se diseña van antes que las del framework."""
+    """Las variables CSS de la parte del producto que se diseña van antes que las del framework. Las regex toman la
+    oración entera que fija la decisión, para que una negación no pase."""
 
     def setUp(self):
         texto = (SKILLS / "spec-a-html" / "references" / "design-system.md").read_text(encoding="utf-8")
@@ -31,12 +32,16 @@ class DesignSystemDesdeLaZonaDelProducto(unittest.TestCase):
 
     def test_busca_las_variables_css_de_la_zona_antes_de_la_tabla_por_framework(self):
         self.assertIn("| Stack", self.extraer)
-        self.assertIn("`--*`", self.antes_de_la_tabla)
-        self.assertRegex(self.antes_de_la_tabla, r"parte del producto que se diseña")
-        self.assertRegex(self.antes_de_la_tabla, r"antes que (las|los) del framework")
+        self.assertRegex(self.antes_de_la_tabla, r"Mira primero la parte del producto que se diseña, no el producto entero:")
+        self.assertRegex(self.antes_de_la_tabla, r"Busca variables CSS \(`--\*`\) en las hojas globales y en los componentes de esa parte")
+        self.assertRegex(self.antes_de_la_tabla, r"Si las hay, son el design system de esa parte, antes que las del framework:")
+
+    def test_con_variables_propias_igual_compara_con_el_tema_del_framework(self):
+        self.assertRegex(self.antes_de_la_tabla, r"Aunque haya variables propias, mira también el tema del framework[^.]*para compararlo")
 
     def test_pide_confirmar_la_fuente_cuando_hay_mas_de_una(self):
-        self.assertRegex(self.antes_de_la_tabla, r"más de una fuente[^.]*confirm|confirm[^.]*más de una fuente")
+        self.assertRegex(self.antes_de_la_tabla, r"Cuando hay más de una fuente \([^)]*\), muestra a la persona de dónde sale "
+                                                 r"cada valor y pídele que confirme de qué parte del producto sale el design system")
 
 
 class CapturasEnSpecAHtml(unittest.TestCase):
