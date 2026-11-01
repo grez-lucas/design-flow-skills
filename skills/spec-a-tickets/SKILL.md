@@ -58,7 +58,7 @@ Si una historia depende de otra (no se puede ver el listado de invitaciones sin 
 
 Sigue la plantilla del proyecto o la de `references/plantilla-story.md`. Lo esencial:
 
-- **Título** con el formato de ID de las convenciones cuando lo definen (`INV-12: Registrar ingreso de mercadería`), también si el spec trae otro identificador: el ticket se busca en el tracker por ese ID. El identificador del spec queda en el cuerpo, junto al enlace al spec, para rastrear la historia. Si el tracker asigna el ID al crear el ticket, no lo inventes: el ticket queda con el que devuelve el tracker. Sin formato en las convenciones, usa el identificador del spec si lo trae (`[US-REC-001] Ver facturas vencidas`) y, si no lo trae, `[US-<ÁREA>-NNN]`, con un código corto de la épica en mayúsculas.
+- **Título** con el formato de ID de las convenciones cuando lo definen (`INV-12: Registrar ingreso de mercadería`), también si el spec trae otro identificador: el ticket se busca en el tracker por ese ID. El identificador del spec queda en el cuerpo, junto al enlace al spec, para rastrear la historia. Si el tracker asigna el ID al crear el ticket, no lo inventes: el ticket queda con el que devuelve el tracker, y si los tickets van como archivos porque todavía no hay acceso al tracker, el título lleva el identificador del spec hasta que pasen. Sin formato en las convenciones, usa el identificador del spec si lo trae (`[US-REC-001] Ver facturas vencidas`) y, si no lo trae, `[US-<ÁREA>-NNN]`, con un código corto de la épica en mayúsculas.
 - **Descripción**: la historia "Como, quiero, para" y un párrafo de contexto tomado del spec.
 - **Criterios de aceptación**: un escenario por bloque, con "Dado, cuando, entonces" y "Y" para resultados adicionales. Afirman comportamiento y datos que se ven, nunca rutas de archivos ni detalles de implementación: las rutas envejecen y el comportamiento no. Los estados del spec (vacío, error, sin permiso, plan expirado) se vuelven escenarios cuando el spec dice qué pasa en ellos.
 - **Pruebas**: redacta los flujos E2E a partir de los escenarios. Deja las pruebas unitarias y de integración marcadas "Lo completa DEV": producto no tiene cómo validarlas.
@@ -88,7 +88,7 @@ Sin terminal, muéstralo en el chat. Ajusta hasta que la persona apruebe. Public
 Sigue `references/trackers.md` según dónde van los tickets. En todos los casos:
 
 1. Verifica el acceso con una lectura antes de escribir.
-2. Busca tickets que ya cubran estas historias. Si el spec reemplaza a uno anterior (lo dice su sección "Enlaces"), los tickets con el mismo ID son de este spec: muestra qué cambia en cada uno y actualízalos con aprobación explícita; las historias que el spec retira se informan, no se cierran. Cualquier otro ticket que encuentres es ajeno: muéstralo y pregunta si se extiende, se reemplaza o se omite, y nunca lo edites ni lo cierres.
+2. Busca tickets que ya cubran estas historias. Si el spec reemplaza a uno anterior (lo dice su sección "Enlaces"), los tickets que llevan el mismo identificador del spec, en el título o en el cuerpo, son de este spec: muestra qué cambia en cada uno y actualízalos con aprobación explícita; las historias que el spec retira se informan, no se cierran. Cualquier otro ticket que encuentres es ajeno: muéstralo y pregunta si se extiende, se reemplaza o se omite, y nunca lo edites ni lo cierres.
 3. Crea los tickets en orden de dependencias, para que cada uno cite identificadores reales.
 4. Si algo falla a mitad de camino, para y di qué quedó creado y qué no.
 
@@ -104,9 +104,26 @@ En la misma edición, completa "Tickets" en "Enlaces" con los identificadores re
 
 ### 9. Guardar en el repositorio de diseño
 
-Si la sesión escribió en el repositorio de diseño (los tickets sin tracker, el spec congelado en `specs/<épica>/spec.md`, el puntero a las convenciones), haz commit y push a la rama actual después de mostrar el resumen y pedir la confirmación, con el mensaje `tickets(<épica>): <resumen>`, por ejemplo `tickets(recordatorios): US-REC-001 y US-REC-002 desde el spec`. Un solo commit al final, para que los tickets, el spec congelado y el puntero lleguen juntos. Agrega solo la carpeta de la épica, con `git add specs/<épica>/`, y el puntero si lo escribiste en esta sesión, con `git add specs/<épica>/ .claude/pm-conventions.md`, o solo `git add .claude/pm-conventions.md` si los tickets fueron al tracker y `specs/<épica>/` no cambió; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit. Si la sesión no escribió nada en el repositorio, no hay commit.
+Si la sesión escribió en el repositorio de diseño, haz commit y push a la rama actual después de mostrar el resumen y pedir la confirmación, con el mensaje `tickets(<épica>): <resumen>`, por ejemplo `tickets(recordatorios): US-REC-001 y US-REC-002 desde el spec`. Es un solo commit al final, para que todo llegue junto. El resumen lista solo los archivos que entran en el commit. Si la sesión no escribió nada en el repositorio, no hay commit.
 
-El push va a la rama actual, con `git push` (o `git push -u origin HEAD` si la rama todavía no existe en el servidor). Si el servidor lo rechaza porque la rama está protegida, pasa el commit a una rama nueva con `git switch -c tickets/<épica>` y `git push -u origin tickets/<épica>`, deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que la rama está protegida, que los tickets quedaron en `tickets/<épica>` y que el TL los revisa y hace el merge request. Si esa rama ya existe, no la reemplaces: dilo y deja que el TL decida. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
+Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`; si no la tiene, agrégala, y crea el archivo si falta: las revisiones con Lavish escriben ahí archivos que no son diseño.
+
+Agrega solo lo que escribiste:
+
+- Los tickets sin tracker y el spec congelado: `git add specs/<épica>/`.
+- El puntero a las convenciones, si lo escribiste en esta sesión: `git add .claude/pm-conventions.md`. Si git responde que la ruta está ignorada por el `.gitignore`, no la fuerces: dilo, el puntero queda solo en esta máquina, y el TL decide si cambia el `.gitignore`.
+- El `.gitignore`, si le agregaste `.lavish/`: `git add .gitignore`.
+
+Nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
+
+Antes de escribir el primer archivo en el repositorio de diseño, no recién al hacer el commit, corre `git fetch` y mira en qué rama estás, porque cambiar de rama con archivos sin guardar puede fallar:
+
+- En la rama principal (la que muestra `git symbolic-ref --short refs/remotes/origin/HEAD`, sin `origin/`; si no responde, la línea `HEAD branch` de `git remote show origin`): guarda ahí.
+- En `tickets/<épica>` o `tickets/<épica>-<n>` de esta misma épica: guarda ahí si la rama sigue en el servidor, es decir, si `git ls-remote --exit-code --heads origin <rama>` termina sin error.
+- En una rama que ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró: si `git log --oneline @{upstream}..HEAD` no muestra commits, vuelve a la principal con `git switch <principal>` y `git pull --ff-only`, y guarda ahí. Si muestra commits, si no puede comparar o si `git switch` o `git pull --ff-only` fallan, para y explica.
+- En cualquier otra rama, para y explica en simple en qué rama estás, que el trabajo de esta épica no va ahí y que el TL dice cómo seguir.
+
+El push va a la rama actual, con `git push`. Si el servidor lo rechaza por cualquier motivo que no sea de credenciales o de acceso (la rama está protegida, o tiene cambios que tu copia no tiene), pasa el commit a una rama nueva, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. La rama nueva es `tickets/<épica>` o, si ya existe en local o en el servidor, el primer sufijo libre: `tickets/<épica>-2`, `-3`; `git branch -a --list 'tickets/<épica>*'` muestra las que hay. Créala con `git switch -c tickets/<épica>` y empújala con `git push -u origin tickets/<épica>`, con el sufijo si lo lleva; deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que el servidor no aceptó el cambio en esa rama, que los tickets quedaron en la rama nueva y que el TL revisa y hace el merge request. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
 
 ### 10. Cerrar
 

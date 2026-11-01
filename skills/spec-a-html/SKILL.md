@@ -130,7 +130,16 @@ Tickets: US-ALERT-002
 
 Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add specs/<épica>/` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
-Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. El push va a la rama actual, con `git push` (o `git push -u origin HEAD` si la rama todavía no existe en el servidor). Si el servidor lo rechaza porque la rama está protegida, pasa el commit a una rama nueva con `git switch -c diseno/<épica>` y `git push -u origin diseno/<épica>`, deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que la rama está protegida, que las vistas quedaron en `diseno/<épica>` y que el TL las revisa y hace el merge request. Si esa rama ya existe, no la reemplaces: dilo y deja que el TL decida. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
+Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
+
+Antes de escribir el primer archivo en el repositorio de diseño, no recién al hacer el commit, corre `git fetch` y mira en qué rama estás, porque cambiar de rama con archivos sin guardar puede fallar:
+
+- En la rama principal (la que muestra `git symbolic-ref --short refs/remotes/origin/HEAD`, sin `origin/`; si no responde, la línea `HEAD branch` de `git remote show origin`): guarda ahí.
+- En `diseno/<épica>` o `diseno/<épica>-<n>` de esta misma épica: guarda ahí si la rama sigue en el servidor, es decir, si `git ls-remote --exit-code --heads origin <rama>` termina sin error.
+- En una rama que ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró: si `git log --oneline @{upstream}..HEAD` no muestra commits, vuelve a la principal con `git switch <principal>` y `git pull --ff-only`, y guarda ahí. Si muestra commits, si no puede comparar o si `git switch` o `git pull --ff-only` fallan, para y explica.
+- En cualquier otra rama, para y explica en simple en qué rama estás, que el trabajo de esta épica no va ahí y que el TL dice cómo seguir.
+
+El push va a la rama actual, con `git push`. Si el servidor lo rechaza por cualquier motivo que no sea de credenciales o de acceso (la rama está protegida, o tiene cambios que tu copia no tiene), pasa el commit a una rama nueva, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. La rama nueva es `diseno/<épica>` o, si ya existe en local o en el servidor, el primer sufijo libre: `diseno/<épica>-2`, `-3`; `git branch -a --list 'diseno/<épica>*'` muestra las que hay. Créala con `git switch -c diseno/<épica>` y empújala con `git push -u origin diseno/<épica>`, con el sufijo si lo lleva; deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que el servidor no aceptó el cambio en esa rama, que las vistas quedaron en la rama nueva y que el TL revisa y hace el merge request. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
 
 ### 10. Siguiente paso
 
