@@ -65,7 +65,7 @@ sequenceDiagram
         A-->>P: archivos que entran en el commit
         P->>A: confirma
         A->>R: commit spec(<épica>) y push a la rama actual
-        opt la rama está protegida y rechaza el push
+        opt el servidor rechaza el push
             A->>R: push a la rama nueva spec/<épica>
             A-->>P: el TL revisa y hace el merge request
         end
@@ -132,7 +132,7 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
 | Herramienta de subagentes en la sesión | Las tres olas de `html-a-vista`. | `html-a-vista` se detiene antes de leer el mockup. |
 | Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. En `spec-a-html`, las capturas por escenario y ancho que se revisan contra el spec antes de la revisión con la persona. | En `html-a-vista`, un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. En `spec-a-html`, la skill dice que no hay capturas y sigue: la revisión visual queda en manos de la persona. |
-| `git` | El commit y push al repositorio de diseño cuando el proyecto no tiene tracker. | No hay commit ni push: los archivos quedan solo en la máquina. |
+| `git` | El commit y push al repositorio de diseño: las vistas de `spec-a-html` y `html-a-vista` siempre, y el spec y los tickets de `grilling-es` y `spec-a-tickets` cuando quedan en el repositorio. | No hay commit ni push: los archivos quedan solo en la máquina. |
 
 ### Primer setup en Windows
 
@@ -160,7 +160,11 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 
 ### Acceso de escritura al repositorio de diseño
 
-Las skills que guardan en el repositorio de diseño hacen commit y push a la rama actual, con un mensaje `<tipo>(<épica>): <resumen>`: `spec` en `grilling-es`, `tickets` en `spec-a-tickets` y `diseno` en `spec-a-html` y `html-a-vista`. Si la rama está protegida y el servidor rechaza el push, la skill pasa el commit a una rama nueva, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, la empuja y explica que el TL revisa y hace el merge request. Cuando `html-a-vista` deja vistas en más de una épica, el mensaje y la rama llevan el nombre del mockup en lugar de la épica.
+Las skills que guardan en el repositorio de diseño hacen commit y push a la rama actual, con un mensaje `<tipo>(<épica>): <resumen>`: `spec` en `grilling-es`, `tickets` en `spec-a-tickets` y `diseno` en `spec-a-html` y `html-a-vista`. Cuando `html-a-vista` deja vistas en más de una épica, el mensaje y la rama llevan el nombre del archivo del mockup en lugar de la épica.
+
+Antes de escribir, la skill corre `git fetch` y revisa la rama actual. Guarda en la rama principal, o en la rama de la skill para esa misma épica si sigue en el servidor. Si la rama ya no está en el servidor, porque el TL hizo el merge y la borró, y no quedan commits sin empujar, vuelve a la principal con `git pull --ff-only` y guarda ahí. En cualquier otra rama, para y lo explica.
+
+Si el servidor rechaza el push por algo que no sea de credenciales, como una rama protegida o cambios nuevos en el servidor, la skill pasa el commit a una rama nueva, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, con el primer sufijo libre (`-2`, `-3`) si ya existe, la empuja y explica que el TL revisa y hace el merge request. Todo eso sin `git pull --rebase`, `git reset --hard` ni `--force`: lo que haya que integrar se resuelve en el merge request.
 
 Antes de la primera sesión, quien usa las skills necesita tres cosas, y conviene comprobarlas antes de escribir el primer spec:
 
