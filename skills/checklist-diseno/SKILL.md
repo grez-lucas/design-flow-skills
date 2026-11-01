@@ -47,12 +47,12 @@ Lo que el script no puede ver, lo revisas tú, vista por vista:
 - **Spec**: compara los escenarios de la vista con "Estados por vista" del spec. Uno que el spec pide y la vista no tiene bloquea. En una vista con solo spec, este cruce reemplaza al de tickets: además de "Estados por vista", cada historia y cada regla del spec que toque la vista tiene que poder verse en algún escenario.
 - **Escenarios que se ven iguales**: abre cada escenario mentalmente (o en el navegador si la sesión puede, con `?escenario=<nombre>`): vacío, error y sin permiso tienen que decir qué pasa y qué puede hacer el usuario, no mostrar una pantalla en blanco.
 - **Controles de prototipo**: busca selectores, pestañas o botones dentro de la pantalla que solo sirven para cambiar de caso ("plan vigente / plan expirado"). DEV no distingue andamio de producto. El script solo detecta los que tienen un manejador `on...` o un enlace a `?escenario=`; los demás los ves tú.
-- **Lo que sobra**: un escenario, una columna o una acción que ni el spec ni los tickets piden; en una vista con solo spec, lo que el spec no pide. Si implica comportamiento nuevo, bloquea, porque DEV lo construiría sin criterio de aceptación; si es cosmético, va en "Conviene mirar".
+- **Lo que sobra**: un escenario o una acción que ni el spec ni los tickets piden; en una vista con solo spec, lo que el spec no pide. Si implica comportamiento nuevo, bloquea, porque DEV lo construiría sin criterio de aceptación; si es cosmético, va en "Conviene mirar". Los datos y los textos se revisan en "Datos o textos fuera del spec".
 - **Datos o textos fuera del spec**: recorre cada escenario y anota los datos (columnas, campos, cifras, etiquetas con un valor) y los textos (títulos, mensajes, botones) que se ven, y búscalos en el spec y en los tickets. Un dato que el spec no menciona (el cargo de cada persona en una lista que el spec define solo con el nombre) bloquea: DEV tendría que sacar un campo o una consulta sin criterio de aceptación. Un texto que contradice al spec o a otro texto del mismo escenario ("Elige un destino" junto a "No hay destinos disponibles") también bloquea. Una etiqueta que solo nombra lo que el spec ya pide va en "Conviene mirar". Ante la duda, bloquea y se pregunta en la planificación.
 - **No aplica**: cada motivo de `data-no-aplica` tiene que coincidir con el spec o ser evidente. Un escenario base marcado como no aplica que el spec no menciona se pregunta en la planificación.
 - **Textos**: completos y en el idioma del producto. Un texto genérico ("Mensaje de error") obliga a DEV a inventarlo.
 - **Interacciones**: lo que pasa al hacer clic, validar o esperar, como comentario junto al elemento cuando no es obvio.
-- **Datos**: verosímiles y de volumen real en muchos datos (nombres largos, montos grandes, decenas de filas).
+- **Datos ficticios**: verosímiles y de volumen real en muchos datos (nombres largos, montos grandes, decenas de filas).
 
 ### 4. Informe
 
