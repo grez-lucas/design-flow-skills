@@ -23,6 +23,7 @@ Parte de `assets/vista.html`. La estructura es:
 </head>
 <body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos, plan-expirado">
   <main data-frame>
+    <header class="topbar">...</header>
     <section data-state="normal muchos-datos">...</section>
     <section data-state="vacio" class="empty-state">...</section>
   </main>
@@ -34,6 +35,7 @@ Parte de `assets/vista.html`. La estructura es:
 
 - `<body data-escenarios>` lista los escenarios de la vista, separados por coma. El primero es el que se ve al abrir.
 - `<body data-no-aplica>` lista los escenarios base que no aplican, cada uno con su motivo: `data-no-aplica="sin-permiso: todos los roles ven esta vista; muchos-datos: la pantalla tiene pocas opciones fijas"`. Escenarios base: normal, vacio, cargando, error, sin-permiso, muchos-datos.
+- Todo lo que se ve de la pantalla va dentro de `<main data-frame>`, también la barra superior y la navegación: así el selector de ancho los achica, el velo de un modal los cubre y el frame, que mide al menos el alto de la ventana, no suma scroll.
 - Un elemento con `data-state="a b"` se ve solo en los escenarios `a` o `b`. Un elemento sin `data-state` se ve siempre. Así, el header y la navegación se escriben una vez y solo cambia lo que de verdad cambia.
 - Cuando un bloque cambia poco entre dos escenarios (un texto, un botón deshabilitado), escribe el bloque una vez por escenario, cada copia con su `data-state`. No hay variantes dentro de un bloque: DEV lee cada escenario completo, sin reconstruirlo.
 - `muchos-datos` muestra la versión con volumen real: textos largos, nombres que no caben, tablas de 50 filas. Para no inflar el archivo, escribe tres o cuatro filas variadas y marca el contenedor con `data-repeat="50"`: `proto.js` clona las filas en ese escenario. Para que las copias no repitan los mismos nombres, pon en la celda una lista de valores separados por `;`: `<td data-valores="Bruno Díaz; Carla Ruiz; Diego Soto">Ana Pérez</td>`. También sirve en la fila misma, como un `<li>`. La fila escrita muestra su texto, y cada copia de esa fila toma el valor siguiente de la lista; al acabarse, la lista vuelve a empezar. El valor reemplaza todo el contenido del elemento: ponlo en el que tiene solo el texto, no en uno que además lleva un avatar o un ícono. Úsalo en las columnas que más se notan repetidas (nombres, montos, fechas); el resto puede repetirse.

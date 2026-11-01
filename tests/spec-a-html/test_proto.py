@@ -185,7 +185,9 @@ class ModalYAvisoEnElFrame(EnChrome):
         frame = rect(dom.body["data-prueba-frame"])
         self.assertEqual(frame[2] - frame[0], 390)
         self.assertEqual(rect(dom.body["data-prueba-velo"]), frame, "el velo cubre el frame y solo el frame")
-        for clave in ("data-prueba-dialogo", "data-prueba-aviso"):
+        self.assertTrue(dentro(rect(dom.body["data-prueba-topbar"]), rect(dom.body["data-prueba-velo"])),
+                        "el velo cubre la barra superior")
+        for clave in ("data-prueba-dialogo", "data-prueba-aviso", "data-prueba-topbar"):
             with self.subTest(clave=clave):
                 self.assertTrue(dentro(rect(dom.body[clave]), frame), f"{dom.body[clave]} fuera de {frame}")
 
@@ -199,6 +201,38 @@ class ModalYAvisoEnElFrame(EnChrome):
         dom = self.vista(self.TOKENS, "ancho=390&proto=0", vista="modal.html")
         frame, ventana = rect(dom.body["data-prueba-frame"]), rect(dom.body["data-prueba-ventana"])
         self.assertEqual((frame[1], frame[3]), (ventana[1], ventana[3]))
+
+
+MEDIR = """<script>
+    // Agregado por el test: deja en <body> el alto de la página, el de la ventana y el rectángulo de la barra superior.
+    window.addEventListener("load", function () {
+      var r = document.querySelector(".topbar").getBoundingClientRect();
+      document.body.dataset.pruebaScroll = document.documentElement.scrollHeight;
+      document.body.dataset.pruebaVentana = [0, 0, innerWidth, innerHeight].join(",");
+      document.body.dataset.pruebaTopbar = [r.left, r.top, r.right, r.bottom].map(Math.round).join(",");
+    });
+  </script>
+</head>"""
+
+
+@unittest.skipIf(CHROME is None, "No hay Chrome: google-chrome, chromium o Playwright en ~/.cache/ms-playwright.")
+class PlantillaDeVista(EnChrome):
+    """assets/vista.html con tokens.css y components.css de la skill: la barra superior va dentro del frame."""
+
+    def abrir_plantilla(self, query):
+        design = self.armar(ASSETS / "tokens.css")
+        vista = design / "vistas" / "prueba" / "vista.html"
+        vista.write_text((ASSETS / "vista.html").read_text(encoding="utf-8").replace("</head>", MEDIR, 1), encoding="utf-8")
+        return self.abrir(vista.as_uri() + "?" + query)
+
+    def test_sin_scroll_con_poco_contenido(self):
+        dom = self.abrir_plantilla("proto=0")
+        self.assertEqual(int(dom.body["data-prueba-scroll"]), rect(dom.body["data-prueba-ventana"])[3])
+
+    def test_a_390_la_barra_superior_mide_390(self):
+        dom = self.abrir_plantilla("ancho=390&proto=0")
+        izquierda, _, derecha, _ = rect(dom.body["data-prueba-topbar"])
+        self.assertEqual(derecha - izquierda, 390)
 
 
 @unittest.skipIf(CHROME is None, "No hay Chrome: google-chrome, chromium o Playwright en ~/.cache/ms-playwright.")

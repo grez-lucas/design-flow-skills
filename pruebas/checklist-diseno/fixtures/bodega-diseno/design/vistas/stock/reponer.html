@@ -14,21 +14,23 @@
   </style>
 </head>
 <body data-escenarios="normal, vacio, cargando, sin-permiso, muchos-datos">
-  <header class="topbar"><strong>Bodega</strong></header>
-  <main data-frame class="reponer">
-    <h1>Reponer</h1>
-    <table class="table" data-state="normal muchos-datos">
-      <thead><tr><th>Producto</th><th>Stock actual</th><th>Mínimo</th></tr></thead>
-      <tbody data-repeat="40">
-        <tr><td>Aceite maravilla 1 L</td><td class="faltan">1</td><td>6</td></tr>
-        <tr><td>Azúcar granulada 1 kg</td><td class="faltan">2</td><td>10</td></tr>
-        <tr><td>Fideos spaghetti 400 g</td><td class="faltan">0</td><td>8</td></tr>
-      </tbody>
-    </table>
-    <p data-state="normal">Pedidos a: ventas@abastos-quiltraco.cl</p>
-    <div class="empty-state" data-state="vacio">Todos tus productos están sobre su mínimo.</div>
-    <div data-state="cargando"><div class="skeleton"></div></div>
-    <div class="empty-state" data-state="sin-permiso">No tienes acceso a Reponer.</div>
+  <main data-frame>
+    <header class="topbar"><strong>Bodega</strong></header>
+    <div class="reponer">
+      <h1>Reponer</h1>
+      <table class="table" data-state="normal muchos-datos">
+        <thead><tr><th>Producto</th><th>Stock actual</th><th>Mínimo</th></tr></thead>
+        <tbody data-repeat="40">
+          <tr><td>Aceite maravilla 1 L</td><td class="faltan">1</td><td>6</td></tr>
+          <tr><td>Azúcar granulada 1 kg</td><td class="faltan">2</td><td>10</td></tr>
+          <tr><td>Fideos spaghetti 400 g</td><td class="faltan">0</td><td>8</td></tr>
+        </tbody>
+      </table>
+      <p data-state="normal">Pedidos a: ventas@abastos-quiltraco.cl</p>
+      <div class="empty-state" data-state="vacio">Todos tus productos están sobre su mínimo.</div>
+      <div data-state="cargando"><div class="skeleton"></div></div>
+      <div class="empty-state" data-state="sin-permiso">No tienes acceso a Reponer.</div>
+    </div>
   </main>
 </body>
 </html>

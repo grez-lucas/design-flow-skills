@@ -9,7 +9,7 @@
   <script src="../../proto.js" defer></script>
   <script>
     // Propio del fixture, no de una vista: deja en <body> los rectángulos del frame,
-    // del velo, del diálogo, del aviso y de la ventana, que --dump-dom no muestra.
+    // del velo, del diálogo, del aviso, de la barra superior y de la ventana, que --dump-dom no muestra.
     window.addEventListener("load", function () {
       function rect(selector) {
         var r = document.querySelector(selector).getBoundingClientRect();
@@ -19,12 +19,14 @@
       document.body.dataset.pruebaVelo = rect(".modal");
       document.body.dataset.pruebaDialogo = rect(".modal__dialog");
       document.body.dataset.pruebaAviso = rect(".toast-region .alert");
+      document.body.dataset.pruebaTopbar = rect(".topbar");
       document.body.dataset.pruebaVentana = [0, 0, innerWidth, innerHeight].join(",");
     });
   </script>
 </head>
 <body data-escenarios="confirmar">
   <main data-frame>
+    <header class="topbar"><strong>Pedidos</strong><button type="button" class="btn">Salir</button></header>
     <h1>Pedidos</h1>
     <p>Listado corto: el frame queda más bajo que la ventana.</p>
     <div class="modal" data-state="confirmar">
