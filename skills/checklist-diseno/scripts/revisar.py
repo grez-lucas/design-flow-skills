@@ -31,6 +31,8 @@ ESCAPE_CSS = re.compile(r"\\(?:([0-9a-fA-F]{1,6})\s?|(.))", re.S)
 EXTERNO = re.compile(r"(?:https?:)?//", re.I)
 ESQUEMA = re.compile(r"[a-z][\w+.-]*:", re.I)
 COMPARTIDOS_CSS = ("tokens.css", "components.css")
+FONT_FACE = re.compile(r"@font-face\s*\{([^}]*)\}", re.I)
+URL = re.compile(r"""url\(\s*["']?([^"')\s]+)""", re.I)
 
 
 class Vista(HTMLParser):
@@ -145,6 +147,21 @@ def resolver(ref, desde):
     if not ref or EXTERNO.match(ref) or ESQUEMA.match(ref):
         return None
     return (desde / ref).resolve()
+
+
+def fuentes_mal_ubicadas(css, design):
+    """Las `url()` de un `@font-face` que no llevan a un `.woff2` que existe en `design/fuentes/`. Las externas no
+    cuentan aquí: las bloquea la regla de recursos externos."""
+    fuentes = (design / "fuentes").resolve()
+    malas = []
+    for bloque in FONT_FACE.findall(sin_escapes(strip_comments(css))):
+        for ref in URL.findall(bloque):
+            if EXTERNO.match(ref):
+                continue
+            ruta = resolver(ref, design)
+            if ruta is None or ruta.parent != fuentes or ruta.suffix.lower() != ".woff2" or not ruta.is_file():
+                malas.append(ref[:40])
+    return malas
 
 
 def sin_animacion(archivo, nombres):
@@ -291,6 +308,10 @@ def revisar_compartidos(design, definidos):
             bloquea.append(sin_animacion(f"`{archivo}` ", animadas))
         if EXTERNAL.search(strip_comments(css)):
             bloquea.append(f"`{archivo}` carga recursos externos (CDN, fuentes, imágenes remotas).")
+        fuentes = fuentes_mal_ubicadas(css, design)
+        if fuentes:
+            bloquea.append(f"`{archivo}` carga {', '.join(f'`{r}`' for r in fuentes)} en un `@font-face`. La fuente del producto va "
+                           "como archivo `.woff2` en `design/fuentes/`, con una `url()` relativa que llega a él.")
         locales = imports_locales(css)
         if locales:
             bloquea.append(f"`{archivo}` importa {', '.join(f'`{r}`' for r in locales)} con `@import`. Los archivos compartidos "

@@ -12,7 +12,7 @@ Qué pasa con lo que el mockup tiene y la convención de vista no admite. Una vi
 | `toggleTheme()` u otra función definida y nunca llamada | Nada | Se menciona como conflicto en "Lo que no se pudo ver" |
 | Variantes A, B y C de una pantalla | Solo la elegida | Cuál se eligió y quién la eligió |
 | Imágenes, fotos, avatares | Marcador: un bloque con la proporción y un texto ("Foto de la parcela") o iniciales | |
-| Fuentes externas (Google Fonts) | La familia en `--font-family-base` con respaldo del sistema, sin `<link>` ni `@import` | Qué fuente tenía el mockup |
+| Fuentes externas (Google Fonts) | Si producto entrega el archivo, el `.woff2` en `design/fuentes/` con su `@font-face` en `tokens.css`; si no, la familia en `--font-family-base` con respaldo del sistema. Nunca `<link>` ni `@import` | Qué fuente tenía el mockup y si quedó local o con la de respaldo |
 | Recursos por CDN | Nada | |
 | Historial dentro del archivo ("cambio #21", "v4.3", versiones en comentarios o ids) | Nada: git lo reemplaza | |
 | Navegación entre pantallas | Enlace a la otra vista (`href="historial.html"`) o comentario | |
