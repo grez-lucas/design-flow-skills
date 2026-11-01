@@ -120,7 +120,7 @@ Sin terminal, indica la ruta del archivo para abrirlo en el navegador, y cómo v
 
 ### 9. Guardar
 
-Cuando la persona dé el visto bueno, haz commit y push a `main` del repositorio de diseño. El historial de commits reemplaza la revisión: el mensaje dice qué vista cambió, qué tickets cubre y, en una edición, por qué.
+Cuando la persona dé el visto bueno, haz commit y push a la rama actual del repositorio de diseño, con el mensaje `diseno(<épica>): <resumen>`. El historial de commits reemplaza la revisión: el mensaje dice qué vista cambió, qué tickets cubre y, en una edición, por qué.
 
 ```
 diseno(alertas): listado con estados vacío, error y muchos datos
@@ -130,7 +130,7 @@ Tickets: US-ALERT-002
 
 Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add specs/<épica>/` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
-Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. Si el push falla por permisos, explica el error en simple y que el TL es quien da los accesos.
+Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. El push va a la rama actual, con `git push` (o `git push -u origin HEAD` si la rama todavía no existe en el servidor). Si el servidor lo rechaza porque la rama está protegida, pasa el commit a una rama nueva con `git switch -c diseno/<épica>` y `git push -u origin diseno/<épica>`, deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que la rama está protegida, que las vistas quedaron en `diseno/<épica>` y que el TL las revisa y hace el merge request. Si esa rama ya existe, no la reemplaces: dilo y deja que el TL decida. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
 
 ### 10. Siguiente paso
 

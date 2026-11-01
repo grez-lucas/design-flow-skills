@@ -91,6 +91,57 @@ class OlaUnoConModalYAvisos(unittest.TestCase):
                 self.assertIn(pieza, ola_1)
 
 
+class MensajeYRamaDelCommit(unittest.TestCase):
+    """Q86: mensaje `<tipo>(<épica>): <resumen>`, push a la rama actual y `<tipo>/<épica>` si la protección rechaza."""
+
+    TIPOS = {"grilling-es": "spec", "spec-a-tickets": "tickets", "spec-a-html": "diseno", "html-a-vista": "diseno"}
+    ENCABEZADO = re.compile(r"(?<![\w/-])([a-z]+)\((<?[\w.,é-]+>?)\): \S")
+
+    def textos(self, skill):
+        return {str(r.relative_to(RAIZ)): r.read_text(encoding="utf-8") for r in sorted((SKILLS / skill).rglob("*.md"))}
+
+    def test_cada_skill_que_hace_commit_da_el_formato_con_su_tipo(self):
+        self.assertEqual(set(self.TIPOS), set(CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT))
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertIn(f"`{tipo}(<épica>): <resumen>`", texto)
+
+    def test_los_ejemplos_de_commit_usan_el_tipo_de_su_skill(self):
+        for skill, tipo in self.TIPOS.items():
+            for archivo, texto in self.textos(skill).items():
+                for encontrado in self.ENCABEZADO.finditer(texto):
+                    with self.subTest(archivo=archivo, encabezado=encontrado.group(0)):
+                        self.assertEqual(encontrado.group(1), tipo)
+
+    def test_el_push_va_a_la_rama_actual_y_a_tipo_epica_si_la_proteccion_rechaza(self):
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertIn("rama actual", texto)
+                self.assertIn(f"git switch -c {tipo}/<épica>", texto)
+                self.assertIn(f"git push -u origin {tipo}/<épica>", texto)
+                self.assertIn("merge request", texto)
+
+    def test_nada_asume_push_a_la_rama_principal_ni_lo_fuerza(self):
+        # Del README cuenta lo que describe a las skills; "## Pruebas" habla del CI de este repositorio.
+        archivos = {"README.md": (RAIZ / "README.md").read_text(encoding="utf-8").split("\n## Estado")[0]}
+        for skill in self.TIPOS:
+            archivos.update(self.textos(skill))
+        for archivo, texto in archivos.items():
+            with self.subTest(archivo=archivo):
+                self.assertNotRegex(texto, r"push a (`main`|main\b|la rama principal)")
+                self.assertNotRegex(texto, r"--force|push -f\b")
+
+    def test_el_readme_explica_la_rama_actual_y_el_camino_del_rechazo(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertIn("rama actual", readme)
+        self.assertIn("merge request", readme)
+        for tipo in sorted(set(self.TIPOS.values())):
+            with self.subTest(tipo=tipo):
+                self.assertIn(f"`{tipo}/<épica>`", readme)
+
+
 class NombreDelSiguientePaso(unittest.TestCase):
     PLUGIN = "flujo-diseno"
 

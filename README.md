@@ -64,7 +64,11 @@ sequenceDiagram
     else sin tracker
         A-->>P: archivos que entran en el commit
         P->>A: confirma
-        A->>R: commit y push de specs/<épica>/spec.md
+        A->>R: commit spec(<épica>) y push a la rama actual
+        opt la rama está protegida y rechaza el push
+            A->>R: push a la rama nueva spec/<épica>
+            A-->>P: el TL revisa y hace el merge request
+        end
     end
     A-->>P: siguiente paso: spec-a-tickets
 ```
@@ -154,9 +158,11 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 
 ### Acceso de escritura al repositorio de diseño
 
-Las skills hacen commit y push a la rama principal del repositorio de diseño. Antes de la primera sesión, quien la usa necesita tres cosas, y conviene comprobarlas antes de escribir el primer spec:
+Las skills que guardan en el repositorio de diseño hacen commit y push a la rama actual, con un mensaje `<tipo>(<épica>): <resumen>`: `spec` en `grilling-es`, `tickets` en `spec-a-tickets` y `diseno` en `spec-a-html` y `html-a-vista`. Si la rama está protegida y el servidor rechaza el push, la skill pasa el commit a una rama nueva, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, la empuja y explica que el TL revisa y hace el merge request. Cuando `html-a-vista` deja vistas en más de una épica, el mensaje y la rama llevan el nombre del mockup en lugar de la épica.
 
-1. **Permiso para empujar a la rama principal.** Si la rama está protegida, la cuenta necesita un rol que la protección admita: en GitLab, la protección por defecto deja empujar solo a `Maintainer`, y con `Developer` el push se rechaza. Si el equipo prefiere no dar ese rol, se trabaja en una rama con merge request o pull request.
+Antes de la primera sesión, quien usa las skills necesita tres cosas, y conviene comprobarlas antes de escribir el primer spec:
+
+1. **Permiso para empujar a la rama en la que se trabaja.** Si es la rama principal y está protegida, la cuenta necesita un rol que la protección admita: en GitLab, la protección por defecto deja empujar solo a `Maintainer`, y con `Developer` el push se rechaza. Si el equipo prefiere no dar ese rol, cada cambio llega por merge request o pull request desde la rama nueva de la skill, y la cuenta solo necesita poder crear ramas.
 2. **Credenciales de git.** Por HTTPS, la contraseña es un token personal con permiso de escritura (`write_repository` en GitLab; en GitHub, un token con acceso al repositorio). Para no pedirla en cada push, un ayudante de credenciales: en Windows, Git Credential Manager, que viene con Git for Windows; en macOS, `git config --global credential.helper osxkeychain`; en Linux, `git config --global credential.helper libsecret` si está instalado, o `store`, que guarda el token sin cifrar.
 3. **El certificado del servidor, si es corporativo.** Un error `SSL certificate problem: unable to get local issuer certificate` indica que git no confía en la autoridad que firmó el certificado del servidor. Pide el certificado raíz (`.pem`) a TI y apúntalo solo para ese servidor:
 

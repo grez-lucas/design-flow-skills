@@ -113,13 +113,13 @@ Antes del commit, comprueba:
 - Todas las pantallas del mockup están convertidas, como vista o como escenario.
 - El archivo original no está en el repositorio, ni copiado ni renombrado, y ningún archivo de la carpeta de trabajo entró.
 
-Cuando la persona dé el visto bueno, haz commit y push a `main` del repositorio de diseño. El mensaje dice qué mockup se convirtió, qué épicas y vistas quedaron y qué tickets cubre.
+Cuando la persona dé el visto bueno, haz commit y push a la rama actual del repositorio de diseño, con el mensaje `diseno(<épica>): <resumen>`. El mensaje dice qué mockup se convirtió, qué épicas y vistas quedaron y qué tickets cubre. Si las vistas quedaron en más de una épica, en lugar de `<épica>` va el nombre del mockup, el de su archivo sin extensión, en minúsculas y con guiones, en el mensaje y en la rama (`diseno(panel-general): ...`, `diseno/panel-general`), y las épicas van en el cuerpo: es una sola conversión y un solo merge request la revisa entera.
 
 Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`, como lo deja `spec-a-html`; si no la tiene, agrégala, y crea el archivo si falta: las revisiones con Lavish de las otras skills escriben ahí archivos que no son diseño.
 
 Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add specs/<épica>/` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit, y tampoco va el mockup original si está en el repositorio. Revisa con `git status` que no quede nada más en el área de preparación.
 
-Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. Si el push falla por permisos, explica en simple que el TL da los accesos.
+Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación. El push va a la rama actual, con `git push` (o `git push -u origin HEAD` si la rama todavía no existe en el servidor). Si el servidor lo rechaza porque la rama está protegida, pasa el commit a una rama nueva con `git switch -c diseno/<épica>` y `git push -u origin diseno/<épica>`, deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que la rama está protegida, que las vistas quedaron en `diseno/<épica>` y que el TL las revisa y hace el merge request. Si esa rama ya existe, no la reemplaces: dilo y deja que el TL decida. Si el push falla por credenciales o por falta de acceso, explica el error en simple y que el TL es quien da los accesos.
 
 ```
 diseno(riego): convierte el mockup del panel de riego
