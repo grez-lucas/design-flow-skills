@@ -6,7 +6,8 @@ Uso, desde el repositorio de diseño o con --repo:
   python3 -B rama.py rechazo --tipo <spec|tickets|diseno> --epica <épica>
 
 revisar  antes de la primera escritura. Corre `git fetch`, mira la rama actual en el servidor y devuelve:
-         guardar  la rama actual es la principal del servidor o `<tipo>/<épica>` con upstream vivo.
+         guardar  la rama actual es la principal del servidor, o una rama del flujo de la épica con upstream vivo:
+                  `spec/`, `tickets/` o `diseno/<épica>`, con o sin sufijo (`-2`, `-3`).
          volver   el upstream de la rama actual ya no está en el servidor y todos sus commits están en alguna rama
                   de origin: volver a `principal` con `git switch` y `git pull --ff-only`, y guardar ahí.
          parar    cualquier otro caso, con `motivo` y `detalle`.
@@ -75,8 +76,12 @@ def upstream(git, rama):
     return merge[len("refs/heads/"):] if merge.startswith("refs/heads/") else None
 
 
-def es_de_la_epica(rama, tipo, epica):
-    return rama == f"{tipo}/{epica}"
+SUFIJO = r"(?:-(?:[2-9]|[1-9][0-9]+))?"
+
+
+def es_del_flujo(rama, nombre, tipos=TIPOS):
+    """`rama` es `<tipo>/<nombre>`, con o sin sufijo (`-2`, `-3`), para alguno de `tipos`."""
+    return re.fullmatch(rf"(?:{'|'.join(tipos)})/{re.escape(nombre)}{SUFIJO}", rama) is not None
 
 
 def revisar(git, args):
@@ -87,7 +92,7 @@ def revisar(git, args):
     if actual == principal:
         return {"accion": "guardar", "rama": actual}
     sigue = upstream(git, actual)
-    if sigue in ramas and es_de_la_epica(actual, args.tipo, args.epica):
+    if sigue in ramas and es_del_flujo(actual, args.epica):
         return {"accion": "guardar", "rama": actual}
     if sigue is not None and sigue not in ramas:
         pendientes = git.salida("rev-list", "--count", "HEAD", "--not", "--remotes=origin")

@@ -195,6 +195,38 @@ class AntesDeEscribir(Base):
         self.assertEqual(resultado, {"accion": "guardar", "rama": "main"})
 
 
+class RamasDelFlujoDeLaMismaEpica(Base):
+    """Q96: `spec/`, `tickets/` o `diseno/` de la misma épica, con o sin sufijo, con upstream vivo."""
+
+    def test_guarda_en_cualquier_rama_del_flujo_de_la_epica(self):
+        for rama in ("spec/riego", "tickets/riego", "diseno/riego", "spec/riego-2", "diseno/riego-12"):
+            for tipo in ("spec", "tickets", "diseno"):
+                with self.subTest(rama=rama, tipo=tipo):
+                    git("switch", "-q", "main", cwd=self.copia)
+                    if not git("rev-parse", "--verify", "--quiet", rama, cwd=self.copia, check=False).stdout:
+                        self.trabajar_en(rama)
+                    git("switch", "-q", rama, cwd=self.copia)
+                    self.assertEqual(self.revisar(tipo, "riego"), {"accion": "guardar", "rama": rama})
+
+    def test_un_prefijo_comun_no_es_la_misma_epica(self):
+        for rama in ("diseno/riegos", "diseno/riego-norte", "diseno/riego-1", "diseno/riego-02", "riego", "spec/riego/x"):
+            with self.subTest(rama=rama):
+                git("switch", "-q", "main", cwd=self.copia)
+                self.trabajar_en(rama)
+                resultado = self.revisar("diseno", "riego")
+                self.assertEqual((resultado["accion"], resultado["motivo"]), ("parar", "otra-rama"))
+
+    def test_la_rama_de_otra_epica_para(self):
+        self.trabajar_en("tickets/cosechas")
+        self.assertEqual(self.revisar("tickets", "riego")["motivo"], "otra-rama")
+
+    def test_epica_con_tilde(self):
+        self.trabajar_en("tickets/señales-de-riego")
+        self.assertEqual(self.revisar("diseno", "señales-de-riego"),
+                         {"accion": "guardar", "rama": "tickets/señales-de-riego"})
+        self.assertEqual(self.revisar("diseno", "senales-de-riego")["motivo"], "otra-rama")
+
+
 class Uso(Base):
     def falla(self, *args):
         resultado = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=self.copia, env=ENTORNO,
