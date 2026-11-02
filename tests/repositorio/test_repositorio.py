@@ -1,9 +1,5 @@
 import json
-import os
 import re
-import shlex
-import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -135,84 +131,15 @@ class MensajeYRamaDelCommit(unittest.TestCase):
             with self.subTest(archivo="README.md", encabezado=encontrado.group(0)):
                 self.assertIn(encontrado.group(1), set(self.TIPOS.values()))
 
-    def test_el_push_va_a_la_rama_actual_y_a_tipo_epica_si_la_proteccion_rechaza(self):
-        for skill, tipo in self.TIPOS.items():
-            with self.subTest(skill=skill):
-                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
-                self.assertIn("rama actual", texto)
-                self.assertIn(f"git switch -c {tipo}/<épica>", texto)
-                self.assertIn(f"git push -u origin {tipo}/<épica>", texto)
-                self.assertIn("merge request", texto)
-                # El camino del rechazo deja la rama de origen como en el servidor y no reescribe nada.
-                self.assertIn("`git branch -f <rama> origin/<rama>`", texto)
-                self.assertIn(self.SIN_ATAJOS, texto)
-                self.assertRegex(texto, r"no sea de credenciales")
-
-    def test_antes_de_guardar_revisa_la_rama_actual(self):
-        """Q90: fetch, principal o rama viva de la misma épica; upstream borrado sin commits pendientes vuelve a la principal."""
-        for skill, tipo in self.TIPOS.items():
-            with self.subTest(skill=skill):
-                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
-                for fragmento in ("`git fetch`", "`git ls-remote --exit-code --heads origin <rama>`",
-                                  "`git log --oneline @{upstream}..HEAD`", "`git switch <principal>` y `git pull --ff-only`",
-                                  "para y explica"):
-                    self.assertIn(fragmento, texto)
-                self.assertLess(texto.index("`git fetch`"), texto.index(f"git switch -c {tipo}/<épica>"))
-
-    def test_guarda_en_cualquier_rama_del_flujo_de_la_misma_epica(self):
-        """Q96: `spec/`, `tickets/` o `diseno/` de la misma épica, con o sin sufijo, con upstream vivo."""
-        for skill in self.TIPOS:
-            with self.subTest(skill=skill):
-                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
-                linea = next(l for l in texto.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
-                for rama in ("`spec/<épica>`", "`tickets/<épica>`", "`diseno/<épica>`", "con o sin sufijo"):
-                    self.assertIn(rama, linea)
+    def test_el_readme_explica_que_guarda_en_cualquier_rama_del_flujo_de_la_misma_epica(self):
+        """Q96 en el README; la regla la prueba tests/rama."""
         self.assertIn("cualquier rama del flujo de esa misma épica", self.readme())
-
-    def test_la_rama_nueva_toma_el_primer_sufijo_libre(self):
-        """Q91: si `<tipo>/<épica>` ya existe en local o en el servidor, `-2`, `-3`."""
-        for skill, tipo in self.TIPOS.items():
-            with self.subTest(skill=skill):
-                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
-                self.assertIn(f"`{tipo}/<épica>-2`", texto)
-                # `git branch -a --list` no ve las ramas que solo están en el servidor (remotes/origin/...).
-                self.assertNotIn("`git branch -a --list", texto)
-                self.assertIn(self.ramas_existentes(texto, tipo), [
-                    f"git for-each-ref --format='%(refname:short)' 'refs/heads/{tipo}/<épica>*' 'refs/remotes/origin/{tipo}/<épica>*'"])
-                self.assertNotIn("no la reemplaces", texto)
-
-    def ramas_existentes(self, texto, tipo):
-        ordenes = [o for o in re.findall(r"`(git for-each-ref [^`]*)`", texto) if f"{tipo}/<épica>" in o]
-        self.assertEqual(len(ordenes), 1, ordenes)
-        return ordenes[0]
-
-    def git(self, *args, cwd):
-        """Sin la configuración global ni la del sistema, para que local y CI corran igual."""
-        entorno = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
-        return subprocess.run(["git", "-c", "user.name=prueba", "-c", "user.email=prueba@example.com", *args],
-                              cwd=cwd, env=entorno, check=True, capture_output=True, text=True).stdout
-
-    def test_la_orden_de_ramas_existentes_ve_las_locales_y_las_que_solo_estan_en_el_servidor(self):
-        """Q91: la orden que da la skill lista `<tipo>/<épica>` del servidor aunque no exista en local."""
-        for skill, tipo in self.TIPOS.items():
-            with self.subTest(skill=skill), tempfile.TemporaryDirectory() as tmp:
-                orden = self.ramas_existentes((SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"), tipo)
-                servidor, otra, copia = Path(tmp, "servidor.git"), Path(tmp, "otra"), Path(tmp, "copia")
-                self.git("init", "-q", "--bare", "--initial-branch=main", str(servidor), cwd=tmp)
-                self.git("clone", "-q", str(servidor), str(otra), cwd=tmp)
-                self.git("commit", "-q", "--allow-empty", "-m", "inicio", cwd=otra)
-                for rama in ("main", f"{tipo}/riego", f"{tipo}/huerta"):
-                    self.git("push", "-q", "origin", f"HEAD:{rama}", cwd=otra)
-                self.git("clone", "-q", str(servidor), str(copia), cwd=tmp)
-                self.git("branch", f"{tipo}/riego-2", cwd=copia)
-                salida = self.git(*shlex.split(orden.replace("<épica>", "riego"))[1:], cwd=copia)
-                self.assertEqual(set(salida.split()), {f"origin/{tipo}/riego", f"{tipo}/riego-2"})
 
     def test_nada_asume_push_a_la_rama_principal_ni_lo_fuerza(self):
         archivos = {"README.md": self.readme()}
         for skill in self.TIPOS:
             archivos.update(self.textos(skill))
-        pushes = {"git push", "git push --dry-run"} | {f"git push -u origin {t}/<épica>" for t in self.TIPOS.values()}
+        pushes = {"git push", "git push --dry-run", "git push -u origin <rama_nueva>"}
         for archivo, texto in archivos.items():
             with self.subTest(archivo=archivo):
                 self.assertNotRegex(texto, r"push a (`(main|master)`|(main|master)\b|la rama principal)")
@@ -230,20 +157,6 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         titulo = rf"### {re.escape(nombre)}\n" if not nombre.isdigit() else rf"### {nombre}\. [^\n]*\n"
         return re.search(rf"^{titulo}.*?(?=^##)", texto, re.S | re.M).group(0)
 
-    def test_la_rama_se_revisa_antes_de_la_primera_escritura(self):
-        """Q90: el `git fetch` y la revisión de la rama van donde se ubica el repositorio, no en el paso que guarda."""
-        for skill, tipo in self.TIPOS.items():
-            with self.subTest(skill=skill):
-                rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
-                for fragmento in ("`git fetch`", "`git ls-remote --exit-code --heads origin <rama>`", "para y explica"):
-                    self.assertIn(fragmento, rama)
-                guardar = self.paso(skill, self.PASO_GUARDAR[skill])
-                for fragmento in ("`git push`", f"git switch -c {tipo}/<épica>", "merge request"):
-                    self.assertIn(fragmento, guardar)
-                if rama != guardar:
-                    self.assertNotIn("`git fetch`", guardar)
-                    self.assertNotIn("`git ls-remote", guardar)
-
     def test_solo_las_credenciales_quedan_fuera_de_la_rama_nueva(self):
         """Q90: todo rechazo que no sea de credenciales va por la rama nueva; "acceso" no amplía la excepción."""
         archivos = {"README.md": self.readme()}
@@ -259,74 +172,9 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         self.assertIn("`diseno(<mockup>): <resumen>`", texto)
         self.assertIn("`diseno/<mockup>`", texto)
         self.assertRegex(texto, r"las épicas van en el cuerpo")
-        rama = next(l for l in texto.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
-        self.assertIn("o `diseno/<mockup>` si la conversión es de varias épicas", rama)
-        guardar = self.paso("html-a-vista", "9")
-        self.assertRegex(guardar, r"rama nueva es `diseno/<épica>`[^\n]*`diseno/<mockup>`")
         for skill in ("grilling-es", "spec-a-tickets", "spec-a-html"):
             with self.subTest(skill=skill):
                 self.assertNotIn("<mockup>", (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"))
-
-    def test_html_a_vista_no_guarda_varias_epicas_en_la_rama_de_una_sola(self):
-        """Q97: para, explica y ofrece la principal y `diseno/<mockup>`; cambia solo con el sí y el árbol sin cambios."""
-        rama = self.paso("html-a-vista", "5")
-        linea = next((l for l in rama.splitlines() if "de una sola de ellas" in l), "")
-        self.assertTrue(linea, "el paso 5 no trata la rama de una sola de las épicas")
-        for fragmento in ("varias épicas", "`spec/`, `tickets/` o `diseno/`", "y la rama sigue en el servidor",
-                          "no guardes ahí", "para y explica", "ofrece volver a la principal",
-                          "`git pull --ff-only`", "`diseno/<mockup>`", "solo con el sí de la persona",
-                          "`git status --porcelain --untracked-files=no`", "si hay cambios sin guardar, solo explica"):
-            self.assertIn(fragmento, linea)
-        # La rama de la misma épica no puede ganarle: la parada va antes.
-        misma = next(l for l in rama.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
-        self.assertLess(rama.index(linea), rama.index(misma))
-        guardar = self.paso("html-a-vista", "9")
-        self.assertIn("si el paso 5 creó `diseno/<mockup>`", guardar)
-        self.assertIn("de una sola de ellas", self.readme())
-
-    def linea_de_una_sola(self):
-        rama = self.paso("html-a-vista", "5")
-        linea = next((l for l in rama.splitlines() if "de una sola de ellas" in l), "")
-        self.assertTrue(linea, "el paso 5 no trata la rama de una sola de las épicas")
-        return linea
-
-    def test_html_a_vista_en_la_rama_de_una_sola_para_antes_de_escribir(self):
-        """Q97: la viñeta abre con la negativa, para antes de escribir y gana aunque el mockup se llame como la épica."""
-        linea = self.linea_de_una_sola()
-        self.assertIn("con o sin sufijo, y la rama sigue en el servidor: no guardes ahí", linea)
-        self.assertNotRegex(linea, r"guarda(r)? (en esa rama|ahí)")
-        self.assertIn("Antes de escribir nada, para y explica", linea)
-        self.assertIn("aunque `<mockup>` coincida con el nombre de esa épica", linea)
-
-    def test_html_a_vista_revisa_el_arbol_sin_contar_lo_que_no_tiene_seguimiento(self):
-        """Q97: `npx skills` y el mockup dejan archivos sin seguimiento; el árbol se revisa antes de ofrecer."""
-        linea = self.linea_de_una_sola()
-        arbol = "`git status --porcelain --untracked-files=no`"
-        self.assertNotIn("`git status --porcelain`", linea)
-        self.assertIn(arbol, linea)
-        self.assertLess(linea.index(arbol), linea.index("ofrece volver a la principal"))
-        self.assertIn(f"solo con el sí de la persona y si {arbol} no muestra nada", linea)
-
-    def test_html_a_vista_ofrece_la_principal_y_diseno_mockup_con_o_sin_sufijo(self):
-        """Q97 y Q91: vuelve con `git switch <principal>` y crea `diseno/<mockup>`, o el primer sufijo libre."""
-        linea = self.linea_de_una_sola()
-        self.assertIn("ofrece volver a la principal con `git switch <principal>` y `git pull --ff-only`", linea)
-        self.assertIn("con `git switch -c diseno/<mockup>`, o con el primer sufijo libre si ya existe (paso 9)", linea)
-
-    def test_html_a_vista_sin_el_si_o_con_un_fallo_para_y_dice_donde_quedo(self):
-        """Q97: si un comando falla a mitad de camino, la persona sabe en qué rama quedó y a quién recurrir."""
-        linea = self.linea_de_una_sola()
-        self.assertIn("Sin el sí, o si un comando falla, para y explica en qué rama quedaste y que el TL dice cómo seguir.",
-                      linea)
-
-    def test_html_a_vista_empuja_la_rama_del_paso_5_y_su_rechazo_para(self):
-        """Q98: la `diseno/<mockup>` del paso 5 se empuja con upstream; si el servidor la rechaza, explica y para."""
-        guardar = self.paso("html-a-vista", "9")
-        self.assertIn("si el paso 5 creó `diseno/<mockup>`, empújala con `git push -u origin diseno/<épica>`, "
-                      "con `<mockup>` en lugar de `<épica>` y con el sufijo si lo lleva", guardar)
-        self.assertIn("Si el servidor rechaza el push de la `diseno/<mockup>` que creó el paso 5, cuenta como el rechazo "
-                      "de la rama nueva: explica el error en simple y que el TL es quien da los accesos, y para, "
-                      "sin `git branch -f` ni otro sufijo.", guardar)
 
     def test_el_readme_explica_la_rama_de_una_sola_de_varias_epicas(self):
         """Q97 en el README: no guarda, para, ofrece la principal y cambia solo con el sí y el árbol sin cambios."""
@@ -371,6 +219,116 @@ class CopiasDeRama(unittest.TestCase):
     def test_ninguna_otra_skill_tiene_copia(self):
         con_copia = {r.parents[1].name for r in SKILLS.rglob("rama.py")}
         self.assertEqual(con_copia, set(CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT))
+
+
+class LlamadaARama(unittest.TestCase):
+    """Q100 a Q102: la skill corre `rama.py`, hace lo que dice cada acción y, sin `python3`, para sin guardar. Las
+    reglas de la rama las prueba `tests/rama` contra repositorios git reales."""
+
+    TIPOS = MensajeYRamaDelCommit.TIPOS
+    PASO_DE_LA_RAMA = MensajeYRamaDelCommit.PASO_DE_LA_RAMA
+    PASO_GUARDAR = MensajeYRamaDelCommit.PASO_GUARDAR
+    SIN_PYTHON = "Si `python3` no está, para y no guardes: explica en simple que falta Python y que se instala desde "
+
+    def paso(self, skill, nombre):
+        return MensajeYRamaDelCommit.paso(self, skill, nombre)
+
+    def tras(self, skill, nombre, orden):
+        """Lo que la skill dice después de correr `rama.py <orden>`, hasta la siguiente llamada al script."""
+        texto = self.paso(skill, nombre)
+        inicio = texto.index(f"/scripts/rama.py {orden} ")
+        fin = texto.find("/scripts/rama.py ", inicio + 1)
+        return texto[inicio:fin if fin != -1 else len(texto)]
+
+    def accion(self, texto, accion):
+        lineas = [l for l in texto.splitlines() if l.startswith(f"- `{accion}`: ")]
+        self.assertEqual(len(lineas), 1, f"no hay una viñeta para `{accion}`")
+        return lineas[0]
+
+    def test_revisa_la_rama_con_el_script_antes_de_la_primera_escritura(self):
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill):
+                rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
+                self.assertIn(f"python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo {tipo} --epica <épica>", rama)
+                guardar = self.paso(skill, self.PASO_GUARDAR[skill])
+                if rama != guardar:
+                    self.assertNotIn("rama.py revisar", guardar)
+
+    def test_dice_que_hacer_con_cada_accion_de_revisar(self):
+        for skill in self.TIPOS:
+            with self.subTest(skill=skill):
+                rama = self.tras(skill, self.PASO_DE_LA_RAMA[skill], "revisar")
+                self.assertIn("guarda en la rama actual", self.accion(rama, "guardar"))
+                volver = self.accion(rama, "volver")
+                for fragmento in ("`git switch <principal>`", "`git pull --ff-only`", "Si uno falla, para y explica"):
+                    self.assertIn(fragmento, volver)
+                parar = self.accion(rama, "parar")
+                for fragmento in ("no escribas", "`detalle`", "el TL dice cómo seguir"):
+                    self.assertIn(fragmento, parar)
+
+    def test_sin_python3_para_y_no_guarda(self):
+        for skill in self.TIPOS:
+            with self.subTest(skill=skill):
+                rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
+                self.assertIn(self.SIN_PYTHON + "https://www.python.org/downloads/", rama)
+                self.assertLess(rama.index(self.SIN_PYTHON), rama.index("- `guardar`: "))
+
+    def test_tras_un_rechazo_pide_la_rama_nueva_al_script(self):
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill):
+                guardar = self.paso(skill, self.PASO_GUARDAR[skill])
+                orden = f"python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo {tipo} --epica <épica>"
+                self.assertIn(orden, guardar)
+                for fragmento in ("El push va a la rama actual, con `git push`", "no sea de credenciales",
+                                  MensajeYRamaDelCommit.SIN_ATAJOS):
+                    self.assertIn(fragmento, guardar)
+                self.assertLess(guardar.index("no sea de credenciales"), guardar.index(orden))
+                guardar = self.tras(skill, self.PASO_GUARDAR[skill], "rechazo")
+                nueva = self.accion(guardar, "rama-nueva")
+                for fragmento in ("`git switch -c <rama_nueva>`", "`git push -u origin <rama_nueva>`",
+                                  "`git branch -f <rama> origin/<rama>`", "merge request"):
+                    self.assertIn(fragmento, nueva)
+                self.assertIn("el TL es quien da los accesos", self.accion(guardar, "parar"))
+
+    def test_las_reglas_viven_en_el_script_y_no_en_el_texto(self):
+        for skill in self.TIPOS:
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                for regla in ("`git fetch`", "git ls-remote", "git for-each-ref", "@{upstream}", "--untracked-files"):
+                    self.assertNotIn(regla, texto)
+
+    def test_html_a_vista_pasa_el_mockup_y_las_epicas_si_son_varias(self):
+        rama = self.paso("html-a-vista", "5")
+        self.assertIn("`--mockup <mockup> --epicas <épica>,<épica>`", rama)
+        self.assertIn("pasa `--mockup <mockup>` en lugar de `--epica <épica>`", self.paso("html-a-vista", "9"))
+        for skill in ("grilling-es", "spec-a-tickets", "spec-a-html"):
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertNotIn("--mockup", texto)
+                self.assertNotIn("`ofrecer`", texto)
+
+    def test_html_a_vista_cambia_de_rama_con_ofrecer_solo_con_el_si(self):
+        """Q97: antes de escribir nada explica y ofrece; sin el sí o con un fallo, para y dice dónde quedó."""
+        ofrecer = self.accion(self.tras("html-a-vista", "5", "revisar"), "ofrecer")
+        for fragmento in ("no guardes ahí", "Antes de escribir nada", "ofrece volver a la principal y guardar en `rama_nueva`",
+                          "Solo con el sí de la persona", "`git switch <principal>`", "`git pull --ff-only`",
+                          "`git switch -c <rama_nueva>`",
+                          "Sin el sí, o si un comando falla, para y explica en qué rama quedaste y que el TL dice cómo seguir."):
+            self.assertIn(fragmento, ofrecer)
+        self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index("`git switch <principal>`"))
+
+    def test_html_a_vista_empuja_con_upstream_la_rama_de_ofrecer(self):
+        """Q98: la rama de `ofrecer` se empuja con `-u`; si el servidor la rechaza, `rechazo` devuelve `parar`."""
+        guardar = self.paso("html-a-vista", "9")
+        self.assertIn("si el paso 5 creó la rama de `ofrecer`, con `git push -u origin <rama_nueva>`", guardar)
+
+    def test_el_readme_pide_python_para_guardar(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        requisitos = re.search(r"^## Requisitos\n.*?(?=^## )", readme, re.S | re.M).group(0)
+        fila = next((l for l in requisitos.splitlines() if l.startswith("| `python3`") and "rama.py" in l), "")
+        self.assertTrue(fila, "Requisitos no lista python3 para rama.py")
+        for skill in self.TIPOS:
+            self.assertIn(f"`{skill}`", fila)
 
 
 class PunteroALasConvenciones(unittest.TestCase):
