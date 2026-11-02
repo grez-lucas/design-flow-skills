@@ -267,6 +267,23 @@ class MensajeYRamaDelCommit(unittest.TestCase):
             with self.subTest(skill=skill):
                 self.assertNotIn("<mockup>", (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"))
 
+    def test_html_a_vista_no_guarda_varias_epicas_en_la_rama_de_una_sola(self):
+        """Q97: para, explica y ofrece la principal y `diseno/<mockup>`; cambia solo con el sí y el árbol sin cambios."""
+        rama = self.paso("html-a-vista", "5")
+        linea = next((l for l in rama.splitlines() if "de una sola de ellas" in l), "")
+        self.assertTrue(linea, "el paso 5 no trata la rama de una sola de las épicas")
+        for fragmento in ("varias épicas", "`spec/`, `tickets/` o `diseno/`", "y la rama sigue en el servidor",
+                          "no guardes ahí", "para y explica", "ofrece volver a la principal",
+                          "`git pull --ff-only`", "`diseno/<mockup>`", "solo con el sí de la persona",
+                          "`git status --porcelain`", "si hay cambios sin guardar, solo explica"):
+            self.assertIn(fragmento, linea)
+        # La rama de la misma épica no puede ganarle: la parada va antes.
+        misma = next(l for l in rama.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
+        self.assertLess(rama.index(linea), rama.index(misma))
+        guardar = self.paso("html-a-vista", "9")
+        self.assertIn("si el paso 5 creó `diseno/<mockup>`", guardar)
+        self.assertIn("de una sola de ellas", self.readme())
+
     def test_ningun_ejemplo_usa_otro_tipo_de_commit(self):
         """Q86: un ejemplo `feat: ...` o `docs(x): ...` contradice el tipo fijo de cada skill, con o sin paréntesis."""
         otros = r"(?<![\w/-])(feat|fix|docs|chore|refactor|test|style|perf|build|ci)(\([^)\n]*\))?!?: \S"
