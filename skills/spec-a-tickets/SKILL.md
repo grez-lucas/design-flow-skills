@@ -46,12 +46,17 @@ Una ruta local solo existe en las máquinas que la tienen: si las convenciones e
 
 Si la persona dice que no hay convenciones, no escribas el puntero: usa la plantilla de `references/plantilla-story.md` y pregunta solo lo que no puedes ver: si hay tracker y cuál. Sin tracker, los tickets van como archivos markdown.
 
-Si la sesión va a escribir en el repositorio de diseño (el puntero de este paso, los tickets como archivos del paso 7 o el spec congelado del paso 8), antes del primer archivo corre `git fetch` y mira en qué rama estás: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar:
+Si la sesión va a escribir en el repositorio de diseño (el puntero de este paso, los tickets como archivos del paso 7 o el spec congelado del paso 8), antes del primer archivo decide la rama: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
 
-- En la rama principal (la que muestra `git symbolic-ref --short refs/remotes/origin/HEAD`, sin `origin/`; si no responde, la línea `HEAD branch` de `git remote show origin`): guarda ahí.
-- En cualquier rama del flujo de esta misma épica, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, con o sin sufijo (`-2`, `-3`): guarda ahí si la rama sigue en el servidor (`git ls-remote --exit-code --heads origin <rama>` termina sin error), para que el merge request que ya está abierto sume este trabajo.
-- En una rama que ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró: si `git log --oneline @{upstream}..HEAD` no muestra commits, vuelve a la principal con `git switch <principal>` y `git pull --ff-only`, y guarda ahí. Si muestra commits, si no puede comparar o si `git switch` o `git pull --ff-only` fallan, para y explica.
-- En cualquier otra rama, para y explica en simple en qué rama estás, que el trabajo de esta épica no va ahí y que el TL dice cómo seguir.
+```
+python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo tickets --epica <épica>
+```
+
+Si `python3` no está, para y no guardes: explica en simple que falta Python y que se instala desde https://www.python.org/downloads/. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
+
+- `guardar`: guarda en la rama actual.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y no tiene commits pendientes. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
+- `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
 
 ### 4. Cortar
 
@@ -123,7 +128,10 @@ Agrega solo lo que escribiste:
 
 Nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
-La rama quedó revisada en el paso 3. El push va a la rama actual, con `git push`. Si el servidor lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), pasa el commit a una rama nueva, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. La rama nueva es `tickets/<épica>` o, si ya existe en local o en el servidor, el primer sufijo libre: `tickets/<épica>-2`, `-3`; `git for-each-ref --format='%(refname:short)' 'refs/heads/tickets/<épica>*' 'refs/remotes/origin/tickets/<épica>*'` muestra las que hay, en local y en el servidor. Créala con `git switch -c tickets/<épica>` y empújala con `git push -u origin tickets/<épica>`, con el sufijo si lo lleva; deja la rama de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`, y explica en simple que el servidor no aceptó el cambio en esa rama, que los tickets quedaron en la rama nueva y que el TL revisa y hace el merge request. Si el push falla por credenciales, porque el servidor no reconoce el usuario o el token, o si también rechaza la rama nueva, explica el error en simple y que el TL es quien da los accesos.
+La rama quedó revisada en el paso 3. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva con `python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo tickets --epica <épica>`.
+
+- `rama-nueva`: pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica en simple que el servidor no aceptó el cambio en esa rama, que los tickets quedaron en la rama nueva y que el TL revisa y hace el merge request.
+- `parar`: el servidor rechazó también la rama nueva. Explica el error en simple y que el TL es quien da los accesos.
 
 ### 10. Cerrar
 
