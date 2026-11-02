@@ -1,5 +1,8 @@
 import json
 import re
+import shlex
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -171,8 +174,36 @@ class MensajeYRamaDelCommit(unittest.TestCase):
             with self.subTest(skill=skill):
                 texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
                 self.assertIn(f"`{tipo}/<épica>-2`", texto)
-                self.assertIn("`git branch -a --list", texto)
+                # `git branch -a --list` no ve las ramas que solo están en el servidor (remotes/origin/...).
+                self.assertNotIn("`git branch -a --list", texto)
+                self.assertIn(self.ramas_existentes(texto, tipo), [
+                    f"git for-each-ref --format='%(refname:short)' 'refs/heads/{tipo}/<épica>*' 'refs/remotes/origin/{tipo}/<épica>*'"])
                 self.assertNotIn("no la reemplaces", texto)
+
+    def ramas_existentes(self, texto, tipo):
+        ordenes = [o for o in re.findall(r"`(git for-each-ref [^`]*)`", texto) if f"{tipo}/<épica>" in o]
+        self.assertEqual(len(ordenes), 1, ordenes)
+        return ordenes[0]
+
+    def git(self, *args, cwd):
+        return subprocess.run(["git", "-c", "user.name=prueba", "-c", "user.email=prueba@example.com", *args],
+                              cwd=cwd, check=True, capture_output=True, text=True).stdout
+
+    def test_la_orden_de_ramas_existentes_ve_las_locales_y_las_que_solo_estan_en_el_servidor(self):
+        """Q91: la orden que da la skill lista `<tipo>/<épica>` del servidor aunque no exista en local."""
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill), tempfile.TemporaryDirectory() as tmp:
+                orden = self.ramas_existentes((SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"), tipo)
+                servidor, otra, copia = Path(tmp, "servidor.git"), Path(tmp, "otra"), Path(tmp, "copia")
+                self.git("init", "-q", "--bare", str(servidor), cwd=tmp)
+                self.git("clone", "-q", str(servidor), str(otra), cwd=tmp)
+                self.git("commit", "-q", "--allow-empty", "-m", "inicio", cwd=otra)
+                for rama in ("main", f"{tipo}/riego", f"{tipo}/huerta"):
+                    self.git("push", "-q", "origin", f"HEAD:{rama}", cwd=otra)
+                self.git("clone", "-q", str(servidor), str(copia), cwd=tmp)
+                self.git("branch", f"{tipo}/riego-2", cwd=copia)
+                salida = self.git(*shlex.split(orden.replace("<épica>", "riego"))[1:], cwd=copia)
+                self.assertEqual(set(salida.split()), {f"origin/{tipo}/riego", f"{tipo}/riego-2"})
 
     def test_nada_asume_push_a_la_rama_principal_ni_lo_fuerza(self):
         archivos = {"README.md": self.readme()}
