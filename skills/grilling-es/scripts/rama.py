@@ -12,8 +12,9 @@ revisar  antes de la primera escritura. Corre `git fetch`, mira la rama actual e
                   de origin: volver a `principal` con `git switch` y `git pull --ff-only`, y guardar ahí.
          parar    cualquier otro caso, con `motivo` y `detalle`.
 
-rechazo  después de que el servidor rechazó el push por algo que no son credenciales. Devuelve `rama-nueva` con el
-         nombre libre.
+rechazo  después de que el servidor rechazó el push a la rama actual por algo que no son credenciales. Devuelve
+         `rama-nueva` con `rama`, la actual, y `rama_nueva`: `<tipo>/<épica>` o, si ya existe en local o en el
+         servidor, el primer sufijo libre (`-2`, `-3`).
 
 Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, o una épica que no sirve como nombre
 de rama, sale con 2 sin escribir en stdout.
@@ -103,6 +104,27 @@ def revisar(git, args):
     raise Parada("otra-rama", f"La rama {actual} no es la principal ni una rama de esta épica en el servidor.", actual)
 
 
+def primera_libre(git, ramas_del_servidor, base):
+    """`base`, o `base-2`, `base-3`... la primera que no existe en local ni en el servidor."""
+    locales = set((git.salida("for-each-ref", "--format=%(refname:short)", "refs/heads") or "").splitlines())
+    ocupadas = locales | ramas_del_servidor
+    if base not in ocupadas:
+        return base
+    n = 2
+    while f"{base}-{n}" in ocupadas:
+        n += 1
+    return f"{base}-{n}"
+
+
+def rechazo(git, args):
+    _, ramas = servidor(git)
+    actual = git.salida("symbolic-ref", "--quiet", "--short", "HEAD")
+    if not actual:
+        raise Parada("sin-rama", "La copia no está en ninguna rama.")
+    return {"accion": "rama-nueva", "rama": actual,
+            "rama_nueva": primera_libre(git, ramas, f"{args.tipo}/{args.epica}")}
+
+
 def nombre_valido(valor):
     """Letras, con o sin tilde, y números, separados por guiones; y que git lo acepte como rama."""
     if not re.fullmatch(r"[^\W_]+(?:-[^\W_]+)*", valor):
@@ -128,7 +150,7 @@ def main(argv=None):
     args = argumentos(argv)
     git = Git(args.repo)
     try:
-        salida = revisar(git, args)
+        salida = (revisar if args.orden == "revisar" else rechazo)(git, args)
     except Parada as parada:
         salida = parada.salida
     print(json.dumps(salida))

@@ -227,6 +227,91 @@ class RamasDelFlujoDeLaMismaEpica(Base):
         self.assertEqual(self.revisar("diseno", "senales-de-riego")["motivo"], "otra-rama")
 
 
+class RamaNuevaTrasUnRechazo(Base):
+    """Q86 y Q91: si el servidor rechaza el push a la rama actual, `<tipo>/<épica>` o el primer sufijo libre."""
+
+    def rechazo(self, tipo, epica):
+        return self.rama("rechazo", "--tipo", tipo, "--epica", epica)
+
+    def empujar_rechazado(self):
+        """Un commit nuevo en la rama actual que el servidor no acepta."""
+        self.commit(self.copia, "trabajo")
+        empuje = git("push", "-q", cwd=self.copia, check=False)
+        self.assertNotEqual(empuje.returncode, 0, "el servidor aceptó el push")
+
+    def test_principal_protegida_da_tipo_epica(self):
+        self.proteger("main")
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("spec", "riego"), {"accion": "rama-nueva", "rama": "main", "rama_nueva": "spec/riego"})
+
+    def test_rama_viva_con_cambios_que_la_copia_no_tiene(self):
+        self.trabajar_en("spec/riego")
+        git("fetch", "-q", cwd=self.otra)
+        git("switch", "-q", "spec/riego", cwd=self.otra)
+        self.commit(self.otra, "de-otra-persona")
+        git("push", "-q", cwd=self.otra)
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("tickets", "riego"),
+                         {"accion": "rama-nueva", "rama": "spec/riego", "rama_nueva": "tickets/riego"})
+
+    def test_ocupada_en_local(self):
+        self.proteger("main")
+        git("branch", "spec/riego", cwd=self.copia)
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("spec", "riego")["rama_nueva"], "spec/riego-2")
+
+    def test_ocupada_solo_en_el_servidor(self):
+        self.proteger("main")
+        self.en_el_servidor("spec/riego")
+        self.empujar_rechazado()
+        self.assertNotIn("origin/spec/riego", git("branch", "-a", cwd=self.copia).stdout)
+        self.assertEqual(self.rechazo("spec", "riego")["rama_nueva"], "spec/riego-2")
+
+    def test_primer_sufijo_libre_entre_local_y_servidor(self):
+        self.proteger("main")
+        self.en_el_servidor("diseno/riego", "diseno/riego-3")
+        git("branch", "diseno/riego-2", cwd=self.copia)
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("diseno", "riego")["rama_nueva"], "diseno/riego-4")
+
+    def test_un_hueco_en_los_sufijos_se_usa(self):
+        self.proteger("main")
+        self.en_el_servidor("diseno/riego", "diseno/riego-3")
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("diseno", "riego")["rama_nueva"], "diseno/riego-2")
+
+    def test_un_prefijo_comun_no_ocupa_el_nombre(self):
+        self.proteger("main")
+        self.en_el_servidor("spec/riegos", "spec/riegos-2")
+        git("branch", "spec/riego-norte", cwd=self.copia)
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("spec", "riego")["rama_nueva"], "spec/riego")
+
+    def test_otro_tipo_no_ocupa_el_nombre(self):
+        self.proteger("main")
+        self.en_el_servidor("spec/riego")
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("tickets", "riego")["rama_nueva"], "tickets/riego")
+
+    def test_epica_con_tilde(self):
+        self.proteger("main")
+        self.en_el_servidor("diseno/señales")
+        self.empujar_rechazado()
+        self.assertEqual(self.rechazo("diseno", "señales")["rama_nueva"], "diseno/señales-2")
+
+    def test_la_rama_nueva_se_puede_crear_y_empujar(self):
+        self.proteger("main")
+        self.en_el_servidor("spec/riego")
+        self.empujar_rechazado()
+        antes = self.estado()
+        nueva = self.rechazo("spec", "riego")["rama_nueva"]
+        self.assertEqual(self.estado(), antes)
+        git("switch", "-q", "-c", nueva, cwd=self.copia)
+        git("push", "-q", "-u", "origin", nueva, cwd=self.copia)
+        git("branch", "-f", "main", "origin/main", cwd=self.copia)
+        self.assertIn(f"refs/heads/{nueva}", git("ls-remote", "--heads", "origin", cwd=self.copia).stdout)
+
+
 class Uso(Base):
     def falla(self, *args):
         resultado = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=self.copia, env=ENTORNO,
