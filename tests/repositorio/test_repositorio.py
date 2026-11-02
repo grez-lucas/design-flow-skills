@@ -250,6 +250,20 @@ class MensajeYRamaDelCommit(unittest.TestCase):
             with self.subTest(archivo=archivo):
                 self.assertNotRegex(texto, r"credenciales o (de|por falta de|sin) acceso")
 
+    def test_html_a_vista_nombra_commit_y_rama_por_el_mockup_si_cubre_varias_epicas(self):
+        """Q92: `diseno(<mockup>)` y `diseno/<mockup>`, con las épicas en el cuerpo; esa rama sirve como rama del flujo."""
+        texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`diseno(<mockup>): <resumen>`", texto)
+        self.assertIn("`diseno/<mockup>`", texto)
+        self.assertRegex(texto, r"las épicas van en el cuerpo")
+        rama = next(l for l in texto.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
+        self.assertIn("o `diseno/<mockup>` si la conversión es de varias épicas", rama)
+        guardar = self.paso("html-a-vista", "9")
+        self.assertRegex(guardar, r"rama nueva es `diseno/<épica>`[^\n]*`diseno/<mockup>`")
+        for skill in ("grilling-es", "spec-a-tickets", "spec-a-html"):
+            with self.subTest(skill=skill):
+                self.assertNotIn("<mockup>", (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"))
+
     def test_el_readme_explica_la_rama_actual_y_el_camino_del_rechazo(self):
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         self.assertIn("rama actual", readme)
