@@ -392,6 +392,35 @@ class VariasEpicas(Base):
                          {"accion": "rama-nueva", "rama": "diseno/panel-general", "rama_nueva": "diseno/panel-general-2"})
 
 
+class RechazoDeLaRamaNueva(Base):
+    """Q90 y Q98: si el servidor rechaza también la rama nueva, o la `diseno/<mockup>` creada tras el sí, para sin
+    probar otro sufijo."""
+
+    def test_rechazo_de_diseno_mockup_creada_tras_el_si_para(self):
+        self.trabajar_en("spec/riego")
+        oferta = self.rama("revisar", "--tipo", "diseno", "--mockup", "panel-general", "--epicas", "riego,cosechas")
+        self.assertEqual(oferta["accion"], "ofrecer")
+        git("switch", "-q", oferta["principal"], cwd=self.copia)
+        git("pull", "-q", "--ff-only", cwd=self.copia)
+        git("switch", "-q", "-c", oferta["rama_nueva"], cwd=self.copia)
+        self.proteger(oferta["rama_nueva"])
+        self.commit(self.copia, "vistas")
+        self.assertNotEqual(git("push", "-q", "-u", "origin", oferta["rama_nueva"], cwd=self.copia, check=False).returncode, 0)
+        resultado = self.rama("rechazo", "--tipo", "diseno", "--mockup", "panel-general")
+        self.assertEqual((resultado["accion"], resultado["motivo"], resultado["rama"]),
+                         ("parar", "rama-nueva-rechazada", "diseno/panel-general"))
+        self.assertNotIn("rama_nueva", resultado)
+
+    def test_rechazo_de_la_rama_nueva_tras_otro_rechazo_para(self):
+        self.proteger("main", "spec/riego")
+        self.commit(self.copia, "spec")
+        self.assertNotEqual(git("push", "-q", cwd=self.copia, check=False).returncode, 0)
+        nueva = self.rama("rechazo", "--tipo", "spec", "--epica", "riego")["rama_nueva"]
+        git("switch", "-q", "-c", nueva, cwd=self.copia)
+        self.assertNotEqual(git("push", "-q", "-u", "origin", nueva, cwd=self.copia, check=False).returncode, 0)
+        self.assertEqual(self.rama("rechazo", "--tipo", "spec", "--epica", "riego")["motivo"], "rama-nueva-rechazada")
+
+
 class Uso(Base):
     def falla(self, *args):
         resultado = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=self.copia, env=ENTORNO,
