@@ -264,6 +264,16 @@ class MensajeYRamaDelCommit(unittest.TestCase):
             with self.subTest(skill=skill):
                 self.assertNotIn("<mockup>", (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"))
 
+    def test_ningun_ejemplo_usa_otro_tipo_de_commit(self):
+        """Q86: un ejemplo `feat: ...` o `docs(x): ...` contradice el tipo fijo de cada skill, con o sin paréntesis."""
+        otros = r"(?<![\w/-])(feat|fix|docs|chore|refactor|test|style|perf|build|ci)(\([^)\n]*\))?!?: \S"
+        archivos = {"README.md": self.readme()}
+        for skill in self.TIPOS:
+            archivos.update(self.textos(skill))
+        for archivo, texto in archivos.items():
+            with self.subTest(archivo=archivo):
+                self.assertNotRegex(texto, otros)
+
     def test_el_readme_explica_la_rama_actual_y_el_camino_del_rechazo(self):
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         self.assertIn("rama actual", readme)
