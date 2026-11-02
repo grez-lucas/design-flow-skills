@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -186,8 +187,10 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         return ordenes[0]
 
     def git(self, *args, cwd):
+        """Sin la configuración global ni la del sistema, para que local y CI corran igual."""
+        entorno = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
         return subprocess.run(["git", "-c", "user.name=prueba", "-c", "user.email=prueba@example.com", *args],
-                              cwd=cwd, check=True, capture_output=True, text=True).stdout
+                              cwd=cwd, env=entorno, check=True, capture_output=True, text=True).stdout
 
     def test_la_orden_de_ramas_existentes_ve_las_locales_y_las_que_solo_estan_en_el_servidor(self):
         """Q91: la orden que da la skill lista `<tipo>/<épica>` del servidor aunque no exista en local."""
@@ -195,7 +198,7 @@ class MensajeYRamaDelCommit(unittest.TestCase):
             with self.subTest(skill=skill), tempfile.TemporaryDirectory() as tmp:
                 orden = self.ramas_existentes((SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"), tipo)
                 servidor, otra, copia = Path(tmp, "servidor.git"), Path(tmp, "otra"), Path(tmp, "copia")
-                self.git("init", "-q", "--bare", str(servidor), cwd=tmp)
+                self.git("init", "-q", "--bare", "--initial-branch=main", str(servidor), cwd=tmp)
                 self.git("clone", "-q", str(servidor), str(otra), cwd=tmp)
                 self.git("commit", "-q", "--allow-empty", "-m", "inicio", cwd=otra)
                 for rama in ("main", f"{tipo}/riego", f"{tipo}/huerta"):
