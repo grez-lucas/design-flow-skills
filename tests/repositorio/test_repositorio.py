@@ -275,7 +275,7 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         for fragmento in ("varias épicas", "`spec/`, `tickets/` o `diseno/`", "y la rama sigue en el servidor",
                           "no guardes ahí", "para y explica", "ofrece volver a la principal",
                           "`git pull --ff-only`", "`diseno/<mockup>`", "solo con el sí de la persona",
-                          "`git status --porcelain`", "si hay cambios sin guardar, solo explica"):
+                          "`git status --porcelain --untracked-files=no`", "si hay cambios sin guardar, solo explica"):
             self.assertIn(fragmento, linea)
         # La rama de la misma épica no puede ganarle: la parada va antes.
         misma = next(l for l in rama.splitlines() if "`git ls-remote --exit-code --heads origin <rama>`" in l)
@@ -283,6 +283,57 @@ class MensajeYRamaDelCommit(unittest.TestCase):
         guardar = self.paso("html-a-vista", "9")
         self.assertIn("si el paso 5 creó `diseno/<mockup>`", guardar)
         self.assertIn("de una sola de ellas", self.readme())
+
+    def linea_de_una_sola(self):
+        rama = self.paso("html-a-vista", "5")
+        linea = next((l for l in rama.splitlines() if "de una sola de ellas" in l), "")
+        self.assertTrue(linea, "el paso 5 no trata la rama de una sola de las épicas")
+        return linea
+
+    def test_html_a_vista_en_la_rama_de_una_sola_para_antes_de_escribir(self):
+        """Q97: la viñeta abre con la negativa, para antes de escribir y gana aunque el mockup se llame como la épica."""
+        linea = self.linea_de_una_sola()
+        self.assertIn("con o sin sufijo, y la rama sigue en el servidor: no guardes ahí", linea)
+        self.assertNotRegex(linea, r"guarda(r)? (en esa rama|ahí)")
+        self.assertIn("Antes de escribir nada, para y explica", linea)
+        self.assertIn("aunque `<mockup>` coincida con el nombre de esa épica", linea)
+
+    def test_html_a_vista_revisa_el_arbol_sin_contar_lo_que_no_tiene_seguimiento(self):
+        """Q97: `npx skills` y el mockup dejan archivos sin seguimiento; el árbol se revisa antes de ofrecer."""
+        linea = self.linea_de_una_sola()
+        arbol = "`git status --porcelain --untracked-files=no`"
+        self.assertNotIn("`git status --porcelain`", linea)
+        self.assertIn(arbol, linea)
+        self.assertLess(linea.index(arbol), linea.index("ofrece volver a la principal"))
+        self.assertIn(f"solo con el sí de la persona y si {arbol} no muestra nada", linea)
+
+    def test_html_a_vista_ofrece_la_principal_y_diseno_mockup_con_o_sin_sufijo(self):
+        """Q97 y Q91: vuelve con `git switch <principal>` y crea `diseno/<mockup>`, o el primer sufijo libre."""
+        linea = self.linea_de_una_sola()
+        self.assertIn("ofrece volver a la principal con `git switch <principal>` y `git pull --ff-only`", linea)
+        self.assertIn("con `git switch -c diseno/<mockup>`, o con el primer sufijo libre si ya existe (paso 9)", linea)
+
+    def test_html_a_vista_sin_el_si_o_con_un_fallo_para_y_dice_donde_quedo(self):
+        """Q97: si un comando falla a mitad de camino, la persona sabe en qué rama quedó y a quién recurrir."""
+        linea = self.linea_de_una_sola()
+        self.assertIn("Sin el sí, o si un comando falla, para y explica en qué rama quedaste y que el TL dice cómo seguir.",
+                      linea)
+
+    def test_html_a_vista_empuja_la_rama_del_paso_5_y_su_rechazo_para(self):
+        """Q98: la `diseno/<mockup>` del paso 5 se empuja con upstream; si el servidor la rechaza, explica y para."""
+        guardar = self.paso("html-a-vista", "9")
+        self.assertIn("si el paso 5 creó `diseno/<mockup>`, empújala con `git push -u origin diseno/<épica>`, "
+                      "con `<mockup>` en lugar de `<épica>` y con el sufijo si lo lleva", guardar)
+        self.assertIn("Si el servidor rechaza el push de la `diseno/<mockup>` que creó el paso 5, cuenta como el rechazo "
+                      "de la rama nueva: explica el error en simple y que el TL es quien da los accesos, y para, "
+                      "sin `git branch -f` ni otro sufijo.", guardar)
+
+    def test_el_readme_explica_la_rama_de_una_sola_de_varias_epicas(self):
+        """Q97 en el README: no guarda, para, ofrece la principal y cambia solo con el sí y el árbol sin cambios."""
+        readme = self.readme()
+        self.assertIn("no guarda ahí: para, lo explica y ofrece volver a la principal y guardar en `diseno/<mockup>`",
+                      readme)
+        self.assertIn("cambia de rama solo con el sí de la persona y sin cambios sin guardar", readme)
 
     def test_ningun_ejemplo_usa_otro_tipo_de_commit(self):
         """Q86: un ejemplo `feat: ...` o `docs(x): ...` contradice el tipo fijo de cada skill, con o sin paréntesis."""
