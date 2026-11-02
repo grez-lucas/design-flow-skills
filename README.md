@@ -129,6 +129,7 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | :--- | :--- | :--- |
 | Node.js 22 o superior y `npx` | Las rondas de `grilling-es` y las revisiones de tickets y vistas de `spec-a-tickets` y `spec-a-html` en Lavish (`npx -y lavish-axi`), donde la persona responde con formularios y anota sobre la pantalla. | Las rondas y las revisiones van en el chat, y las vistas se abren a mano en el navegador. |
 | `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
+| `python3`, al guardar | `scripts/rama.py`, que decide en qué rama guardan `grilling-es`, `spec-a-tickets`, `spec-a-html` y `html-a-vista` en el repositorio de diseño. | La skill para antes de escribir en el repositorio de diseño, explica que falta Python y cómo instalarlo, y no guarda. |
 | `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
 | Herramienta de subagentes en la sesión | Las tres olas de `html-a-vista`. | `html-a-vista` se detiene antes de leer el mockup. |
 | Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. En `spec-a-html`, las capturas por escenario y ancho que se revisan contra el spec antes de la revisión con la persona. | En `html-a-vista`, un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. En `spec-a-html`, la skill dice que no hay capturas y sigue: la revisión visual queda en manos de la persona. |
@@ -162,9 +163,9 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
 
 Las skills que guardan en el repositorio de diseño hacen commit y push a la rama actual, con un mensaje `<tipo>(<épica>): <resumen>`: `spec` en `grilling-es`, `tickets` en `spec-a-tickets` y `diseno` en `spec-a-html` y `html-a-vista`. Cuando `html-a-vista` deja vistas en más de una épica, el mensaje y la rama llevan el nombre del archivo del mockup en lugar de la épica.
 
-Antes de escribir, la skill corre `git fetch` y revisa la rama actual. Guarda en la rama principal, o en cualquier rama del flujo de esa misma épica (`spec/`, `tickets/` o `diseno/`, con o sin sufijo) si sigue en el servidor, para que un merge request abierto sume el spec, los tickets y las vistas de la épica. Si la rama ya no está en el servidor, porque el TL hizo el merge y la borró, y no quedan commits sin empujar, vuelve a la principal con `git pull --ff-only` y guarda ahí. En cualquier otra rama, para y lo explica. Si `html-a-vista` convierte un mockup de varias épicas y la rama es de una sola de ellas, no guarda ahí: para, lo explica y ofrece volver a la principal y guardar en `diseno/<mockup>`, y cambia de rama solo con el sí de la persona y sin cambios sin guardar.
+Antes de escribir, la skill corre su copia de `scripts/rama.py`, que hace `git fetch`, revisa la rama actual sin cambiarla y devuelve qué hacer. Guarda en la rama principal, o en cualquier rama del flujo de esa misma épica (`spec/`, `tickets/` o `diseno/`, con o sin sufijo) si sigue en el servidor, para que un merge request abierto sume el spec, los tickets y las vistas de la épica. Si la rama ya no está en el servidor, porque el TL hizo el merge y la borró, y no quedan commits sin empujar, vuelve a la principal con `git pull --ff-only` y guarda ahí. En cualquier otra rama, para y lo explica. Si `html-a-vista` convierte un mockup de varias épicas y la rama es de una sola de ellas, no guarda ahí: para, lo explica y ofrece volver a la principal y guardar en `diseno/<mockup>`, y cambia de rama solo con el sí de la persona y sin cambios sin guardar.
 
-Si el servidor rechaza el push por algo que no sea de credenciales, como una rama protegida o cambios nuevos en el servidor, la skill pasa el commit a una rama nueva, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, con el primer sufijo libre (`-2`, `-3`) si ya existe, la empuja y explica que el TL revisa y hace el merge request. Todo eso sin `git pull --rebase`, `git reset --hard` ni `--force`: lo que haya que integrar se resuelve en el merge request.
+Si el servidor rechaza el push por algo que no sea de credenciales, como una rama protegida o cambios nuevos en el servidor, la skill pasa el commit a una rama nueva, `spec/<épica>`, `tickets/<épica>` o `diseno/<épica>`, con el primer sufijo libre (`-2`, `-3`) si ya existe, que también calcula `scripts/rama.py`; la empuja y explica que el TL revisa y hace el merge request. Si el servidor rechaza también la rama nueva, o la `diseno/<mockup>` que la persona aceptó, la skill para y explica que el TL da los accesos. Todo eso sin `git pull --rebase`, `git reset --hard` ni `--force`: lo que haya que integrar se resuelve en el merge request.
 
 Antes de la primera sesión, quien usa las skills necesita tres cosas, y conviene comprobarlas antes de escribir el primer spec:
 
@@ -203,12 +204,13 @@ Los dos tienen que terminar sin error. Eso confirma las credenciales y el certif
 
 ## Pruebas
 
-Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar:
+Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar. `tests/rama/` prueba `scripts/rama.py` contra repositorios git reales: un servidor bare con un hook `pre-receive` que simula la rama protegida y copias clonadas de él; `tests/repositorio/` exige que las cuatro copias del script sean iguales:
 
 ```
 python3 -m unittest discover -s tests/checklist-diseno -v
 python3 -m unittest discover -s tests/html-a-vista -v
 python3 -m unittest discover -s tests/pruebas -v
+python3 -m unittest discover -s tests/rama -v
 python3 -m unittest discover -s tests/repositorio -v
 python3 -m unittest discover -s tests/spec-a-html -v
 ```
