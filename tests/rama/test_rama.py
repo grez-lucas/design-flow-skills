@@ -312,6 +312,86 @@ class RamaNuevaTrasUnRechazo(Base):
         self.assertIn(f"refs/heads/{nueva}", git("ls-remote", "--heads", "origin", cwd=self.copia).stdout)
 
 
+class VariasEpicas(Base):
+    """Q92 y Q97: un mockup de varias épicas se guarda en la principal o en `diseno/<mockup>`, nunca en la rama de
+    una sola de ellas: ahí ofrece volver a la principal y `diseno/<mockup>`, si el árbol no tiene cambios."""
+
+    def revisar_varias(self, mockup="panel-general", epicas="riego,cosechas"):
+        return self.rama("revisar", "--tipo", "diseno", "--mockup", mockup, "--epicas", epicas)
+
+    def test_en_la_principal_guarda_ahi(self):
+        self.assertEqual(self.revisar_varias(), {"accion": "guardar", "rama": "main"})
+
+    def test_en_diseno_mockup_vivo_guarda_ahi(self):
+        for rama in ("diseno/panel-general", "diseno/panel-general-2"):
+            with self.subTest(rama=rama):
+                git("switch", "-q", "main", cwd=self.copia)
+                self.trabajar_en(rama)
+                self.assertEqual(self.revisar_varias(), {"accion": "guardar", "rama": rama})
+
+    def test_solo_diseno_mockup_es_la_rama_del_flujo_del_mockup(self):
+        self.trabajar_en("spec/panel-general")
+        self.assertEqual(self.revisar_varias()["motivo"], "otra-rama")
+
+    def test_en_la_rama_de_una_sola_epica_ofrece_la_principal_y_diseno_mockup(self):
+        for rama in ("spec/riego", "tickets/cosechas", "diseno/riego-2"):
+            with self.subTest(rama=rama):
+                git("switch", "-q", "main", cwd=self.copia)
+                self.trabajar_en(rama)
+                antes = self.estado()
+                self.assertEqual(self.revisar_varias(), {"accion": "ofrecer", "rama": rama, "principal": "main",
+                                                         "rama_nueva": "diseno/panel-general"})
+                self.assertEqual(self.estado(), antes)
+
+    def test_ofrece_el_primer_sufijo_libre_de_diseno_mockup(self):
+        self.en_el_servidor("diseno/panel-general")
+        git("branch", "diseno/panel-general-2", cwd=self.copia)
+        self.trabajar_en("spec/riego")
+        self.assertEqual(self.revisar_varias()["rama_nueva"], "diseno/panel-general-3")
+
+    def test_gana_aunque_el_mockup_se_llame_como_la_epica(self):
+        self.trabajar_en("diseno/riego")
+        self.assertEqual(self.revisar_varias(mockup="riego"),
+                         {"accion": "ofrecer", "rama": "diseno/riego", "principal": "main", "rama_nueva": "diseno/riego-2"})
+
+    def test_con_cambios_sin_guardar_solo_explica(self):
+        self.trabajar_en("spec/riego")
+        (self.copia / "inicio.md").write_text("cambio", encoding="utf-8")
+        resultado = self.revisar_varias()
+        self.assertEqual((resultado["accion"], resultado["motivo"], resultado["rama"]),
+                         ("parar", "cambios-sin-guardar", "spec/riego"))
+        git("add", "inicio.md", cwd=self.copia)
+        self.assertEqual(self.revisar_varias()["motivo"], "cambios-sin-guardar")
+
+    def test_lo_que_no_tiene_seguimiento_no_cuenta_como_cambio(self):
+        """`npx skills` y el mockup dejan archivos sin seguimiento en la copia."""
+        self.trabajar_en("spec/riego")
+        (self.copia / "skills-lock.json").write_text("{}", encoding="utf-8")
+        (self.copia / "panel-general.html").write_text("<html></html>", encoding="utf-8")
+        self.assertEqual(self.revisar_varias()["accion"], "ofrecer")
+
+    def test_la_rama_de_una_sola_epica_borrada_vuelve_a_la_principal(self):
+        self.trabajar_en("spec/riego")
+        self.borrar_del_servidor("spec/riego")
+        self.assertEqual(self.revisar_varias(), {"accion": "volver", "rama": "spec/riego", "principal": "main"})
+
+    def test_la_rama_de_una_epica_que_no_es_del_mockup_para(self):
+        self.trabajar_en("diseno/semilla")
+        self.assertEqual(self.revisar_varias()["motivo"], "otra-rama")
+
+    def test_con_una_sola_epica_guarda_en_su_rama(self):
+        self.trabajar_en("spec/riego")
+        self.assertEqual(self.revisar("diseno", "riego"), {"accion": "guardar", "rama": "spec/riego"})
+
+    def test_el_rechazo_da_diseno_mockup(self):
+        self.trabajar_en("diseno/panel-general")
+        self.proteger("diseno/panel-general")
+        self.commit(self.copia, "vistas")
+        self.assertNotEqual(git("push", "-q", cwd=self.copia, check=False).returncode, 0)
+        self.assertEqual(self.rama("rechazo", "--tipo", "diseno", "--mockup", "panel-general"),
+                         {"accion": "rama-nueva", "rama": "diseno/panel-general", "rama_nueva": "diseno/panel-general-2"})
+
+
 class Uso(Base):
     def falla(self, *args):
         resultado = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=self.copia, env=ENTORNO,
@@ -326,6 +406,16 @@ class Uso(Base):
         for epica in ("", "riego nuevo", "riego/norte", "riego..x", "-riego", "riego-", "riego.lock"):
             with self.subTest(epica=epica):
                 self.falla("revisar", "--tipo", "spec", f"--epica={epica}")
+
+    def test_mockup_solo_con_diseno_y_con_varias_epicas(self):
+        self.falla("revisar", "--tipo", "spec", "--mockup", "panel", "--epicas", "riego,cosechas")
+        self.falla("revisar", "--tipo", "diseno", "--mockup", "panel")
+        self.falla("revisar", "--tipo", "diseno", "--mockup", "panel", "--epicas", "riego")
+        self.falla("revisar", "--tipo", "diseno", "--mockup", "panel", "--epicas", "riego,riego")
+        self.falla("revisar", "--tipo", "diseno", "--mockup", "panel", "--epicas", "riego,cosechas nuevas")
+        self.falla("revisar", "--tipo", "diseno", "--mockup", "Panel General", "--epicas", "riego,cosechas")
+        self.falla("revisar", "--tipo", "diseno", "--epica", "riego", "--mockup", "panel", "--epicas", "riego,cosechas")
+        self.falla("revisar", "--tipo", "diseno", "--epica", "riego", "--epicas", "riego,cosechas")
 
     def test_sin_epica_ni_mockup(self):
         self.falla("revisar", "--tipo", "spec")

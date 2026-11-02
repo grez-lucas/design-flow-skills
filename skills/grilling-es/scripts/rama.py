@@ -3,11 +3,21 @@
 
 Uso, desde el repositorio de diseño o con --repo:
   python3 -B rama.py revisar --tipo <spec|tickets|diseno> --epica <épica>
+  python3 -B rama.py revisar --tipo diseno --mockup <mockup> --epicas <épica>,<épica>[,...]
   python3 -B rama.py rechazo --tipo <spec|tickets|diseno> --epica <épica>
+  python3 -B rama.py rechazo --tipo diseno --mockup <mockup>
+
+--mockup es de html-a-vista cuando las vistas quedan en más de una épica: el nombre del archivo del mockup sin
+extensión, en minúsculas y con guiones, reemplaza a la épica en la rama.
 
 revisar  antes de la primera escritura. Corre `git fetch`, mira la rama actual en el servidor y devuelve:
          guardar  la rama actual es la principal del servidor, o una rama del flujo de la épica con upstream vivo:
-                  `spec/`, `tickets/` o `diseno/<épica>`, con o sin sufijo (`-2`, `-3`).
+                  `spec/`, `tickets/` o `diseno/<épica>`, con o sin sufijo (`-2`, `-3`). Con --mockup, la rama
+                  del flujo es `diseno/<mockup>`, con o sin sufijo.
+         ofrecer  solo con --mockup: la rama actual es una rama del flujo viva de una sola de las épicas, aunque el
+                  mockup se llame como ella, y `git status --porcelain --untracked-files=no` no muestra nada. Con
+                  el sí de la persona: volver a `principal` con `git switch` y `git pull --ff-only`, y crear
+                  `rama_nueva`, `diseno/<mockup>` o su primer sufijo libre. Con cambios, para.
          volver   el upstream de la rama actual ya no está en el servidor y todos sus commits están en alguna rama
                   de origin: volver a `principal` con `git switch` y `git pull --ff-only`, y guardar ahí.
          parar    cualquier otro caso, con `motivo` y `detalle`.
@@ -87,21 +97,34 @@ def es_del_flujo(rama, nombre, tipos=TIPOS):
 
 def revisar(git, args):
     principal, ramas = servidor(git)
-    actual = git.salida("symbolic-ref", "--quiet", "--short", "HEAD")
-    if not actual:
-        raise Parada("sin-rama", "La copia no está en ninguna rama.")
+    actual = rama_actual(git)
     if actual == principal:
         return {"accion": "guardar", "rama": actual}
     sigue = upstream(git, actual)
-    if sigue in ramas and es_del_flujo(actual, args.epica):
+    vivo = sigue in ramas
+    if vivo and args.epicas and any(es_del_flujo(actual, epica) for epica in args.epicas):
+        if git.salida("status", "--porcelain", "--untracked-files=no") != "":
+            raise Parada("cambios-sin-guardar", f"La rama {actual} es de una sola de las épicas del mockup y la copia "
+                                                "tiene cambios sin guardar.", actual)
+        return {"accion": "ofrecer", "rama": actual, "principal": principal,
+                "rama_nueva": primera_libre(git, ramas, f"diseno/{args.mockup}")}
+    propia = es_del_flujo(actual, args.mockup, ("diseno",)) if args.epicas else es_del_flujo(actual, args.epica)
+    if vivo and propia:
         return {"accion": "guardar", "rama": actual}
-    if sigue is not None and sigue not in ramas:
+    if sigue is not None and not vivo:
         pendientes = git.salida("rev-list", "--count", "HEAD", "--not", "--remotes=origin")
         if pendientes == "0":
             return {"accion": "volver", "rama": actual, "principal": principal}
         raise Parada("commits-sin-empujar",
                      f"La rama {actual} ya no está en el servidor y tiene commits que el servidor no tiene.", actual)
-    raise Parada("otra-rama", f"La rama {actual} no es la principal ni una rama de esta épica en el servidor.", actual)
+    raise Parada("otra-rama", f"La rama {actual} no es la principal ni una rama de este trabajo en el servidor.", actual)
+
+
+def rama_actual(git):
+    actual = git.salida("symbolic-ref", "--quiet", "--short", "HEAD")
+    if not actual:
+        raise Parada("sin-rama", "La copia no está en ninguna rama.")
+    return actual
 
 
 def primera_libre(git, ramas_del_servidor, base):
@@ -118,11 +141,9 @@ def primera_libre(git, ramas_del_servidor, base):
 
 def rechazo(git, args):
     _, ramas = servidor(git)
-    actual = git.salida("symbolic-ref", "--quiet", "--short", "HEAD")
-    if not actual:
-        raise Parada("sin-rama", "La copia no está en ninguna rama.")
-    return {"accion": "rama-nueva", "rama": actual,
-            "rama_nueva": primera_libre(git, ramas, f"{args.tipo}/{args.epica}")}
+    actual = rama_actual(git)
+    nombre = args.mockup or args.epica
+    return {"accion": "rama-nueva", "rama": actual, "rama_nueva": primera_libre(git, ramas, f"{args.tipo}/{nombre}")}
 
 
 def nombre_valido(valor):
@@ -138,11 +159,23 @@ def argumentos(argv):
     for orden in ("revisar", "rechazo"):
         p = sub.add_parser(orden)
         p.add_argument("--tipo", required=True, choices=TIPOS)
-        p.add_argument("--epica", required=True)
+        nombre = p.add_mutually_exclusive_group(required=True)
+        nombre.add_argument("--epica")
+        nombre.add_argument("--mockup", help="solo html-a-vista, cuando el mockup cubre varias épicas")
+        if orden == "revisar":
+            p.add_argument("--epicas", help="con --mockup: las épicas del mockup, separadas por comas")
         p.add_argument("--repo", default=".")
     args = parser.parse_args(argv)
-    if not nombre_valido(args.epica):
-        parser.error(f"la épica {args.epica!r} no sirve como nombre de rama: minúsculas y guiones, sin espacios ni /")
+    args.epicas = args.epicas.split(",") if getattr(args, "epicas", None) is not None else None
+    for valor in [args.mockup if args.epica is None else args.epica, *(args.epicas or [])]:
+        if not nombre_valido(valor):
+            parser.error(f"{valor!r} no sirve como nombre de rama: minúsculas y guiones, sin espacios ni /")
+    if args.mockup and args.tipo != "diseno":
+        parser.error("--mockup va solo con --tipo diseno")
+    if args.orden == "revisar" and bool(args.mockup) != bool(args.epicas):
+        parser.error("--mockup y --epicas van juntos")
+    if args.epicas and (len(args.epicas) < 2 or len(set(args.epicas)) != len(args.epicas)):
+        parser.error("--epicas lleva dos o más épicas distintas; con una sola, usa --epica")
     return args
 
 
