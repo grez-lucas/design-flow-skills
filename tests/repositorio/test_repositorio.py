@@ -218,6 +218,29 @@ class MensajeYRamaDelCommit(unittest.TestCase):
                 for llamada in re.findall(r"`(git push[^`]*)`", texto):
                     self.assertIn(llamada, pushes)
 
+    # Paso donde la skill ubica el repositorio de diseño, antes de cualquier escritura, y paso donde guarda.
+    PASO_DE_LA_RAMA = {"grilling-es": "Guardar", "spec-a-tickets": "3", "spec-a-html": "2", "html-a-vista": "5"}
+    PASO_GUARDAR = {"grilling-es": "Guardar", "spec-a-tickets": "9", "spec-a-html": "9", "html-a-vista": "9"}
+
+    def paso(self, skill, nombre):
+        texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+        titulo = rf"### {re.escape(nombre)}\n" if not nombre.isdigit() else rf"### {nombre}\. [^\n]*\n"
+        return re.search(rf"^{titulo}.*?(?=^##)", texto, re.S | re.M).group(0)
+
+    def test_la_rama_se_revisa_antes_de_la_primera_escritura(self):
+        """Q90: el `git fetch` y la revisión de la rama van donde se ubica el repositorio, no en el paso que guarda."""
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill):
+                rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
+                for fragmento in ("`git fetch`", "`git ls-remote --exit-code --heads origin <rama>`", "para y explica"):
+                    self.assertIn(fragmento, rama)
+                guardar = self.paso(skill, self.PASO_GUARDAR[skill])
+                for fragmento in ("`git push`", f"git switch -c {tipo}/<épica>", "merge request"):
+                    self.assertIn(fragmento, guardar)
+                if rama != guardar:
+                    self.assertNotIn("`git fetch`", guardar)
+                    self.assertNotIn("`git ls-remote", guardar)
+
     def test_solo_las_credenciales_quedan_fuera_de_la_rama_nueva(self):
         """Q90: todo rechazo que no sea de credenciales va por la rama nueva; "acceso" no amplía la excepción."""
         archivos = {"README.md": self.readme()}
