@@ -297,8 +297,20 @@ class PunteroALasConvenciones(unittest.TestCase):
 
     def test_spec_a_tickets_agrega_el_puntero_en_el_commit_de_los_tickets(self):
         paso = self.paso(9)
-        self.assertIn(self.PUNTERO, [a for a in re.findall(r"`git add ([^`]*)`", paso)])
-        self.assertIn("specs/<épica>/", re.findall(r"`git add ([^`]*)`", paso))
+        agregados = re.findall(r"`git add ([^`]*)`", paso)
+        self.assertIn(self.PUNTERO, agregados)
+        self.assertIn("specs/<épica>/", agregados)
+
+    def test_es_un_solo_commit_al_final(self):
+        self.assertIn("Es un solo commit al final", self.paso(9))
+        for numero in range(1, 9):
+            with self.subTest(paso=numero):
+                self.assertNotRegex(self.paso(numero), r"haz commit|git commit")
+
+    def test_sin_convenciones_no_escribe_el_puntero(self):
+        paso = self.paso(3)
+        self.assertIn("Si la persona dice que no hay convenciones, no escribas el puntero", paso)
+        self.assertIn("si lo escribiste en esta sesión", self.paso(9))
 
     def test_sin_convenciones_pregunta_donde_estan_y_guarda_el_puntero(self):
         paso = self.paso(3)
