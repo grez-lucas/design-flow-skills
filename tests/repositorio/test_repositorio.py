@@ -218,6 +218,15 @@ class MensajeYRamaDelCommit(unittest.TestCase):
                 for llamada in re.findall(r"`(git push[^`]*)`", texto):
                     self.assertIn(llamada, pushes)
 
+    def test_solo_las_credenciales_quedan_fuera_de_la_rama_nueva(self):
+        """Q90: todo rechazo que no sea de credenciales va por la rama nueva; "acceso" no amplía la excepción."""
+        archivos = {"README.md": self.readme()}
+        for skill in self.TIPOS:
+            archivos[skill] = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+        for archivo, texto in archivos.items():
+            with self.subTest(archivo=archivo):
+                self.assertNotRegex(texto, r"credenciales o (de|por falta de|sin) acceso")
+
     def test_el_readme_explica_la_rama_actual_y_el_camino_del_rechazo(self):
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         self.assertIn("rama actual", readme)
