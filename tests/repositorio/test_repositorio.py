@@ -354,6 +354,25 @@ class MensajeYRamaDelCommit(unittest.TestCase):
                 self.assertIn(f"`{tipo}/<épica>`", readme)
 
 
+class CopiasDeRama(unittest.TestCase):
+    """Q99: cada skill que hace commit lleva su copia de `scripts/rama.py`, porque `npx skills` instala cada skill
+    por separado, y las copias son iguales byte a byte a la de `grilling-es`, la que prueba `tests/rama`."""
+
+    ORIGINAL = SKILLS / "grilling-es" / "scripts" / "rama.py"
+
+    def test_cada_skill_que_hace_commit_tiene_su_copia_igual(self):
+        original = self.ORIGINAL.read_bytes()
+        for skill in CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT:
+            ruta = SKILLS / skill / "scripts" / "rama.py"
+            with self.subTest(skill=skill):
+                self.assertTrue(ruta.is_file(), "falta la copia")
+                self.assertEqual(ruta.read_bytes(), original, "copia distinta; cópiala de skills/grilling-es/scripts/rama.py")
+
+    def test_ninguna_otra_skill_tiene_copia(self):
+        con_copia = {r.parents[1].name for r in SKILLS.rglob("rama.py")}
+        self.assertEqual(con_copia, set(CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT))
+
+
 class PunteroALasConvenciones(unittest.TestCase):
     """Q87: el puntero a las convenciones va en `.claude/pm-conventions.md`, en el mismo commit que los tickets."""
 
