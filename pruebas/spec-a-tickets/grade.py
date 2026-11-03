@@ -27,6 +27,21 @@ def ticket_md(repo, epica):
     return [p for p in all_md(repo) if epica in p.parts and p.name.lower() != "readme.md" and not p.name.startswith("spec")]
 
 
+GHERKIN = re.compile(r"^### Escenario \d+: .+\n\n```gherkin\n(?:.*\n)*?```$", re.M)
+
+
+def copiados(spec, body):
+    """Cada ticket lleva al menos un `### Escenario N` con bloque gherkin, todos copiados tal cual del spec, y entre todos
+    los tickets están todos los del spec."""
+    del_spec = GHERKIN.findall(spec)
+    por_ticket = {n: GHERKIN.findall(b) for n, b in body.items()}
+    sueltos = {n: len(re.findall(r"^### Escenario", b, re.M)) - len(por_ticket[n]) for n, b in body.items()}
+    distintos = {n: [e.splitlines()[0] for e in es if e not in del_spec] for n, es in por_ticket.items()}
+    faltan = [e.splitlines()[0] for e in del_spec if not any(e in es for es in por_ticket.values())]
+    ok = del_spec and body and all(por_ticket.values()) and not any(sueltos.values()) and not any(distintos.values()) and not faltan
+    return ok, {"distintos": distintos, "sin bloque gherkin": sueltos, "faltan": faltan}
+
+
 def eval1(repo):
     """El contenido se revisa en todo ticket de la épica; el nombre NN-titulo.md, en un chequeo aparte."""
     t = ticket_md(repo, "recordatorios")
@@ -39,7 +54,8 @@ def eval1(repo):
     res.append(check("Siguen la plantilla de story (encabezados)", t and not any(miss.values()), miss))
     res.append(check("Títulos con el identificador del spec", t and all(re.search(r"US-REC-00[12]", b.splitlines()[0]) for b in body.values()),
                      [b.splitlines()[0] for b in body.values()]))
-    res.append(check("Criterios con Dado, Cuando, Entonces", t and all(all(w in b for w in ["Dado", "Cuando", "Entonces"]) for b in body.values()), ""))
+    ok, evidencia = copiados((repo / "specs/recordatorios/spec.md").read_text(), body)
+    res.append(check("Criterios copiados tal cual de los escenarios del spec", t and ok, evidencia))
     res.append(check("Pruebas unitarias e integración quedan para DEV", t and all(b.lower().count("lo completa dev") >= 2 for b in body.values()),
                      {n: b.lower().count("lo completa dev") for n, b in body.items()}))
     res.append(check("Enlazan la vista en design/vistas/recordatorios/", t and all("design/vistas/recordatorios/" in b for b in body.values()), ""))
