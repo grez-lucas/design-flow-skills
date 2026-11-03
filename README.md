@@ -6,10 +6,10 @@ Skills en español para pasar de una idea de producto a un diseño listo para co
 
 ## Flujo
 
-1. `grilling-es`: entrevista al requerimiento antes de dibujar. Usa Lavish cuando la sesión tiene terminal y el chat cuando no. Cierra con el spec sobre una plantilla fija.
-2. `spec-a-tickets`: escribe los tickets desde el spec, antes del HTML, con historia, criterios de aceptación "Dado, cuando, entonces", pruebas, casos borde y preguntas abiertas. Los publica en el tracker del proyecto o, si no hay, como un archivo markdown por ticket.
+1. `grilling-es`: entrevista al requerimiento antes de dibujar. Usa Lavish cuando la sesión tiene terminal y el chat cuando no. Cierra con el spec sobre una plantilla fija: cada escenario con nombre, en gherkin, y una tabla `## Escenarios en pantalla` con el slug de los que se ven.
+2. `spec-a-tickets`: escribe los tickets desde el spec, antes del HTML, con historia, los escenarios del spec copiados tal cual como criterios de aceptación, pruebas, casos borde y preguntas abiertas. Los publica en el tracker del proyecto o, si no hay, como un archivo markdown por ticket.
 3. `spec-a-html`: en una sesión nueva, toma el spec y genera el HTML de la vista o del flujo. Busca un design system existente y, si no hay, lo crea, siempre preguntando antes.
-4. `checklist-diseno`: revisa el HTML contra la definición de listo antes de la planificación del sprint.
+4. `checklist-diseno`: revisa el HTML contra la definición de listo antes de la planificación del sprint. Bloquea un escenario de una vista que no está en la tabla del spec ni es base.
 
 `html-a-vista` es la entrada para un HTML que ya está hecho: un mockup vigente que un ticket nuevo va a tocar, o un prototipo de otra herramienta. Lo desarma con un script, muestra un plan, reparte la conversión entre subagentes en tres olas y deja vistas con la misma convención que `spec-a-html`. Exige spec como `spec-a-html`: sin spec, arma un borrador desde el HTML y deriva a `grilling-es`. Necesita una sesión con subagentes.
 
