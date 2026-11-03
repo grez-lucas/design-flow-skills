@@ -205,16 +205,13 @@ Los dos tienen que terminar sin error. Eso confirma las credenciales y el certif
 
 ## Pruebas
 
-Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar. `tests/rama/` prueba `scripts/rama.py` contra repositorios git reales: un servidor bare con un hook `pre-receive` que simula la rama protegida y copias clonadas de él; `tests/repositorio/` exige que las cuatro copias del script sean iguales:
+Tests de `skills/checklist-diseno/scripts/revisar.py` y de los scripts de `skills/html-a-vista/scripts/` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), solo con la biblioteca estándar de Python. Cada fixture de `tests/checklist-diseno/fixtures/` es un caso que el script ya resolvió mal una vez; los de `tests/html-a-vista/fixtures/` son mockups mínimos y ficticios con cada forma que el script tiene que desarmar. `tests/rama/` prueba `scripts/rama.py` contra repositorios git reales: un servidor bare con un hook `pre-receive` que simula la rama protegida y copias clonadas de él; `tests/repositorio/` exige que las cuatro copias del script sean iguales. Todo lo que corre CI se corre con un comando:
 
 ```
-python3 -m unittest discover -s tests/checklist-diseno -v
-python3 -m unittest discover -s tests/html-a-vista -v
-python3 -m unittest discover -s tests/pruebas -v
-python3 -m unittest discover -s tests/rama -v
-python3 -m unittest discover -s tests/repositorio -v
-python3 -m unittest discover -s tests/spec-a-html -v
+python3 tests/correr.py
 ```
+
+Descubre las carpetas de `tests/` y corre cada una con `python3 -m unittest discover -s tests/<carpeta>`, así que una carpeta nueva entra sola. Corre también `claude plugin validate . --strict` si `claude` está en el `PATH`, y `actionlint` si está en el `PATH` o en `$(go env GOPATH)/bin`. Al final lista lo que pasó, lo que falló y lo que se saltó por no estar instalado, y sale con error si algo falló. Es seguro dentro de `git rebase --exec`, para verificar cada commit de una rama (`git rebase --exec "python3 tests/correr.py" main`): cada carpeta corre con `GIT_DIR`, `GIT_WORK_TREE` y `GIT_INDEX_FILE` apuntando a un repositorio señuelo, y falla si un test escribe en él. Los tests que llaman a git quitan esas variables del entorno con `tests/aislar_git.py`. `tests/correr/` prueba el comando.
 
 `tests/pruebas/` verifica que un `grade.py` falle entero, con código de salida 1 y 0 puntos, cuando la corrida está vacía o le falta su informe, y que la severidad dé el mismo puntaje con el informe escrito en distintos formatos. `tests/repositorio/` verifica reglas que cruzan las skills y los manifiestos, como que `checklist-diseno` corra `revisar.py` sin dejar `__pycache__/`. `tests/spec-a-html/` prueba `proto.js` en Chrome headless; sin Chrome se salta, salvo con `CI` definido, y `CHROME=<ruta>` elige el binario.
 
@@ -238,7 +235,7 @@ python3 pruebas/checklist-diseno/grade.py iteraciones/checklist-diseno/iteration
 
 `grade.py` escribe un `grading.json` por corrida. El de `html-a-vista` lee el veredicto del revisor como `aprobadas.py`, solo en el formato fijo de la skill; las iteraciones 1 y 2, anteriores a ese formato, se califican con `--historico`. Regla de los `grade.py`: el contenido esperado se busca en todo el informe, sin depender de una sección ni de un formato, y la severidad o la ubicación se verifican en un chequeo aparte, solo sobre la primera oración de cada hallazgo para no contar menciones dentro de otro.
 
-El workflow `.github/workflows/ci.yml` corre los tests y `claude plugin validate . --strict` en cada push a `main` y en cada pull request. `--strict` falla si `plugin.json` o la entrada de `marketplace.json` pierden su `version`; al publicar cambios para quien ya tiene el plugin, la versión sube en los dos, y `tests/repositorio/` verifica que coincidan.
+El workflow `.github/workflows/ci.yml` corre los tests con `python3 tests/correr.py` y, en otro job que instala Claude Code, `claude plugin validate . --strict` en cada push a `main` y en cada pull request. `--strict` falla si `plugin.json` o la entrada de `marketplace.json` pierden su `version`; al publicar cambios para quien ya tiene el plugin, la versión sube en los dos, y `tests/repositorio/` verifica que coincidan.
 
 ---
 
