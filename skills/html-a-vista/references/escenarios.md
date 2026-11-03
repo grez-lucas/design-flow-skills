@@ -16,7 +16,7 @@ Cómo los estados del mockup pasan a escenarios de la vista, y cómo se usa el n
 
 Un control de prototipo es un botón, menú, selector o barra dentro de la pantalla que solo sirve para cambiar de caso: "DEMO", "Simular espera", "Salir de demo", "ver como persona natural", un `<select>` de "plan vigente / plan expirado". El script los lista como candidatos por texto ("DEMO", "Simular", "Escenario:"), por selector (un `<select>`, en HTML o en JSX, con dos o más escenarios base entre sus opciones: normal, vacío, cargando, error) y por nombre de función o variable (`demoSet`, `simularError`, `DEMO_MODES`, `setMode`, `const [escenario, setEscenario] = useState(...)`, una variable `estado` que arranca en un escenario base, y la función que llama el selector). Son candidatos: un selector de prioridad con "Normal" o un "Estado: Pagado" en una tabla no lo son, y el script no los lista.
 
-- Cada estado que activa es un escenario en `data-escenarios`, con nombre en minúsculas y guiones (`sensor-sin-senal`, `plan-vencido`), y los bloques que cambian llevan `data-state`.
+- Cada estado que activa es un escenario en `data-escenarios`, con el slug de su fila en `## Escenarios en pantalla` del spec (`sensor-sin-senal`, `plan-vencido`), y los bloques que cambian llevan `data-state`. Si el spec no tiene la tabla, el nombre va en minúsculas y con guiones.
 - Para saber qué cambia, lee la función que el control llama: qué clases pone en `<body>`, qué textos reemplaza, qué bloques muestra.
 - El control no pasa a la vista. Los escenarios se cambian desde el panel de `proto.js`, fuera de la pantalla, para que DEV no confunda andamio con producto.
 - Si el texto es una función del producto ("Simulación de ataques" como servicio que se vende), no es un control de prototipo: queda.
@@ -28,7 +28,7 @@ Si el mockup ya usa `data-state` con otro significado (el estado de un chip, "fu
 ## Escenarios base y globales
 
 - Los base que el mockup no tiene (vacío, cargando, error, sin permiso, muchos datos) se escriben desde el spec, con textos completos. Uno que no aplica va en `data-no-aplica` con su motivo.
-- Un escenario que el mockup sincroniza entre módulos lleva el mismo nombre en cada vista donde aplica, el que fijó la ola 1 en `escenarios-globales.md`. `proto.js` no cambia: con el nombre compartido, `?escenario=<nombre>` abre cada vista en el mismo caso.
+- Un escenario que el mockup sincroniza entre módulos lleva el mismo nombre en cada vista donde aplica: el slug de su fila con alcance `global` en la tabla del spec, el que la ola 1 copia en `escenarios-globales.md`. `proto.js` no cambia: con el nombre compartido, `?escenario=<nombre>` abre cada vista en el mismo caso.
 
 ## Render
 

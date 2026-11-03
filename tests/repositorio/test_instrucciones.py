@@ -130,5 +130,42 @@ class DatosFueraDelSpecEnElChecklist(unittest.TestCase):
         self.vineta("Datos ficticios")
 
 
+class SlugsDeLaTablaDelSpec(unittest.TestCase):
+    """spec-a-html y html-a-vista nombran los escenarios propios con los slugs de `## Escenarios en pantalla` del spec,
+    los base con sus slugs fijos, y no inventan un slug para un estado que la tabla no tiene. Las regex toman la
+    oración entera que fija la decisión, para que una negación no pase."""
+
+    def leer(self, *ruta):
+        return (SKILLS.joinpath(*ruta)).read_text(encoding="utf-8")
+
+    def test_spec_a_html_planifica_con_los_slugs_de_la_tabla(self):
+        plan = seccion(self.leer("spec-a-html", "SKILL.md"), "Plan de vistas", 3)
+        self.assertRegex(plan, r"Los escenarios propios de cada vista son los slugs de `## Escenarios en pantalla` del spec "
+                               r"cuyo alcance es esa pantalla o `global`, escritos igual\.")
+        self.assertRegex(plan, r"Un estado que la vista necesita y la tabla no tiene no lleva un slug inventado: "
+                               r"es una decisión de producto[^.]*`grilling-es`[^.]*\.")
+        self.assertRegex(plan, r"Si el spec no tiene la tabla[^.]*`checklist-diseno` lo avisa sin bloquear\.")
+
+    def test_la_convencion_de_vista_nombra_los_slugs_de_la_tabla_y_los_base(self):
+        escenarios = seccion(self.leer("spec-a-html", "references", "vista-html.md"), "Escenarios", 2)
+        self.assertRegex(escenarios, r"Los escenarios propios del spec usan el slug que les da su tabla "
+                                     r"`## Escenarios en pantalla`, letra por letra: `plan-expirado`, `pago-rechazado`\.")
+        self.assertRegex(escenarios, r"Escenarios base: normal, vacio, cargando, error, sin-permiso, muchos-datos\.")
+
+    def test_html_a_vista_toma_los_slugs_de_la_tabla_en_el_plan(self):
+        plan = self.leer("html-a-vista", "references", "plan.md")
+        self.assertRegex(plan, r"Con la tabla `## Escenarios en pantalla` en el spec, cada escenario del mockup que "
+                               r"coincide con una fila toma su slug, y uno global toma el de la fila con alcance `global`\.")
+        self.assertRegex(plan, r"Un estado del mockup que no está en la tabla va al plan como decisión pendiente de "
+                               r"producto, no con un slug inventado:[^.]*`checklist-diseno` lo bloquearía\.")
+
+    def test_html_a_vista_nombra_controles_y_globales_con_el_slug_de_la_tabla(self):
+        escenarios = self.leer("html-a-vista", "references", "escenarios.md")
+        self.assertRegex(escenarios, r"Cada estado que activa es un escenario en `data-escenarios`, con el slug de su fila "
+                                     r"en `## Escenarios en pantalla` del spec")
+        self.assertRegex(escenarios, r"lleva el mismo nombre en cada vista donde aplica: el slug de su fila con alcance "
+                                     r"`global` en la tabla del spec")
+
+
 if __name__ == "__main__":
     unittest.main()
