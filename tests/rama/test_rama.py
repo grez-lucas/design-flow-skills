@@ -148,6 +148,13 @@ class AntesDeEscribir(Base):
         git("fetch", "-q", "--prune", cwd=self.copia)
         self.assertEqual(self.revisar("spec", "riego")["motivo"], "commits-sin-empujar")
 
+    def test_rama_borrada_con_commits_sin_archivos_que_el_servidor_no_tiene_para(self):
+        """Q103 y Q83: sin archivos que comparar con la principal no hay prueba de que el trabajo entró."""
+        self.trabajar_en("spec/riego")
+        git("commit", "-q", "--allow-empty", "-m", "vacío", cwd=self.copia)
+        self.borrar_del_servidor("spec/riego")
+        self.assertEqual(self.revisar("spec", "riego")["motivo"], "commits-sin-empujar")
+
     def test_rama_local_sin_upstream_para(self):
         git("switch", "-q", "-c", "spec/riego", cwd=self.copia)
         resultado = self.revisar("spec", "riego")
@@ -214,6 +221,61 @@ class AntesDeEscribir(Base):
     def test_corre_desde_otra_carpeta_con_repo(self):
         resultado = self.rama("revisar", "--tipo", "spec", "--epica", "riego", "--repo", str(self.copia), cwd=self.tmp)
         self.assertEqual(resultado, {"accion": "guardar", "rama": "main"})
+
+
+class RamaBorradaTrasElMerge:
+    """Q103: con el upstream borrado y commits que no están en ninguna rama del servidor, vuelve a la principal si los
+    archivos que tocan esos commits están iguales en ella, y para en cualquier otro caso. Corre con `fetch.prune` en
+    true y en false: el script poda por su cuenta."""
+
+    PRUNE = None
+
+    def setUp(self):
+        super().setUp()
+        git("config", "fetch.prune", self.PRUNE, cwd=self.copia)
+        self.trabajar_en("diseno/riego")
+        self.commit(self.copia, "vista")
+        git("push", "-q", cwd=self.copia)
+        git("fetch", "-q", cwd=self.otra)
+
+    def merge_del_tl(self, *opciones):
+        git("merge", "-q", *opciones, "origin/diseno/riego", cwd=self.otra)
+        git("commit", "-q", "--allow-empty", "-m", "merge", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        self.borrar_del_servidor("diseno/riego")
+
+    def test_squash_merge_vuelve(self):
+        self.merge_del_tl("--squash")
+        self.assertEqual(self.revisar("diseno", "riego"), {"accion": "volver", "rama": "diseno/riego", "principal": "main"})
+
+    def test_squash_merge_y_un_commit_local_sin_empujar_para(self):
+        self.merge_del_tl("--squash")
+        self.commit(self.copia, "sin-empujar")
+        self.assertEqual(self.revisar("diseno", "riego")["motivo"], "commits-sin-empujar")
+
+    def test_squash_merge_con_un_archivo_cambiado_despues_en_la_principal_para(self):
+        self.merge_del_tl("--squash")
+        (self.otra / "vista.md").write_text("otra versión", encoding="utf-8")
+        git("commit", "-q", "-am", "cambio", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        self.assertEqual(self.revisar("diseno", "riego")["motivo"], "commits-sin-empujar")
+
+    def test_merge_no_ff_vuelve(self):
+        self.merge_del_tl("--no-ff", "--no-commit")
+        self.assertEqual(self.revisar("diseno", "riego")["accion"], "volver")
+
+    def test_rama_borrada_sin_merge_para(self):
+        """La copia sin podar todavía ve origin/diseno/riego, pero esos commits ya no están en el servidor."""
+        self.borrar_del_servidor("diseno/riego")
+        self.assertEqual(self.revisar("diseno", "riego")["motivo"], "commits-sin-empujar")
+
+
+class RamaBorradaTrasElMergeConPrune(RamaBorradaTrasElMerge, Base):
+    PRUNE = "true"
+
+
+class RamaBorradaTrasElMergeSinPrune(RamaBorradaTrasElMerge, Base):
+    PRUNE = "false"
 
 
 class RamasDelFlujoDeLaMismaEpica(Base):

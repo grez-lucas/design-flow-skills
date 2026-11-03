@@ -96,7 +96,7 @@ python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo spec --epica <ép
 Si `python3` no está, para y no guardes: explica en simple que falta Python y que se instala desde https://www.python.org/downloads/. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: guarda en la rama actual.
-- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y no tiene commits pendientes. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
 - `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
 
 El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva con `python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo spec --epica <épica>`.

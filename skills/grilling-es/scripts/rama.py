@@ -18,8 +18,10 @@ revisar  antes de la primera escritura. Corre `git fetch`, mira la rama actual e
                   mockup se llame como ella, y `git status --porcelain --untracked-files=no` no muestra nada. Con
                   el sí de la persona: volver a `principal` con `git switch` y `git pull --ff-only`, y crear
                   `rama_nueva`, `diseno/<mockup>` o su primer sufijo libre. Con cambios, para.
-         volver   el upstream de la rama actual ya no está en el servidor y todos sus commits están en alguna rama
-                  de origin: volver a `principal` con `git switch` y `git pull --ff-only`, y guardar ahí.
+         volver   el upstream de la rama actual ya no está en el servidor y lo suyo entró a la principal: todos sus
+                  commits están en alguna rama del servidor, o los archivos que tocan los que no están, desde la
+                  base común con la principal, están iguales en ella (squash merge). Volver a `principal` con
+                  `git switch` y `git pull --ff-only`, y guardar ahí.
          parar    cualquier otro caso, con `motivo` y `detalle`.
 
 rechazo  después de que el servidor rechazó el push a la rama actual por algo que no son credenciales. Devuelve
@@ -62,10 +64,11 @@ class Git:
 
 
 def servidor(git):
-    """`git fetch` y lo que el servidor dice tener: su rama principal y el conjunto de sus ramas."""
+    """`git fetch --prune` y lo que el servidor dice tener: su rama principal y el conjunto de sus ramas."""
     if git.salida("remote", "get-url", "origin") is None:
         raise Parada("sin-servidor", "El repositorio no tiene un servidor `origin` configurado.")
-    for args in (("fetch", "--quiet", "origin"), ("ls-remote", "--symref", "origin", "HEAD", "refs/heads/*")):
+    for args in (("fetch", "--quiet", "--prune", "origin"),
+                 ("ls-remote", "--symref", "origin", "HEAD", "refs/heads/*")):
         resultado = git.correr(*args)
         if resultado.returncode != 0:
             raise Parada("sin-servidor", "git no pudo hablar con el servidor: " + resultado.stderr.strip())
@@ -115,12 +118,31 @@ def revisar(git, args):
     if vivo and propia:
         return {"accion": "guardar", "rama": actual}
     if sigue is not None and sigue not in ramas:
-        pendientes = git.salida("rev-list", "--count", "HEAD", "--not", "--remotes=origin")
-        if pendientes == "0":
+        if trabajo_en_la_principal(git, principal):
             return {"accion": "volver", "rama": actual, "principal": principal}
         raise Parada("commits-sin-empujar",
                      f"La rama {actual} ya no está en el servidor y tiene commits que el servidor no tiene.", actual)
     raise Parada("otra-rama", f"La rama {actual} no es la principal ni una rama de este trabajo en el servidor.", actual)
+
+
+def trabajo_en_la_principal(git, principal):
+    """Lo que la rama actual tiene y no está en ninguna rama del servidor ya entró a la principal: no hay commits
+    así, o los archivos que tocan desde la base común con la principal están iguales en ella (un squash merge)."""
+    pendientes = git.salida("rev-list", "--count", "HEAD", "--not", "--remotes=origin")
+    if pendientes == "0":
+        return True
+    remota = f"refs/remotes/origin/{principal}"
+    base = git.salida("merge-base", "HEAD", remota)
+    if not pendientes or not base:
+        return False
+    tocados, distintos = archivos(git, base, "HEAD"), archivos(git, "HEAD", remota)
+    return bool(tocados) and distintos is not None and not tocados & distintos
+
+
+def archivos(git, desde, hasta):
+    """Las rutas que cambian entre dos commits, o None si git falla."""
+    salida = git.salida("diff", "--name-only", "--no-renames", "-z", desde, hasta)
+    return None if salida is None else {ruta for ruta in salida.split("\0") if ruta}
 
 
 def rama_actual(git):
