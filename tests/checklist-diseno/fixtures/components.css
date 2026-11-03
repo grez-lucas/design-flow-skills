@@ -1,2 +1,4 @@
 .card { padding: var(--space-4); border-radius: var(--radius-sm); color: var(--color-text); }
 .skeleton { height: var(--space-4); }
+.btn { padding: var(--space-2); }
+.separador { border-top: 1px solid var(--color-text); }
