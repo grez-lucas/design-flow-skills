@@ -34,6 +34,7 @@ COMPARTIDOS_CSS = ("tokens.css", "components.css")
 FONT_FACE = re.compile(r"@font-face\s*\{([^}]*)\}", re.I)
 URL = re.compile(r"""url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))""", re.I)
 CADENA = re.compile(r""""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'""", re.S)
+ATRIBUTO_CLASE = re.compile(r"""\[\s*class\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))\s*([iIsS])?\s*\]""")
 CLASE = re.compile(r"\.(-?(?:\\[0-9a-fA-F]{1,6}\s?|\\[^\n0-9a-fA-F]|[\w-]|[^\x00-\x7f])+)")
 
 
@@ -181,16 +182,59 @@ def sin_animacion(archivo, nombres):
             "va como comentario de intención junto al elemento, y si el tiempo importa, como un escenario (`cargando`).")
 
 
+def negaciones(selector):
+    """Los tramos `:not(...)` y `:has(...)` de un selector, con sus paréntesis anidados."""
+    tramos, desde = [], 0
+    while True:
+        m = re.compile(r":(?:not|has)\(", re.I).search(selector, desde)
+        if not m:
+            return tramos
+        prof, i = 1, m.end()
+        while i < len(selector) and prof:
+            prof += {"(": 1, ")": -1}.get(selector[i], 0)
+            i += 1
+        tramos.append((m.start(), i))
+        desde = i
+
+
+def sin_tramos(texto, tramos):
+    for a, b in reversed(tramos):
+        texto = texto[:a] + texto[b:]
+    return texto
+
+
 def clases_definidas(css):
-    """Las clases que nombra el selector de alguna regla de un CSS, a cualquier profundidad (`@media`, `@layer`), también
-    como contexto (`.field label`), con pseudoclase o dentro de `:where()`, con sus escapes resueltos. Lo que nombran un
-    comentario, una cadena o el preludio de una regla @ no cuenta."""
-    css = CADENA.sub('""', strip_comments(css))
-    clases = set()
-    for preludio in re.findall(r"([^{};]*)\{", css):
-        if not preludio.strip().startswith("@"):
-            clases.update(sin_escapes(c).rstrip() for c in CLASE.findall(preludio))
-    return clases
+    """(clases, atributos) de los selectores de un CSS, a cualquier profundidad (`@media`, `@layer`). Las clases son las
+    que nombra un selector, también como contexto (`.field label`), con pseudoclase o dentro de `:where()`, con sus
+    escapes resueltos. Los atributos son los `[class~="x"]`, `[class*="col-"]` y demás, como (operador, valor, sin
+    distinguir mayúsculas). No cuenta lo que nombran un comentario, una cadena, el preludio de una regla @ ni un
+    `:not()` o un `:has()`, que no pintan al elemento con esa clase."""
+    css = strip_comments(css)
+    oculto = CADENA.sub(lambda m: m.group(0)[0] + " " * (len(m.group(0)) - 2) + m.group(0)[-1], css)
+    clases, atributos = set(), set()
+    for m in re.finditer(r"([^{};]*)\{", oculto):
+        preludio, original = m.group(1), css[m.start(1):m.end(1)]
+        if preludio.strip().startswith("@"):
+            continue
+        tramos = negaciones(preludio)
+        clases.update(sin_escapes(c).rstrip() for c in CLASE.findall(sin_tramos(preludio, tramos)))
+        for op, a, b, c, bandera in ATRIBUTO_CLASE.findall(sin_tramos(original, tramos)):
+            atributos.add((op, a or b or c, bandera.lower() == "i"))
+    return clases, atributos
+
+
+def calza(clase, atributo):
+    """True si un selector de atributo sobre `class` pinta a un elemento con esa clase, mirando la clase sola."""
+    op, valor, sin_mayusculas = atributo
+    if sin_mayusculas:
+        clase, valor = clase.lower(), valor.lower()
+    if op in ("=", "~="):
+        return clase == valor
+    if op == "|=":
+        return clase == valor or clase.startswith(valor + "-")
+    if not valor:
+        return False
+    return {"^=": clase.startswith, "$=": clase.endswith, "*=": lambda v: v in clase}[op](valor)
 
 
 def tokens_definidos(design):
@@ -279,8 +323,8 @@ def revisar_vista(path, repo, definidos):
     if no_definidos:
         bloquea.append(f"Variables que `tokens.css` no define: {', '.join(no_definidos)}.")
     comp = design / "components.css"
-    con_regla = clases_definidas((comp.read_text() if comp.exists() else "") + "\n" + "\n".join(v.styles))
-    sin_regla = [c for c in dict.fromkeys(v.clases) if c not in con_regla]
+    con_regla, atributos = clases_definidas((comp.read_text() if comp.exists() else "") + "\n" + "\n".join(v.styles))
+    sin_regla = [c for c in dict.fromkeys(v.clases) if c not in con_regla and not any(calza(c, a) for a in atributos)]
     if sin_regla:
         bloquea.append(f"Usa clases que `components.css` no define, ni el `<style>` de la vista: "
                        f"{', '.join(f'`.{c}`' for c in sin_regla[:8])}. Sin su regla, la pantalla no se ve como DEV la "

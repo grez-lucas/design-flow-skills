@@ -555,6 +555,50 @@ class Revision(unittest.TestCase):
             self.assertIn(clase, bloquea[0])
         self.assertNotIn("solo-comentario", bloquea[0])
 
+    def clases_que_bloquean(self, css, clases):
+        """Agrega `css` a components.css, usa `clases` en la vista y devuelve el bloqueo de clases, o None."""
+        comp = self.design / "components.css"
+        comp.write_text(comp.read_text() + css + "\n")
+        limpia = (FIXTURES / "limpia.html").read_text()
+        bloquea = self.clases_sin_definir(self.revisar_texto(limpia.replace('<ul class="card"', f'<ul class="card {clases}"'))[0])
+        return bloquea[0] if bloquea else None
+
+    def test_clase_solo_en_not_has_cadena_o_preludio_at_no_cuenta_como_definida(self):
+        casos = {":not()": (".lista:not(.oculta) { margin: 0; } .lista { margin: 0; }", "lista oculta", "`.oculta`"),
+                 ":has()": (".card:has(.solo-en-has) { margin: 0; }", "solo-en-has", "`.solo-en-has`"),
+                 ":not() anidado en :has()": (".card:has(.x:not(.anidada)) { margin: 0; } .x { margin: 0; }", "x anidada", "`.anidada`"),
+                 "cadena de un atributo": ('[data-x=".fantasma"] { margin: 0; }', "fantasma", "`.fantasma`"),
+                 "@supports selector()": ("@supports selector(.en-supports) { .card { margin: 0; } }", "en-supports", "`.en-supports`")}
+        for caso, (css, clases, bloqueada) in casos.items():
+            with self.subTest(caso=caso):
+                self.setUp()
+                bloqueo = self.clases_que_bloquean(css, clases)
+                self.assertIsNotNone(bloqueo, caso)
+                self.assertIn(bloqueada, bloqueo)
+                for otra in set(clases.split()) - {bloqueada.strip("`.")}:
+                    self.assertNotIn(f"`.{otra}`", bloqueo)
+
+    def test_las_clases_distinguen_mayusculas(self):
+        self.assertIsNone(self.clases_que_bloquean(".Fila { margin: 0; }", "Fila"))
+        self.setUp()
+        self.assertIn("`.fila`", self.clases_que_bloquean(".Fila { margin: 0; }", "fila") or "")
+
+    def test_selector_de_atributo_class_cubre_la_clase_que_calza(self):
+        """`[class~="x"]`, `[class*="col-"]` y los demás no definen una clase, pero pintan la que calza: esa no bloquea."""
+        casos = {'[class~="destacada"]': ("destacada", "destacadas"), '[class*="col-"]': ("col-6", "fila"),
+                 "[class^=g-]": ("g-1", "ag-1"), "[class$='-fin']": ("bloque-fin", "fin-bloque"),
+                 '[class|="tono"]': ("tono-alto", "tonos"), '[class="unica"]': ("unica", "unicas"),
+                 '[class*="COL-" i]': ("col-2", "fila")}
+        for selector, (calza, no_calza) in casos.items():
+            with self.subTest(selector=selector):
+                self.setUp()
+                bloqueo = self.clases_que_bloquean(selector + " { margin: 0; }", f"{calza} {no_calza}")
+                self.assertIsNotNone(bloqueo, selector)
+                self.assertIn(f"`.{no_calza}`", bloqueo)
+                self.assertNotIn(f"`.{calza}`", bloqueo)
+        self.setUp()
+        self.assertIn("`.excluida`", self.clases_que_bloquean('.card:not([class~="excluida"]) { margin: 0; }', "excluida") or "")
+
     def test_solo_spec_resumen_con_spec(self):
         self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))
 
