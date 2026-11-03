@@ -129,7 +129,7 @@ Al usarse, las skills corren herramientas en la máquina de quien las usa, tambi
 | :--- | :--- | :--- |
 | Node.js 22 o superior y `npx` | Las rondas de `grilling-es` y las revisiones de tickets y vistas de `spec-a-tickets` y `spec-a-html` en Lavish (`npx -y lavish-axi`), donde la persona responde con formularios y anota sobre la pantalla. | Las rondas y las revisiones van en el chat, y las vistas se abren a mano en el navegador. |
 | `python3`, opcional | La revisión mecánica de `checklist-diseno` con `scripts/revisar.py`. | `checklist-diseno` revisa a mano con grep, una revisión menos completa, y lo dice en el informe. |
-| `python3`, al guardar | `scripts/rama.py`, que decide en qué rama guardan `grilling-es`, `spec-a-tickets`, `spec-a-html` y `html-a-vista` en el repositorio de diseño. | La skill para antes de escribir en el repositorio de diseño, explica que falta Python y cómo instalarlo, y no guarda. |
+| `python3`, al guardar | Python 3.9 o superior, como `python3`, `python` o `py -3`, para `scripts/rama.py`, que decide en qué rama guardan `grilling-es`, `spec-a-tickets`, `spec-a-html` y `html-a-vista` en el repositorio de diseño. | La skill para antes de escribir en el repositorio de diseño, explica que falta Python y cómo instalarlo, y no guarda. |
 | `python3`, en `html-a-vista` | Los scripts de `html-a-vista` (`desarmar.py`, `inventario.py`, `tokens.py`, `aprobadas.py`), sin los que no hay conversión, y `revisar.py` de `checklist-diseno` antes del commit. | `html-a-vista` se detiene: sin desarmar el mockup no puede repartir el trabajo. |
 | Herramienta de subagentes en la sesión | Las tres olas de `html-a-vista`. | `html-a-vista` se detiene antes de leer el mockup. |
 | Chrome, Chromium o Playwright, opcional | En `html-a-vista`, renderizar un mockup con framework por CDN (obligatorio en ese caso, con red) y sacar capturas lado a lado. En `spec-a-html`, las capturas por escenario y ancho que se revisan contra el spec antes de la revisión con la persona. | En `html-a-vista`, un mockup con framework por CDN no se convierte; los demás se verifican sin render y el informe lo dice. En `spec-a-html`, la skill dice que no hay capturas y sigue: la revisión visual queda en manos de la persona. |
@@ -157,7 +157,8 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
    ```
 
    `node` debe mostrar `v22` o un número mayor, `npx` un número, y el último una descripción de Lavish sin errores. Si algo falla, las skills funcionan igual en el chat.
-5. Abre Claude Code de escritorio en la carpeta del repositorio de diseño, escribe `/` y busca `flujo-diseno:`: tienen que aparecer las skills del plugin.
+5. Para guardar en el repositorio de diseño: instala Python con `winget install Python.Python.3.12`, o con el instalador de https://www.python.org/downloads/ marcando "Add python.exe to PATH". Cierra CMD, ábrelo de nuevo y comprueba con `py -3 --version`: debe mostrar `Python 3.9` o un número mayor. Sin Python, las skills paran antes de guardar.
+6. Abre Claude Code de escritorio en la carpeta del repositorio de diseño, escribe `/` y busca `flujo-diseno:`: tienen que aparecer las skills del plugin.
 
 ### Acceso de escritura al repositorio de diseño
 

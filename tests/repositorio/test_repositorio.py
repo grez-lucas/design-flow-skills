@@ -222,13 +222,17 @@ class CopiasDeRama(unittest.TestCase):
 
 
 class LlamadaARama(unittest.TestCase):
-    """Q100 a Q102: la skill corre `rama.py`, hace lo que dice cada acción y, sin `python3`, para sin guardar. Las
+    """Q100 a Q105: la skill corre `rama.py`, hace lo que dice cada acción y, sin Python, para sin guardar. Las
     reglas de la rama las prueba `tests/rama` contra repositorios git reales."""
 
     TIPOS = MensajeYRamaDelCommit.TIPOS
     PASO_DE_LA_RAMA = MensajeYRamaDelCommit.PASO_DE_LA_RAMA
     PASO_GUARDAR = MensajeYRamaDelCommit.PASO_GUARDAR
-    SIN_PYTHON = "Si `python3` no está, para y no guardes: explica en simple que falta Python y que se instala desde "
+    INTERPRETE = ("Busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con "
+                  "`<intérprete> -c \"import sys; assert sys.version_info >= (3, 9)\"`, y usa el primero que sale sin "
+                  "error en lugar de `python3` para correr `rama.py`. Si ninguno responde, para y no guardes: explica "
+                  "en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.")
+    SI_FALLA = "Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes"
 
     def paso(self, skill, nombre):
         return MensajeYRamaDelCommit.paso(self, skill, nombre)
@@ -266,12 +270,36 @@ class LlamadaARama(unittest.TestCase):
                 for fragmento in ("no escribas", "`detalle`", "el TL dice cómo seguir"):
                     self.assertIn(fragmento, parar)
 
-    def test_sin_python3_para_y_no_guarda(self):
+    def test_sin_python_para_y_no_guarda(self):
+        """Q105: `python3`, `python` y `py -3`, en ese orden, el primero con Python 3.9 o superior; si ninguno, para."""
         for skill in self.TIPOS:
             with self.subTest(skill=skill):
                 rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
-                self.assertIn(self.SIN_PYTHON + "https://www.python.org/downloads/", rama)
-                self.assertLess(rama.index(self.SIN_PYTHON), rama.index("- `guardar`: "))
+                self.assertIn(self.INTERPRETE, rama)
+                self.assertLess(rama.index(self.INTERPRETE), rama.index("- `guardar`: "))
+
+    def test_la_busqueda_del_interprete_es_igual_en_las_cuatro(self):
+        parrafos = set()
+        for skill in self.TIPOS:
+            rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
+            parrafos.add(next((l for l in rama.splitlines() if "intérprete" in l), ""))
+        self.assertEqual(len(parrafos), 1, parrafos)
+        self.assertIn(self.INTERPRETE, parrafos.pop())
+
+    def test_si_el_script_falla_o_no_da_json_para(self):
+        for skill in self.TIPOS:
+            with self.subTest(skill=skill):
+                rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
+                self.assertIn(self.SI_FALLA, rama)
+                self.assertLess(rama.index(self.SI_FALLA), rama.index("- `guardar`: "))
+
+    def test_si_el_nombre_termina_en_guion_y_numero_pide_otro(self):
+        """Q104: `rama.py` rechaza `fase-2` y la skill pide otro nombre."""
+        for skill in self.TIPOS:
+            with self.subTest(skill=skill):
+                rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
+                self.assertIn("si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo "
+                              "`fase-dos` en lugar de `fase-2`, y vuelve a correrlo", rama)
 
     def test_tras_un_rechazo_pide_la_rama_nueva_al_script(self):
         for skill, tipo in self.TIPOS.items():
@@ -288,7 +316,19 @@ class LlamadaARama(unittest.TestCase):
                 for fragmento in ("`git switch -c <rama_nueva>`", "`git push -u origin <rama_nueva>`",
                                   "`git branch -f <rama> origin/<rama>`", "merge request"):
                     self.assertIn(fragmento, nueva)
-                self.assertIn("el TL es quien da los accesos", self.accion(guardar, "parar"))
+                parar = self.accion(guardar, "parar")
+                self.assertIn("el TL es quien da los accesos", parar)
+                self.assertIn("`detalle`", parar)
+                self.assertNotIn("rechazó también", parar)
+
+    def test_rechazo_corre_desde_el_repositorio_de_diseno_como_revisar(self):
+        for skill, tipo in self.TIPOS.items():
+            with self.subTest(skill=skill):
+                guardar = self.paso(skill, self.PASO_GUARDAR[skill])
+                if skill == "html-a-vista":
+                    self.assertIn(f"rama.py rechazo --tipo {tipo} --epica <épica> --repo <repo-de-diseño>`", guardar)
+                else:
+                    self.assertIn("Pide la rama nueva, desde el repositorio de diseño, con `python3 -B ", guardar)
 
     def test_las_reglas_viven_en_el_script_y_no_en_el_texto(self):
         for skill in self.TIPOS:
@@ -317,6 +357,15 @@ class LlamadaARama(unittest.TestCase):
             self.assertIn(fragmento, ofrecer)
         self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index("`git switch <principal>`"))
 
+    def test_html_a_vista_vuelve_a_revisar_el_arbol_tras_el_si(self):
+        """Q97: el árbol pudo cambiar mientras la persona contestaba; se revisa otra vez antes de `git switch`."""
+        ofrecer = self.accion(self.tras("html-a-vista", "5", "revisar"), "ofrecer")
+        revisa = "vuelve a correr la misma orden de `rama.py`"
+        self.assertIn(revisa, ofrecer)
+        self.assertIn("si no devuelve otra vez `ofrecer`, para y explica por qué", ofrecer)
+        self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index(revisa))
+        self.assertLess(ofrecer.index(revisa), ofrecer.index("`git switch <principal>`"))
+
     def test_html_a_vista_empuja_con_upstream_la_rama_de_ofrecer(self):
         """Q98: la rama de `ofrecer` se empuja con `-u`; si el servidor la rechaza, `rechazo` devuelve `parar`."""
         guardar = self.paso("html-a-vista", "9")
@@ -329,6 +378,14 @@ class LlamadaARama(unittest.TestCase):
         self.assertTrue(fila, "Requisitos no lista python3 para rama.py")
         for skill in self.TIPOS:
             self.assertIn(f"`{skill}`", fila)
+        self.assertIn("Python 3.9 o superior", fila)
+
+    def test_el_primer_setup_en_windows_instala_python(self):
+        """Q105: el primer setup en Windows suma Python para guardar."""
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        windows = re.search(r"^### Primer setup en Windows\n.*?(?=^### )", readme, re.S | re.M).group(0)
+        self.assertIn("winget install Python.Python.3.12", windows)
+        self.assertIn("py -3 --version", windows)
 
 
 class PunteroALasConvenciones(unittest.TestCase):

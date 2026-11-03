@@ -93,16 +93,16 @@ Sin tracker, antes de escribir el spec en el repositorio de diseño, no recién 
 python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo spec --epica <épica>
 ```
 
-Si `python3` no está, para y no guardes: explica en simple que falta Python y que se instala desde https://www.python.org/downloads/. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
+Busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<intérprete> -c "import sys; assert sys.version_info >= (3, 9)"`, y usa el primero que sale sin error en lugar de `python3` para correr `rama.py`. Si ninguno responde, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes: explica el error en simple; si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo `fase-dos` en lugar de `fase-2`, y vuelve a correrlo. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: guarda en la rama actual.
 - `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
 - `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
 
-El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva con `python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo spec --epica <épica>`.
+El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo spec --epica <épica>`.
 
 - `rama-nueva`: pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica en simple que el servidor no aceptó el cambio en esa rama, que el spec quedó en la rama nueva y que el TL revisa y hace el merge request.
-- `parar`: el servidor rechazó también la rama nueva. Explica el error en simple y que el TL es quien da los accesos.
+- `parar`: explica en simple el `detalle` y que el TL es quien da los accesos.
 
 Si reemplaza a un spec anterior, agrega al inicio del anterior una línea `> Superado el <fecha> por <enlace o ruta al spec nuevo>.` y no toques el resto: el spec anterior es historia. Sin tracker, el spec nuevo ocupa `specs/<épica>/spec.md`, que es donde lo buscan `spec-a-tickets` y `spec-a-html`, y el anterior se mueve sin cambios, salvo esa línea, a `specs/<épica>/anteriores/spec-<fecha>.md`, con la fecha de su línea `Congelado`, o la de hoy si no tiene.
 
