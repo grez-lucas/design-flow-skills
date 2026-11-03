@@ -31,6 +31,22 @@ class Pasa(unittest.TestCase):
         pass
 """
 
+SALTA = """import unittest
+
+
+class Salta(unittest.TestCase):
+    def test_pasa(self):
+        pass
+
+    @unittest.skip("sin la herramienta")
+    def test_uno(self):
+        pass
+
+    @unittest.skip("sin la herramienta")
+    def test_dos(self):
+        pass
+"""
+
 FALLA = """import unittest
 
 
@@ -117,16 +133,16 @@ class Base(unittest.TestCase):
         archivo = self.registro / f"{nombre}.json"
         return json.loads(archivo.read_text()) if archivo.exists() else None
 
-    def correr(self, **entorno):
+    def correr(self, cwd=None, **entorno):
         env = {**os.environ, "PATH": str(self.bin), **entorno}
-        r = subprocess.run([sys.executable, str(self.raiz / "tests" / "correr.py")], cwd=self.raiz, env=env,
+        r = subprocess.run([sys.executable, str(self.raiz / "tests" / "correr.py")], cwd=cwd or self.raiz, env=env,
                            capture_output=True, text=True, timeout=300)
         return r, r.stdout + r.stderr
 
     def resumen(self, salida):
         """Las líneas `estado: paso` del resumen final, como diccionario paso -> estado."""
         cola = salida.split("== Resumen", 1)[1]
-        return {m[1]: m[0] for m in re.findall(r"^(ok|falló|saltado): (.+)$", cola, re.M)}
+        return {m[1]: m[0] for m in re.findall(r"^(ok(?: \(\d+ saltados?\))?|falló|saltado): (.+)$", cola, re.M)}
 
 
 class Descubrimiento(Base):
@@ -150,6 +166,46 @@ class Descubrimiento(Base):
         r, salida = self.correr()
         self.assertEqual(r.returncode, 0, salida)
         self.assertEqual([p for p in self.resumen(salida) if p.startswith("tests/")], ["tests/uno"], salida)
+
+
+    def test_salta_y_lista_la_carpeta_sin_test(self):
+        self.carpeta("uno", PASA)
+        datos = self.raiz / "tests" / "fixtures"
+        datos.mkdir()
+        (datos / "datos.json").write_text("{}")
+        # Lo que queda de una carpeta borrada o renombrada: solo el bytecode de sus tests.
+        vieja = self.raiz / "tests" / "vieja" / "__pycache__"
+        vieja.mkdir(parents=True)
+        (vieja / "test_algo.cpython-312.pyc").write_bytes(b"")
+        r, salida = self.correr()
+        self.assertEqual(r.returncode, 0, salida)
+        resumen = self.resumen(salida)
+        self.assertEqual(resumen.get("tests/uno"), "ok", salida)
+        self.assertEqual(resumen.get("tests/fixtures (sin test*.py)"), "saltado", salida)
+        self.assertEqual(resumen.get("tests/vieja (sin test*.py)"), "saltado", salida)
+
+    def test_no_deja_bytecode_en_tests(self):
+        self.carpeta("uno", COMMIT.format(aislar=AISLAR))
+        r, salida = self.correr()
+        self.assertEqual(r.returncode, 0, salida)
+        self.assertEqual(list((self.raiz / "tests").rglob("__pycache__")), [], salida)
+
+    def test_muestra_los_tests_saltados(self):
+        self.carpeta("uno", SALTA)
+        self.carpeta("dos", PASA)
+        r, salida = self.correr()
+        self.assertEqual(r.returncode, 0, salida)
+        resumen = self.resumen(salida)
+        self.assertEqual(resumen.get("tests/uno"), "ok (2 saltados)", salida)
+        self.assertEqual(resumen.get("tests/dos"), "ok", salida)
+
+    def test_corre_desde_fuera_de_la_raiz(self):
+        self.carpeta("uno", PASA)
+        self.falsa(self.bin, "claude")
+        r, salida = self.correr(cwd=self.tmp)
+        self.assertEqual(r.returncode, 0, salida)
+        self.assertEqual(self.resumen(salida).get("tests/uno"), "ok", salida)
+        self.assertEqual(Path(self.llamada("claude")["cwd"]).resolve(), self.raiz.resolve())
 
 
 class RepositorioDelEntorno(Base):
