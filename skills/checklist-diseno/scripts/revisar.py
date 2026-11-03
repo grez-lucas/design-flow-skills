@@ -33,6 +33,8 @@ ESQUEMA = re.compile(r"[a-z][\w+.-]*:", re.I)
 COMPARTIDOS_CSS = ("tokens.css", "components.css")
 FONT_FACE = re.compile(r"@font-face\s*\{([^}]*)\}", re.I)
 URL = re.compile(r"""url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))""", re.I)
+CADENA = re.compile(r""""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'""", re.S)
+CLASE = re.compile(r"\.(-?(?:\\[0-9a-fA-F]{1,6}\s?|\\[^\n0-9a-fA-F]|[\w-]|[^\x00-\x7f])+)")
 
 
 class Vista(HTMLParser):
@@ -52,6 +54,7 @@ class Vista(HTMLParser):
         self.controls_in_frame = []
         self.stack = []
         self.frame_at = None
+        self.clases = []
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -78,6 +81,7 @@ class Vista(HTMLParser):
             self.in_style = True
         if "style" in a:
             self.inline.append(a["style"])
+        self.clases += (a.get("class") or "").split()
         for k in COLOR_ATTRS:
             if k in a and (a[k] or "").strip().lower() not in COLOR_OK and not (a[k] or "").startswith("var("):
                 self.inline.append(f"{k}: {a[k]}")
@@ -177,6 +181,18 @@ def sin_animacion(archivo, nombres):
             "va como comentario de intención junto al elemento, y si el tiempo importa, como un escenario (`cargando`).")
 
 
+def clases_definidas(css):
+    """Las clases que nombra el selector de alguna regla de un CSS, a cualquier profundidad (`@media`, `@layer`), también
+    como contexto (`.field label`), con pseudoclase o dentro de `:where()`, con sus escapes resueltos. Lo que nombran un
+    comentario, una cadena o el preludio de una regla @ no cuenta."""
+    css = CADENA.sub('""', strip_comments(css))
+    clases = set()
+    for preludio in re.findall(r"([^{};]*)\{", css):
+        if not preludio.strip().startswith("@"):
+            clases.update(sin_escapes(c).rstrip() for c in CLASE.findall(preludio))
+    return clases
+
+
 def tokens_definidos(design):
     t = design / "tokens.css"
     return set(re.findall(r"(--[\w-]+)\s*:", t.read_text())) if t.exists() else set()
@@ -262,6 +278,14 @@ def revisar_vista(path, repo, definidos):
     no_definidos = sorted(set(VAR.findall(css_vista)) - definidos)
     if no_definidos:
         bloquea.append(f"Variables que `tokens.css` no define: {', '.join(no_definidos)}.")
+    comp = design / "components.css"
+    con_regla = clases_definidas((comp.read_text() if comp.exists() else "") + "\n" + "\n".join(v.styles))
+    sin_regla = [c for c in dict.fromkeys(v.clases) if c not in con_regla]
+    if sin_regla:
+        bloquea.append(f"Usa clases que `components.css` no define, ni el `<style>` de la vista: "
+                       f"{', '.join(f'`.{c}`' for c in sin_regla[:8])}. Sin su regla, la pantalla no se ve como DEV la "
+                       "tiene que construir. Las de la skill, como `.modal` o `.toast-region`, las agrega `spec-a-html` a "
+                       "`components.css`; las de una sola vista van en su `<style>`.")
 
     if EXTERNAL.search(texto):
         bloquea.append("Carga recursos externos (CDN, fuentes, imágenes remotas).")

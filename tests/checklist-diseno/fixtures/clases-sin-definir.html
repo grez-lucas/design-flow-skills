@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="tickets" content="DEMO-1">
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal, vacio, cargando, error, sin-permiso, muchos-datos, confirmar">
+  <main data-frame>
+    <ul class="card" data-state="normal muchos-datos confirmar">
+      <li data-repeat="40">Pedido de ana@example.com</li>
+    </ul>
+    <p data-state="vacio">No hay pedidos.</p>
+    <div data-state="cargando"><div class="skeleton"></div></div>
+    <p data-state="error">No pudimos cargar los pedidos.</p>
+    <p data-state="sin-permiso">No tienes acceso a los pedidos.</p>
+    <!-- Una vista nueva de un repositorio de diseño creado con una versión anterior de las skills: su
+         components.css no tiene .modal ni .toast-region. -->
+    <div class="modal" data-state="confirmar">
+      <dialog class="modal__dialog" open>
+        <p>¿Cancelar el pedido?</p>
+      </dialog>
+    </div>
+    <div class="toast-region" data-state="confirmar"><p class="card">Pedido guardado.</p></div>
+  </main>
+</body>
+</html>
