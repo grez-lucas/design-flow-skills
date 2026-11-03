@@ -483,6 +483,78 @@ class Revision(unittest.TestCase):
         bloquea, _ = self.compartidos()
         self.assertEqual(bloquea, [])
 
+    CLASES_SIN_DEFINIR = "Usa clases que `components.css` no define"
+
+    def clases_sin_definir(self, bloquea):
+        return [b for b in bloquea if self.CLASES_SIN_DEFINIR in b]
+
+    def test_clase_que_components_css_no_define_bloquea(self):
+        """Q108: una vista nueva de un repositorio de diseño viejo usa `.modal` y `.toast-region` sin regla."""
+        bloquea, _ = self.revisar("clases-sin-definir.html")
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn(self.CLASES_SIN_DEFINIR, bloquea[0])
+        for clase in ("`.modal`", "`.modal__dialog`", "`.toast-region`"):
+            self.assertIn(clase, bloquea[0])
+        self.assertNotIn("`.card`", bloquea[0])
+
+    def test_clases_de_los_assets_de_la_skill_no_bloquean(self):
+        shutil.copy(ASSETS / "tokens.css", self.design / "tokens.css")
+        shutil.copy(ASSETS / "components.css", self.design / "components.css")
+        bloquea, _ = self.revisar("clases-sin-definir.html")
+        self.assertEqual(self.clases_sin_definir(bloquea), [])
+
+    def test_clase_definida_en_cualquier_parte_de_un_selector_de_components_css_no_bloquea(self):
+        """Una clase cuenta como definida si aparece en el selector de alguna regla de `components.css`, también como
+        contexto, con pseudoclase, compuesta, dentro de `:where()`, `@media` o `@layer`, o escrita con escapes."""
+        comp = self.design / "components.css"
+        comp.write_text(comp.read_text() + "\n".join([
+            ".lista .fila { padding: var(--space-2); }",
+            ".chip:hover, .chip--activo::after { color: var(--color-text); }",
+            ".aviso.aviso--grave > p { color: var(--color-danger); }",
+            ":where(.marco) { padding: var(--space-2); }",
+            "@media (min-width: 600px) { .columnas { display: grid; } }",
+            "@layer base { .base { margin: 0; } }",
+            ".w-1\\/2 { width: 50%; }",
+            ".\\31 col { display: block; }",
+        ]) + "\n")
+        limpia = (FIXTURES / "limpia.html").read_text()
+        clases = "lista fila chip chip--activo aviso aviso--grave marco columnas base w-1/2 1col"
+        bloquea, _ = self.revisar_texto(limpia.replace('<ul class="card"', f'<ul class="card {clases}"'))
+        self.assertEqual(self.clases_sin_definir(bloquea), [])
+
+    def test_clase_definida_en_el_style_de_la_vista_no_bloquea(self):
+        """Los estilos propios de una vista van en su `<style>`: una clase que define ahí está definida."""
+        limpia = (FIXTURES / "limpia.html").read_text()
+        html = limpia.replace("</head>", "<style>.resumen { padding: var(--space-2); }</style>\n</head>")
+        bloquea, _ = self.revisar_texto(html.replace('<ul class="card"', '<ul class="card resumen"'))
+        self.assertEqual(bloquea, [])
+
+    def test_clase_que_solo_nombra_un_comentario_o_tokens_css_bloquea(self):
+        """Un comentario no define una clase, ni en `components.css` ni en el `<style>` de la vista, y `tokens.css` no
+        es donde viven los componentes: ante la duda, bloquea."""
+        comp = self.design / "components.css"
+        comp.write_text(comp.read_text() + "/* .comentada { } */\n")
+        tok = self.design / "tokens.css"
+        tok.write_text(tok.read_text() + ".en-tokens { color: var(--color-text); }\n")
+        limpia = (FIXTURES / "limpia.html").read_text()
+        html = limpia.replace("</head>", "<style>/* .en-comentario { } */</style>\n</head>")
+        html = html.replace('<ul class="card"', '<ul class="card comentada en-tokens en-comentario"')
+        bloquea = self.clases_sin_definir(self.revisar_texto(html)[0])
+        self.assertEqual(len(bloquea), 1, bloquea)
+        for clase in ("`.comentada`", "`.en-comentario`", "`.en-tokens`"):
+            self.assertIn(clase, bloquea[0])
+
+    def test_clase_usada_en_svg_template_o_body_cuenta_y_en_un_comentario_html_no(self):
+        limpia = (FIXTURES / "limpia.html").read_text()
+        html = limpia.replace("<body ", '<body class="pagina" ').replace(
+            "<main data-frame>", '<main data-frame>\n<svg class="icono"></svg><template><p class="plantilla">x</p></template>'
+            '\n<!-- <p class="solo-comentario">x</p> -->')
+        bloquea = self.clases_sin_definir(self.revisar_texto(html)[0])
+        self.assertEqual(len(bloquea), 1, bloquea)
+        for clase in ("`.pagina`", "`.icono`", "`.plantilla`"):
+            self.assertIn(clase, bloquea[0])
+        self.assertNotIn("solo-comentario", bloquea[0])
+
     def test_solo_spec_resumen_con_spec(self):
         self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))
 
