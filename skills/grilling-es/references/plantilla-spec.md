@@ -72,6 +72,8 @@ Y <resultado adicional>
 - Los escenarios van después de su historia, numerados desde 1 en cada historia, cada uno con un nombre que no se repite en el spec y su bloque `gherkin` con `Dado`, `Cuando`, `Entonces` y `Y`. `spec-a-tickets` los copia tal cual al ticket.
 - Las variantes de un mismo escenario van en uno solo, con `Esquema del escenario` y `Ejemplos`:
 
+  ### Escenario 2: Recordatorio según atraso
+
   ```gherkin
   Esquema del escenario: Recordatorio según atraso
   Dado que una factura tiene <dias> días de atraso
@@ -86,7 +88,7 @@ Y <resultado adicional>
 
 - Cada escenario tiene un resultado que se ve: un mensaje, un dato, una pantalla, un correo. "Funciona bien" no es un resultado.
 - En "Estados por vista", si un estado base no aplica, dilo: "sin permiso: no aplica, todos los roles ven esta vista". Los estados propios del caso (plan vencido, pago rechazado) no van ahí: son escenarios.
-- "Escenarios en pantalla" lista cada escenario con estado visible, uno por fila; el que no cambia la pantalla, como un correo que se envía, no va. El nombre es el de su `### Escenario N`, letra por letra. El alcance es el nombre de la pantalla, o `global` si cambia todas las pantallas, como una conexión caída.
+- `## Escenarios en pantalla` va siempre, con la tabla aunque sea solo el encabezado; "Ninguno" también vale como tabla vacía. Lista cada escenario con estado visible, uno por fila; el que no cambia la pantalla, como un correo que se envía, no va. El nombre es el de su `### Escenario N`, letra por letra. El alcance es el nombre de la pantalla, o `global` si cambia todas las pantallas, como una conexión caída.
 - El slug va en minúsculas, sin tildes y con guiones (`plan-basico`), y es el nombre con que la vista declara el escenario en `data-escenarios` y `data-state`. Un escenario que muestra un estado base usa su slug fijo: `normal`, `vacio`, `cargando`, `error`, `sin-permiso` o `muchos-datos`. Un slug no se repite en la misma pantalla.
 - Lo que no se decidió no va como escenario ni como regla: va como pendiente en "Decisiones del grilling".
 - Si una decisión fue una recomendación aceptada sin cambios, "Quién" dice "<persona> (recomendación aceptada)".

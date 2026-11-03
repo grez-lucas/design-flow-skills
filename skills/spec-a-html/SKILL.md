@@ -101,7 +101,7 @@ Antes de escribir HTML, propone la lista de vistas con sus escenarios, en una ta
 
 Todas las vistas llevan los escenarios base: normal, vacío, cargando, error, sin permiso y muchos datos, más los propios del caso que pida el spec (por ejemplo, plan expirado). Si un escenario base no aplica a una vista, dilo en la tabla y déjalo escrito en la vista con `data-no-aplica` (ver `references/vista-html.md`), en vez de omitirlo en silencio.
 
-Los escenarios propios de cada vista son los slugs de `## Escenarios en pantalla` del spec cuyo alcance es esa pantalla o `global`, escritos igual. Un estado que la vista necesita y la tabla no tiene no lleva un slug inventado: es una decisión de producto, que se pregunta y entra al spec con `grilling-es`. Si el spec no tiene la tabla, nombra los propios en minúsculas y con guiones, y `checklist-diseno` lo avisa sin bloquear.
+Para elegir los escenarios propios de cada vista, toma de `## Escenarios en pantalla` del spec las filas cuyo alcance es esa pantalla o `global`, y escribe sus slugs igual. `checklist-diseno` cruza los slugs con la tabla, no el alcance. Un estado que la vista necesita y la tabla no tiene no lleva un slug inventado: es una decisión de producto, que se pregunta y entra al spec con `grilling-es`. Si el spec no tiene la tabla, nombra los propios en minúsculas y con guiones, y `checklist-diseno` lo avisa sin bloquear.
 
 Espera la confirmación de la persona.
 

@@ -78,6 +78,17 @@ class PlantillaDelSpec(unittest.TestCase):
                     self.assertTrue({"Dado", "Cuando", "Entonces"} <= {p.split()[0] for p in pasos}, pasos)
 
 
+class ReglasDeLaPlantillaDelSpec(unittest.TestCase):
+    def setUp(self):
+        self.reglas = PLANTILLA_SPEC.read_text(encoding="utf-8").split("## Reglas de redacción", 1)[1].split("\n## ", 1)[0]
+
+    def test_el_esquema_del_escenario_va_bajo_su_encabezado(self):
+        self.assertRegex(self.reglas, r"(?m)^  ### Escenario \d+: Recordatorio según atraso\n\n  ```gherkin\n  Esquema del escenario: Recordatorio según atraso$")
+
+    def test_la_seccion_de_escenarios_en_pantalla_va_siempre_con_su_tabla(self):
+        self.assertRegex(self.reglas, r"`## Escenarios en pantalla` va siempre, con la tabla aunque sea solo el encabezado")
+
+
 class PlantillaDeLaStory(unittest.TestCase):
     def setUp(self):
         texto = PLANTILLA_STORY.read_text(encoding="utf-8")
