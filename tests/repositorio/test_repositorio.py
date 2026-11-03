@@ -597,6 +597,16 @@ class NombreDelSiguientePaso(unittest.TestCase):
                 self.assertIn(f"`{self.PLUGIN}:{skill}`", readme)
 
 
+class DescripcionDeLasSkills(unittest.TestCase):
+    """El `description` del frontmatter de cada SKILL.md cabe en el tope de 1024 caracteres de las skills."""
+
+    def test_ninguna_descripcion_pasa_1024_caracteres(self):
+        for skill in sorted(SKILLS.iterdir()):
+            with self.subTest(skill=skill.name):
+                frente = skill.joinpath("SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
+                descripcion = re.search(r"^description: (.+)$", frente, flags=re.M).group(1).strip()
+                self.assertLessEqual(len(descripcion), 1024, f"{skill.name}: {len(descripcion)} caracteres")
+
 class VersionDelPlugin(unittest.TestCase):
     def test_plugin_y_marketplace_declaran_la_misma_version_semver(self):
         manifiestos = RAIZ / ".claude-plugin"
