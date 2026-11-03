@@ -1,0 +1,54 @@
+/* tokens.css del producto: solo tema claro, con tokens propios. */
+:root {
+  color-scheme: light;
+  --color-bg: #fbfaf7;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1efe9;
+  --color-border: #ddd8cc;
+  --color-text: #22201b;
+  --color-text-muted: #6b665b;
+  --color-primary: #3d6b4f; /* verde de la marca */
+  --color-primary-contrast: #ffffff;
+  --color-success: #2f7d4a;
+  --color-warning: #a8650a;
+  --color-danger: #b3261e;
+  --color-info: #1d6f80;
+  --color-overlay: rgba(34, 32, 27, 0.5);
+  --color-brand-alt: #c9a227;
+
+  --font-family-base: "Inter", system-ui, sans-serif;
+  --font-family-mono: ui-monospace, monospace;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 28px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-full: 9999px;
+
+  --shadow-1: 0 1px 2px rgba(34, 32, 27, 0.08);
+  --shadow-2: 0 4px 12px rgba(34, 32, 27, 0.12);
+  --shadow-3: 0 12px 32px rgba(34, 32, 27, 0.18);
+
+  --size-topbar: 64px;
+  --size-content-max: 1120px;
+  --size-sidebar: 256px
+}
