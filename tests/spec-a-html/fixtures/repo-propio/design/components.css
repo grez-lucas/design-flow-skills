@@ -1,0 +1,29 @@
+/* components.css del producto, con componentes propios. */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-base);
+  line-height: var(--line-height-base);
+}
+[hidden] { display: none !important; }
+body:not([data-escenario]) [data-state] { display: none; }
+
+/* El botón del producto es una píldora. .btn--danger { } va abajo. */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-3) var(--space-6);
+  border: 0; border-radius: var(--radius-full);
+  background: var(--color-surface-alt); color: var(--color-text);
+  font: inherit; cursor: pointer;
+}
+.btn--primary { background: var(--color-primary); color: var(--color-primary-contrast); }
+
+.card { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--space-6); }
+.chip { display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-alt); }
+
+/* El modal propio solo existe en escritorio. */
+@media (min-width: 1024px) {
+  .modal { position: absolute; inset: 0; display: grid; place-items: center; background: var(--color-overlay); }
+}

@@ -79,6 +79,14 @@ Antes de crear o cambiar `tokens.css`, muestra la propuesta (colores con su uso,
 
 Si `design/components.css` o `design/proto.js` no existen, créalos desde `assets/components.css` y `assets/proto.js`. `proto.js` se copia sin modificar.
 
+Si `design/` ya existía, compara sus compartidos con los de esta skill: un repositorio creado con una versión anterior no tiene las reglas, los tokens ni el `proto.js` nuevos, y una vista que los usa (un modal, un aviso) sale sin estilo y `checklist-diseno` la bloquea.
+
+```
+<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py comparar <repo-de-diseño>
+```
+
+Si el JSON trae `"cambios": true`, muestra el cambio antes de escribirlo, con `<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py mostrar <repo-de-diseño>`, y explícalo en simple: qué reglas y tokens se suman (`faltan`), cuáles quedan fuera y por qué (`omitidos`), que lo que el repositorio ya tiene no cambia y, si `proto.js` difiere, que se reemplaza por el de la skill. Escribe solo con el sí de la persona, con `<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py aplicar <repo-de-diseño>`. Sin el sí, sigue con lo que hay y avisa que las vistas que usen lo que falta se verán sin estilo y `checklist-diseno` las bloqueará. Si el script sale con error, explícalo en simple y sigue sin tocar los compartidos.
+
 Revisa también que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`; si no la tiene, agrégala, y crea el archivo si falta. Lavish guarda ahí los archivos de cada revisión, que no son diseño: sin esa línea, producto los ve como cambios sin guardar después de cada commit.
 
 La convención de nombres y las reglas de los tokens están en `references/design-system.md`. Léela antes de escribir o extender `tokens.css` o `components.css`.
