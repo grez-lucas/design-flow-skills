@@ -420,6 +420,25 @@ class RechazoDeLaRamaNueva(Base):
         self.assertNotEqual(git("push", "-q", "-u", "origin", nueva, cwd=self.copia, check=False).returncode, 0)
         self.assertEqual(self.rama("rechazo", "--tipo", "spec", "--epica", "riego")["motivo"], "rama-nueva-rechazada")
 
+    def test_la_rama_nueva_que_hereda_el_upstream_de_la_principal_para(self):
+        """Con `branch.autoSetupMerge=inherit`, `git switch -c` deja la rama nueva siguiendo a origin/main."""
+        git("config", "branch.autoSetupMerge", "inherit", cwd=self.copia)
+        self.test_rechazo_de_la_rama_nueva_tras_otro_rechazo_para()
+        self.assertEqual(git("rev-parse", "--abbrev-ref", "@{upstream}", cwd=self.copia).stdout.strip(), "origin/main")
+
+    def test_diseno_mockup_que_hereda_el_upstream_de_la_rama_de_la_epica_para(self):
+        git("config", "branch.autoSetupMerge", "inherit", cwd=self.copia)
+        self.test_rechazo_de_diseno_mockup_creada_tras_el_si_para()
+        self.assertEqual(git("rev-parse", "--abbrev-ref", "@{upstream}", cwd=self.copia).stdout.strip(), "origin/main")
+
+    def test_principal_sin_upstream_da_la_rama_nueva(self):
+        """Una principal sin upstream no empuja con `git push`; es la principal del servidor, no una rama nueva."""
+        git("branch", "--unset-upstream", cwd=self.copia)
+        self.commit(self.copia, "spec")
+        self.assertNotEqual(git("push", "-q", cwd=self.copia, check=False).returncode, 0)
+        self.assertEqual(self.rama("rechazo", "--tipo", "spec", "--epica", "riego"),
+                         {"accion": "rama-nueva", "rama": "main", "rama_nueva": "spec/riego"})
+
 
 class Uso(Base):
     def falla(self, *args):

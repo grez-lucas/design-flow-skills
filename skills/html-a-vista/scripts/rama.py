@@ -24,9 +24,9 @@ revisar  antes de la primera escritura. Corre `git fetch`, mira la rama actual e
 
 rechazo  después de que el servidor rechazó el push a la rama actual por algo que no son credenciales. Devuelve
          `rama-nueva` con `rama`, la actual, y `rama_nueva`: `<tipo>/<épica>` o, si ya existe en local o en el
-         servidor, el primer sufijo libre (`-2`, `-3`). Si la rama actual no tiene upstream en el servidor, es la
-         rama nueva, la de `rama-nueva` o la `rama_nueva` de `ofrecer`, y para con `rama-nueva-rechazada`, sin
-         otro sufijo.
+         servidor, el primer sufijo libre (`-2`, `-3`). Si la rama actual no está en el servidor, es la rama nueva,
+         la de `rama-nueva` o la `rama_nueva` de `ofrecer`, aunque siga a otra rama, y para con
+         `rama-nueva-rechazada`, sin otro sufijo.
 
 Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, o una épica que no sirve como nombre
 de rama, sale con 2 sin escribir en stdout.
@@ -144,8 +144,8 @@ def primera_libre(git, ramas_del_servidor, base):
 def rechazo(git, args):
     _, ramas = servidor(git)
     actual = rama_actual(git)
-    if upstream(git, actual) not in ramas:
-        # Las ramas a las que se guarda tienen upstream en el servidor; sin él, la rechazada es la rama nueva.
+    if actual not in ramas:
+        # Las ramas a las que se guarda ya están en el servidor; la que no está es la rama nueva, aunque siga a otra.
         raise Parada("rama-nueva-rechazada", f"El servidor rechazó también la rama nueva {actual}.", actual)
     nombre = args.mockup or args.epica
     return {"accion": "rama-nueva", "rama": actual, "rama_nueva": primera_libre(git, ramas, f"{args.tipo}/{nombre}")}
