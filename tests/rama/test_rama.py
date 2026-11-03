@@ -529,6 +529,7 @@ class Uso(Base):
                                    capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(resultado.returncode, 2, resultado.stdout)
         self.assertEqual(resultado.stdout, "")
+        return resultado.stderr
 
     def test_tipo_desconocido(self):
         self.falla("revisar", "--tipo", "feat", "--epica", "riego")
@@ -537,6 +538,27 @@ class Uso(Base):
         for epica in ("", "riego nuevo", "riego/norte", "riego..x", "-riego", "riego-", "riego.lock"):
             with self.subTest(epica=epica):
                 self.falla("revisar", "--tipo", "spec", f"--epica={epica}")
+
+    def test_epica_o_mockup_que_termina_en_guion_y_numero(self):
+        """Q104: `fase-2` se confunde con el sufijo de la rama; la skill pide otro nombre, como `fase-dos`."""
+        for orden in ("revisar", "rechazo"):
+            for valor in ("fase-2", "fase-02", "riego-10"):
+                with self.subTest(orden=orden, valor=valor):
+                    error = self.falla(orden, "--tipo", "spec", "--epica", valor)
+                    self.assertIn("guion y número", error)
+                    self.assertIn("fase-dos", error)
+                    self.falla(orden, "--tipo", "diseno", "--mockup", valor, *(("--epicas", "riego,cosechas")
+                                                                              if orden == "revisar" else ()))
+        self.falla("revisar", "--tipo", "diseno", "--mockup", "panel", "--epicas", "riego,fase-2")
+        self.assertEqual(self.revisar("spec", "fase2"), {"accion": "guardar", "rama": "main"})
+        self.assertEqual(self.revisar("spec", "fase-dos-b"), {"accion": "guardar", "rama": "main"})
+
+    def test_epica_o_mockup_con_mayusculas(self):
+        for valor in ("Riego", "RIEGO", "Señales", "riego-Norte"):
+            with self.subTest(valor=valor):
+                self.assertIn("minúsculas", self.falla("revisar", "--tipo", "spec", "--epica", valor))
+                self.falla("rechazo", "--tipo", "diseno", "--mockup", valor)
+                self.falla("revisar", "--tipo", "diseno", "--mockup", "panel", "--epicas", f"riego,{valor}")
 
     def test_mockup_solo_con_diseno_y_con_varias_epicas(self):
         self.falla("revisar", "--tipo", "spec", "--mockup", "panel", "--epicas", "riego,cosechas")
