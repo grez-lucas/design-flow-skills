@@ -157,7 +157,7 @@ Todo en **Símbolo del sistema** (CMD: tecla Windows, escribe `cmd`, Enter), no 
    ```
 
    `node` debe mostrar `v22` o un número mayor, `npx` un número, y el último una descripción de Lavish sin errores. Si algo falla, las skills funcionan igual en el chat.
-5. Para guardar en el repositorio de diseño: instala Python con `winget install Python.Python.3.12`, o con el instalador de https://www.python.org/downloads/ marcando "Add python.exe to PATH". Cierra CMD, ábrelo de nuevo y comprueba con `py -3 --version`: debe mostrar `Python 3.9` o un número mayor. Sin Python, las skills paran antes de guardar.
+5. Para guardar en el repositorio de diseño, convertir mockups con `html-a-vista` y la revisión mecánica de `checklist-diseno`: instala Python con `winget install Python.Python.3.12`, o con el instalador de https://www.python.org/downloads/ marcando "Add python.exe to PATH". Cierra CMD, ábrelo de nuevo y comprueba con `py -3 --version`: debe mostrar `Python 3.9` o un número mayor. Sin Python, las skills que guardan paran antes de guardar, `html-a-vista` no convierte y `checklist-diseno` revisa a mano.
 6. Abre Claude Code de escritorio en la carpeta del repositorio de diseño, escribe `/` y busca `flujo-diseno:`: tienen que aparecer las skills del plugin.
 
 ### Acceso de escritura al repositorio de diseño

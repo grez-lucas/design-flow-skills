@@ -497,6 +497,16 @@ class LlamadaARama(unittest.TestCase):
         self.assertIn("winget install Python.Python.3.12", windows)
         self.assertIn("py -3 --version", windows)
 
+    def test_el_setup_en_windows_dice_que_hace_cada_skill_sin_python(self):
+        """Q106: sin Python, las que guardan paran al guardar, `html-a-vista` no convierte y `checklist-diseno` revisa a mano."""
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        windows = re.search(r"^### Primer setup en Windows\n.*?(?=^### )", readme, re.S | re.M).group(0)
+        self.assertIn("Para guardar en el repositorio de diseño, convertir mockups con `html-a-vista` y la revisión "
+                      "mecánica de `checklist-diseno`: instala Python", windows)
+        self.assertIn("Sin Python, las skills que guardan paran antes de guardar, `html-a-vista` no convierte y "
+                      "`checklist-diseno` revisa a mano.", windows)
+        self.assertNotIn("Sin Python, las skills paran antes de guardar.", windows)
+
 
 class PunteroALasConvenciones(unittest.TestCase):
     """Q87: el puntero a las convenciones va en `.claude/pm-conventions.md`, en el mismo commit que los tickets."""
