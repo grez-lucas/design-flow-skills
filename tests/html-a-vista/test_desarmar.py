@@ -19,7 +19,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def desarmar(entrada, trabajo, *extra):
-    return subprocess.run([sys.executable, str(SCRIPT), str(entrada), str(trabajo), *extra], capture_output=True, text=True)
+    return subprocess.run([sys.executable, "-B", str(SCRIPT), str(entrada), str(trabajo), *extra], capture_output=True, text=True)
 
 
 class Etiquetas(HTMLParser):
