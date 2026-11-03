@@ -33,6 +33,9 @@ def cargar(nombre, ruta):
 
 
 revisar = cargar("revisar", RAIZ / "skills" / "checklist-diseno" / "scripts" / "revisar.py")
+# Un test llama a `git apply`: sin las variables con que git ata un proceso a un repositorio (tests/aislar_git.py).
+aislar_git = cargar("aislar_git", RAIZ / "tests" / "aislar_git.py")
+setUpModule = aislar_git.aislar_modulo
 DARK = '[data-theme="dark"]'
 NUEVAS_DE_LOS_ASSETS = [":where([data-frame])", ".modal", ".modal__dialog", ".modal__actions", ".toast-region",
                         ".toast-region > *"]
