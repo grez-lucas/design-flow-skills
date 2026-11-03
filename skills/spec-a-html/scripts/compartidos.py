@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lleva a un repositorio de diseño que ya existe lo nuevo de los assets de spec-a-html, sin tocar lo propio.
+"""Lleva a un repositorio de diseño que ya existe lo nuevo de los assets de spec-a-html, sin borrar ni cambiar su texto.
 
 Uso:
   python3 -B compartidos.py comparar <repo-de-diseño>
@@ -8,7 +8,7 @@ Uso:
 
 comparar  imprime un JSON con lo que falta en design/ respecto de assets/:
             tokens      {existe, faltan: [{bloque, token, valor}], omitidos: [{bloque, token, motivo}]}
-            components  {existe, faltan: [selector], omitidos: [{selector, motivo}]}
+            components  {existe, faltan: [selector], omitidos: [{selector, motivo}], cambian_lo_propio: [selector]}
             proto       {existe, difiere}
             cambios     true si aplicar escribiría algo
 mostrar   imprime el diff unificado de lo que aplicar escribiría. No escribe.
@@ -16,21 +16,26 @@ aplicar   escribe lo que comparar lista e imprime el mismo JSON.
 
 Tokens. Un token de assets/tokens.css falta si design/tokens.css no lo declara en ningún bloque. Se agrega en el
 bloque con el mismo selector que en assets (`:root`, `[data-theme="dark"]`), en una línea nueva después de su última
-declaración. Sin bloque `:root`, se agrega uno al final. Sin el bloque del tema oscuro, el valor oscuro queda en
-omitidos: agregar el bloque le daría al producto un tema que no tiene.
+declaración. El bloque oscuro también se reconoce como `:root[data-theme="dark"]` o `html[data-theme="dark"]`, con
+cualquier comilla. Sin bloque `:root`, se agrega uno al final. Sin un bloque oscuro que se reconozca (por ejemplo, si
+el tema oscuro vive en un `@media (prefers-color-scheme: dark)`), el valor oscuro queda en omitidos y no se crea el
+bloque.
 
 Reglas. Cada selector de una regla de assets/components.css falta si design/components.css no tiene ese selector en
-ninguna regla, a cualquier profundidad (`@media`, `@layer`). Uno que falta se agrega solo si nombra una clase que
-design/components.css no usa, o si no nombra clases (`:where([data-frame])`, `*::before`): así la regla nueva solo
-pinta elementos que lo propio no pinta. Si todas sus clases ya son del repositorio (`.btn:hover` con un `.btn`
-propio), cambiaría cómo se ve un componente propio y queda en omitidos. Las reglas nuevas van al final, en el orden
+ninguna regla, a cualquier profundidad (`@media`, `@layer`). Uno que falta se agrega si nombra una clase que
+design/components.css no usa, y así solo pinta elementos con esa clase nueva. Si todas sus clases ya son del
+repositorio (`.btn:hover` con un `.btn` propio), cambiaría un componente propio y queda en omitidos. Uno que no nombra
+clases (`body`, `*::before`, `:where([data-frame])`) se agrega igual (Q110) y va también en cambian_lo_propio: pinta
+elementos que ya existen y cambia cómo se ven las vistas propias. Las reglas nuevas van al final, en el orden
 de assets, con el comentario que las precede y solo con sus selectores que faltan; una regla dentro de un `@media`
 va con su preludio.
 
 proto.js. Si falta o difiere, se reemplaza por el de assets, sin modificar. Si falta components.css, se copia entero.
 
-Nada de lo que ya está cambia: aplicar solo inserta, con el fin de línea del archivo. Sale con 2, sin escribir, si
-no existe design/ o design/tokens.css, si tokens.css o components.css tienen llaves sin par, o con uso incorrecto.
+aplicar no borra ni cambia texto del repositorio: solo inserta, con el fin de línea del archivo y su BOM si lo tiene.
+mostrar da un diff que `git apply` o `patch` aplican igual que aplicar. Sale con 2, sin escribir, si no existe design/
+o design/tokens.css, si tokens.css o components.css tienen llaves sin par o un comentario o una cadena sin cerrar, o
+con uso incorrecto.
 """
 import argparse
 import difflib
@@ -79,6 +84,8 @@ def arbol(css, nombre):
             nodo["cierra"], desde = i, i + 1
         elif c == ";":
             desde = i + 1
+        elif c in "\"'" or m.startswith("/*", i):
+            raise Ilegible(f"`{nombre}` deja {'un comentario' if c == '/' else 'una cadena'} sin cerrar (posición {i}).")
     if pila:
         raise Ilegible(f"`{nombre}` deja una llave sin cerrar, la de `{pila[-1][1]['preludio'][:40]}`.")
     return raiz
@@ -108,6 +115,7 @@ def normal(selector):
     """El selector con un solo espacio entre partes, sin espacios junto a `>`, `+`, `~` y `,` ni dentro de los
     paréntesis, y con comillas dobles."""
     s = re.sub(r"\s+", " ", selector.strip()).replace("'", '"')
+    s = re.sub(r"""\[\s*([\w-]+)\s*([~|^$*]?=)\s*([^"\]\s]+)\s*\]""", r'[\1\2"\3"]', s)
     return re.sub(r"\s*([>+~,])\s*", r"\1", re.sub(r"\(\s+", "(", re.sub(r"\s+\)", ")", s)))
 
 
@@ -120,9 +128,22 @@ def sin_escapes(texto):
     return ESCAPE.sub(letra, texto)
 
 
+def sin_negaciones(selector):
+    """El selector sin sus `:not(...)` ni `:has(...)`, con los paréntesis anidados que tengan."""
+    while True:
+        m = re.search(r":(?:not|has)\(", selector, re.I)
+        if not m:
+            return selector
+        prof, i = 1, m.end()
+        while i < len(selector) and prof:
+            prof += {"(": 1, ")": -1}.get(selector[i], 0)
+            i += 1
+        selector = selector[:m.start()] + selector[i:]
+
+
 def clases(selector):
-    """Las clases que un selector exige al elemento; las de un `:not()` no las exige."""
-    return {sin_escapes(c).rstrip() for c in CLASE.findall(re.sub(r":not\([^()]*\)", "", selector))}
+    """Las clases que un selector exige al elemento; las de un `:not()` o un `:has()` no las exige."""
+    return {sin_escapes(c).rstrip() for c in CLASE.findall(sin_negaciones(selector))}
 
 
 def recorrer(nodos):
@@ -148,16 +169,16 @@ def fin_de_linea(texto):
 
 # --- components.css --------------------------------------------------------------------------------
 
-def reglas_que_faltan(asset, nodos, propio, faltan, omitidos, prefijo="", primero=True):
+def reglas_que_faltan(asset, nodos, propio, faltan, omitidos, cambian, prefijo="", primero=True):
     """Los textos de las reglas de `nodos` (del asset) que van al repositorio. `propio` son los selectores y las clases
-    de design/components.css. Anota en `faltan` y `omitidos` cada selector."""
+    de design/components.css. Anota en `faltan`, `omitidos` y `cambian` cada selector."""
     selectores, nombres = propio
     textos = []
     for n, nodo in enumerate(nodos):
         comentario = "" if primero and n == 0 else asset[nodo["desde"]:nodo["abre"]].strip()
         comentario = "\n".join(re.findall(r"/\*.*?\*/", comentario, re.S))
         if es_regla_at(nodo):
-            interiores = reglas_que_faltan(asset, nodo["hijos"], propio, faltan, omitidos, f"{prefijo}{nodo['preludio']} ", False)
+            interiores = reglas_que_faltan(asset, nodo["hijos"], propio, faltan, omitidos, cambian, f"{prefijo}{nodo['preludio']} ", False)
             if interiores:
                 cuerpo = "\n".join("  " + l if l else l for t in interiores for l in t.split("\n"))
                 textos.append(("\n" + comentario + "\n" if comentario else "") + f"{nodo['preludio']} {{\n{cuerpo}\n}}")
@@ -172,6 +193,8 @@ def reglas_que_faltan(asset, nodos, propio, faltan, omitidos, prefijo="", primer
                                  "la regla cambiaría cómo se ve un componente propio."})
             else:
                 nuevos.append(s)
+                if not propias:
+                    cambian.append(prefijo + s)
         if nuevos:
             faltan.append(prefijo + ", ".join(nuevos))
             regla = ", ".join(nuevos) + " " + asset[nodo["abre"]:nodo["cierra"] + 1]
@@ -183,18 +206,18 @@ def components(design, assets):
     asset = (assets / "components.css").read_text(encoding="utf-8")
     ruta = design / "components.css"
     existe = ruta.exists()
-    texto = leer(ruta) if existe else ""
+    bom, texto = sin_bom(leer(ruta) if existe else "")
     propio = selectores_y_clases(arbol(texto, "components.css"))
-    faltan, omitidos = [], []
-    textos = reglas_que_faltan(asset, arbol(asset, "assets/components.css"), propio, faltan, omitidos)
+    faltan, omitidos, cambian = [], [], []
+    textos = reglas_que_faltan(asset, arbol(asset, "assets/components.css"), propio, faltan, omitidos, cambian)
     if not existe:
-        return {"existe": False, "faltan": faltan, "omitidos": []}, asset
+        return {"existe": False, "faltan": faltan, "omitidos": [], "cambian_lo_propio": cambian}, asset
     nuevo = texto
     if textos:
         nl = fin_de_linea(texto)
         bloque = "\n" + ENCABEZADO + "\n" + "\n".join(textos) + "\n"
         nuevo = texto + ("" if texto.endswith("\n") or not texto else nl) + bloque.replace("\n", nl)
-    return {"existe": True, "faltan": faltan, "omitidos": omitidos}, nuevo
+    return {"existe": True, "faltan": faltan, "omitidos": omitidos, "cambian_lo_propio": cambian}, bom + nuevo
 
 
 # --- tokens.css ------------------------------------------------------------------------------------
@@ -207,8 +230,10 @@ def declaraciones(css, nodo):
 
 
 def bloque(nodos, selector):
-    """El último bloque de primer nivel cuyo selector incluye `selector`, o None."""
-    candidatos = [n for n in nodos if not es_regla_at(n) and normal(selector) in map(normal, separar(n["preludio"]))]
+    """El último bloque de primer nivel cuyo selector incluye `selector`, o, para un selector de tema como
+    `[data-theme="dark"]`, el mismo sobre `:root` o `html`; None si no hay."""
+    buscados = {normal(selector)} | ({normal(":root" + selector), normal("html" + selector)} if normal(selector) != ":root" else set())
+    candidatos = [n for n in nodos if not es_regla_at(n) and buscados & set(map(normal, separar(n["preludio"])))]
     return candidatos[-1] if candidatos else None
 
 
@@ -229,7 +254,7 @@ def insertar(texto, nodo, lineas, nl):
 
 def tokens(design, assets):
     asset = (assets / "tokens.css").read_text(encoding="utf-8")
-    texto = leer(design / "tokens.css")
+    bom, texto = sin_bom(leer(design / "tokens.css"))
     nodos = arbol(texto, "tokens.css")
     definidos = set(re.findall(r"(--[\w-]+)\s*:", re.sub(r"/\*.*?\*/", "", texto, flags=re.S)))
     faltan, omitidos, por_bloque = [], [], []
@@ -242,8 +267,9 @@ def tokens(design, assets):
         selector = nodo["preludio"]
         destino = bloque(nodos, selector)
         if destino is None and normal(selector) != ":root":
-            omitidos += [{"bloque": selector, "token": n, "motivo": f"el repositorio no tiene el bloque `{selector}` del tema oscuro: "
-                          "agregarlo le daría al producto un tema que no tiene."} for n, _ in nuevas]
+            omitidos += [{"bloque": selector, "token": n, "motivo": f"`tokens.css` no tiene un bloque `{selector}`, `:root{selector}` ni "
+                          f"`html{selector}` donde agregarlo, y crearlo sumaría un tema que el repositorio no declara así. Si su "
+                          "tema oscuro vive en otro bloque, el valor va ahí a mano."} for n, _ in nuevas]
             continue
         faltan += [{"bloque": selector, "token": n, "valor": v} for n, v in nuevas]
         por_bloque.append((selector, destino, [f"{n}: {v};" for n, v in nuevas]))
@@ -259,7 +285,7 @@ def tokens(design, assets):
         nuevo = nuevo[:pos] + agregado + nuevo[pos:]
     if al_final:
         nuevo += ("" if nuevo.endswith("\n") or not nuevo else nl) + al_final
-    return {"existe": True, "faltan": faltan, "omitidos": omitidos}, nuevo
+    return {"existe": True, "faltan": faltan, "omitidos": omitidos}, bom + nuevo
 
 
 # --- Comparar, mostrar, aplicar --------------------------------------------------------------------
@@ -267,6 +293,15 @@ def tokens(design, assets):
 def leer(ruta):
     with open(ruta, encoding="utf-8", newline="") as f:
         return f.read()
+
+
+def sin_bom(texto):
+    """(BOM, texto sin BOM): el BOM inicial se aparta para que el primer bloque se reconozca, y vuelve al escribir."""
+    return ("\ufeff", texto[1:]) if texto.startswith("\ufeff") else ("", texto)
+
+
+def sin_crlf(datos):
+    return datos.replace(b"\r\n", b"\n")
 
 
 def escribir(ruta, texto):
@@ -290,7 +325,7 @@ def calcular(design, assets=ASSETS):
         cambios["components.css"] = (leer(actual) if actual.exists() else None, nuevo)
     proto, original = design / "proto.js", assets / "proto.js"
     existe = proto.exists()
-    salida["proto"] = {"existe": existe, "difiere": not existe or proto.read_bytes() != original.read_bytes()}
+    salida["proto"] = {"existe": existe, "difiere": not existe or sin_crlf(proto.read_bytes()) != sin_crlf(original.read_bytes())}
     if salida["proto"]["difiere"]:
         cambios["proto.js"] = (leer(proto) if existe else None, leer(original))
     salida["cambios"] = bool(cambios)
@@ -314,12 +349,15 @@ def aplicar(design, assets=ASSETS):
 
 
 def mostrar(design, assets=ASSETS):
+    """El diff unificado de lo que aplicar escribe, con los fines de línea de cada archivo y la marca de diff para un
+    archivo sin salto de línea final, para que `git apply` o `patch` den los mismos bytes."""
     _, cambios = calcular(design, assets)
     partes = []
     for archivo, (antes, despues) in cambios.items():
-        partes += difflib.unified_diff((antes or "").splitlines(), despues.splitlines(), f"a/design/{archivo}",
-                                       f"b/design/{archivo}", lineterm="")
-    return "\n".join(partes)
+        desde = "/dev/null" if antes is None else f"a/design/{archivo}"
+        for linea in difflib.unified_diff((antes or "").splitlines(True), despues.splitlines(True), desde, f"b/design/{archivo}"):
+            partes.append(linea if linea.endswith("\n") else linea + "\n\\ No newline at end of file\n")
+    return "".join(partes)
 
 
 def main(argv=None):
@@ -330,7 +368,7 @@ def main(argv=None):
     design = Path(args.repo).resolve() / "design"
     try:
         if args.comando == "mostrar":
-            print(mostrar(design) or "Sin cambios.")
+            sys.stdout.buffer.write((mostrar(design) or "Sin cambios.\n").encode("utf-8"))
         else:
             print(json.dumps((comparar if args.comando == "comparar" else aplicar)(design), ensure_ascii=False, indent=1))
     except Ilegible as e:
