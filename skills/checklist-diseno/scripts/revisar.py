@@ -4,6 +4,11 @@
 Uso: python3 revisar.py <repo-de-diseño> [vista.html ...]
 Sin vistas, revisa todas las de design/vistas/. Imprime un informe en markdown y
 termina con código 1 si hay algún hallazgo que bloquea.
+
+Cruza los escenarios de cada vista con la tabla `## Escenarios en pantalla` de su spec: el de
+`<meta name="spec">` o, sin él, `specs/<épica>/spec.md` de la épica de la vista. Los base son
+implícitos; un escenario que no es base ni está en la tabla bloquea, y una fila de la tabla que
+ninguna vista declara, un spec sin la tabla o una vista sin spec van como aviso.
 """
 import math
 import re
@@ -35,6 +40,11 @@ FONT_FACE = re.compile(r"@font-face\s*\{([^}]*)\}", re.I)
 URL = re.compile(r"""url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))""", re.I)
 CADENA = re.compile(r""""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'""", re.S)
 ATRIBUTO_CLASE = re.compile(r"""\[\s*class\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))\s*([iIsS])?\s*\]""")
+SECCION_ESCENARIOS = "## Escenarios en pantalla"
+ESCENARIO_SPEC = re.compile(r"### Escenario \d+: (.+)$")
+SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+SEPARADOR = re.compile(r"\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?")
+CERCA = re.compile(r"\s{0,3}(`{3,}|~{3,})")
 CLASE = re.compile(r"\.(-?(?:\\[0-9a-fA-F]{1,6}\s?|\\[^\n0-9a-fA-F]|[\w-]|[^\x00-\x7f])+)")
 
 
@@ -250,6 +260,167 @@ def valores_sueltos(css):
     return colores + medidas
 
 
+def error_del_spec(spec, repo):
+    """El bloqueo de un `<meta name="spec">` declarado que no sirve, o None si no hay meta o apunta bien."""
+    if not spec:
+        return None
+    if "<" in spec:
+        return f"`<meta name=\"spec\">` tiene el marcador de la plantilla: `{spec}`."
+    if Path(spec).is_absolute() or repo not in (repo / spec).resolve().parents:
+        return f"El spec de `<meta name=\"spec\">`, `{spec}`, está fuera del repositorio. Va como ruta relativa a su raíz."
+    if not (repo / spec).is_file():
+        return f"El spec de `<meta name=\"spec\">`, `{spec}`, no existe en el repositorio."
+    return None
+
+
+def fuera_de_bloques(texto):
+    """Las líneas del markdown que no están dentro de un bloque de código cercado (``` o ~~~)."""
+    lineas, cerca = [], None
+    for linea in texto.splitlines():
+        m = CERCA.match(linea)
+        if m and (cerca is None or m.group(1)[0] == cerca[0] and len(m.group(1)) >= len(cerca)):
+            cerca = m.group(1) if cerca is None else None
+            continue
+        if cerca is None:
+            lineas.append(linea)
+    return lineas
+
+
+def celdas(fila):
+    t = fila.strip()
+    t = t[1:] if t.startswith("|") else t
+    t = t[:-1] if t.endswith("|") and not t.endswith("\\|") else t
+    return [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", t)]
+
+
+def leer_spec(texto):
+    """Los nombres de los `### Escenario N: <nombre>` del spec y las filas de `## Escenarios en pantalla`.
+
+    `tabla` es None si el spec no tiene la sección. `errores` lista lo que impide usar la tabla: sin tabla o con otras
+    columnas, una fila sin tres celdas, un slug que no es minúsculas y guiones o que se repite, un alcance vacío y un
+    nombre que no es el de ningún `### Escenario N`.
+    """
+    lineas = fuera_de_bloques(texto)
+    escenarios = [m.group(1).strip() for m in map(ESCENARIO_SPEC.match, lineas) if m]
+    inicio = next((i for i, l in enumerate(lineas) if l.rstrip() == SECCION_ESCENARIOS), None)
+    if inicio is None:
+        return {"escenarios": escenarios, "tabla": None, "errores": []}
+    seccion = []
+    for linea in lineas[inicio + 1:]:
+        if re.match(r"#{1,2} ", linea):
+            break
+        seccion.append(linea)
+    filas = [l for l in seccion if l.strip().startswith("|")]
+    errores, tabla = [], []
+    columnas = "`| Slug | Nombre | Alcance |`"
+    if len(filas) < 2 or [c.lower() for c in celdas(filas[0])] != ["slug", "nombre", "alcance"] or not SEPARADOR.fullmatch(filas[1].strip()):
+        errores.append(f"`{SECCION_ESCENARIOS}` no tiene una tabla con las columnas {columnas}, así que no se puede "
+                       "cruzar con las vistas.")
+        return {"escenarios": escenarios, "tabla": [], "errores": errores}
+    vistos = set()
+    for fila in filas[2:]:
+        c = celdas(fila)
+        if len(c) != 3:
+            errores.append(f"La fila `{fila.strip()}` de `{SECCION_ESCENARIOS}` no tiene tres columnas ({columnas}).")
+            continue
+        slug, nombre, alcance = c[0].strip("`").strip(), c[1], c[2]
+        if not SLUG.fullmatch(slug):
+            errores.append(f"El slug `{slug}` de `{SECCION_ESCENARIOS}` no es minúsculas, números y guiones, sin tildes "
+                           "ni espacios: las vistas no pueden declararlo igual.")
+            continue
+        if slug in vistos:
+            errores.append(f"`{SECCION_ESCENARIOS}` repite el slug `{slug}`.")
+            continue
+        vistos.add(slug)
+        if not alcance:
+            errores.append(f"La fila `{slug}` de `{SECCION_ESCENARIOS}` no dice su alcance: `global` o el nombre de la pantalla.")
+        if nombre not in escenarios:
+            errores.append(f"La fila `{slug}` de `{SECCION_ESCENARIOS}` nombra \"{nombre}\", y el spec no tiene un "
+                           f"`### Escenario N: {nombre}`: la vista no tiene un criterio que diga qué muestra.")
+        tabla.append({"slug": slug, "nombre": nombre, "alcance": alcance})
+    return {"escenarios": escenarios, "tabla": tabla, "errores": errores}
+
+
+def declarados(path):
+    v = Vista()
+    v.feed(path.read_text(errors="ignore"))
+    return [e.strip() for e in v.body.get("data-escenarios", "").split(",") if e.strip()], v.metas
+
+
+def spec_de_vista(path, repo, metas):
+    """El spec contra el que se cruzan los escenarios de la vista, relativo a la raíz, y si se pudo resolver.
+
+    Manda `<meta name="spec">`; sin él, `specs/<épica>/spec.md` de la épica de `design/vistas/<épica>/<vista>.html`.
+    Devuelve (ruta, None) si existe, (None, ruta esperada o None) si no hay spec, y (None, False) si el meta no sirve,
+    porque ese caso ya bloquea en revisar_vista.
+    """
+    meta = metas.get("spec", "").strip()
+    if meta:
+        return (None, False) if error_del_spec(meta, repo) else (Path(meta).as_posix(), None)
+    partes = path.relative_to(repo).parts
+    if len(partes) != 4 or partes[:2] != ("design", "vistas"):
+        return None, None
+    ruta = f"specs/{partes[2]}/spec.md"
+    return (ruta, None) if (repo / ruta).is_file() else (None, ruta)
+
+
+def cruzar_escenarios(repo, vistas):
+    """Cruza los escenarios de cada vista con la tabla `## Escenarios en pantalla` de su spec.
+
+    Devuelve los hallazgos por vista ({ruta: (bloquea, avisa)}) y por spec ({ruta relativa: (bloquea, avisa)}). Un
+    escenario de la vista que no es base ni está en la tabla bloquea. Una fila de la tabla que ninguna vista de
+    `design/vistas/` declara, revisada o no, avisa: puede llegar en otro ticket. Sin tabla o sin spec, avisa.
+    """
+    por_vista, por_spec, leidos = {}, {}, {}
+
+    def leer(ruta):
+        if ruta not in leidos:
+            leidos[ruta] = leer_spec((repo / ruta).read_text(errors="ignore"))
+        return leidos[ruta]
+
+    for path in vistas:
+        bloquea, avisa = [], []
+        escenarios, metas = declarados(path)
+        ruta, esperada = spec_de_vista(path, repo, metas)
+        if ruta is None:
+            if esperada is not False:
+                donde = f"`{esperada}`" if esperada else "`specs/<épica>/spec.md`"
+                avisa.append(f"No tiene spec contra el cual cruzar sus escenarios: ni `<meta name=\"spec\">` ni {donde}. "
+                             "Sin spec, nadie confirma que cada escenario propio de la vista es uno que producto decidió.")
+            por_vista[path] = (bloquea, avisa)
+            continue
+        leido = leer(ruta)
+        por_spec.setdefault(ruta, ([], []))
+        if leido["tabla"] is None:
+            avisa.append(f"`{ruta}` no tiene la sección `{SECCION_ESCENARIOS}`, así que sus escenarios no se cruzan con "
+                         "el spec. `grilling-es` la agrega cuando vuelva a tocar ese spec; un spec congelado no se "
+                         "reescribe por esto.")
+        elif not leido["errores"] or leido["tabla"]:
+            tabla = {f["slug"] for f in leido["tabla"]}
+            sin_respaldo = [e for e in escenarios if e not in BASE and e not in tabla]
+            if sin_respaldo:
+                bloquea.append(f"Declara escenarios que no son base ni están en `{SECCION_ESCENARIOS}` de `{ruta}`: "
+                               f"{', '.join(f'`{e}`' for e in sin_respaldo)}. DEV no tiene un escenario del spec que diga "
+                               "qué pasa ahí: usa el slug que la tabla ya tiene o agrega el escenario al spec con `grilling-es`.")
+        por_vista[path] = (bloquea, avisa)
+
+    usados = {}
+    for path in sorted((repo / "design" / "vistas").rglob("*.html")):
+        escenarios, metas = declarados(path)
+        ruta, _ = spec_de_vista(path, repo, metas)
+        if ruta in por_spec:
+            usados.setdefault(ruta, set()).update(escenarios)
+    for ruta, (bloquea, avisa) in por_spec.items():
+        leido = leer(ruta)
+        bloquea += leido["errores"]
+        for fila in leido["tabla"] or []:
+            if fila["slug"] not in usados.get(ruta, set()):
+                avisa.append(f"`{fila['slug']}` (\"{fila['nombre']}\", alcance {fila['alcance'] or 'sin decir'}) está en "
+                             f"`{SECCION_ESCENARIOS}` y ninguna vista de `design/vistas/` lo declara. Puede llegar en otro "
+                             "ticket; si no, falta en la vista que lo muestra.")
+    return por_vista, por_spec
+
+
 def revisar_vista(path, repo, definidos):
     texto = path.read_text(errors="ignore")
     v = Vista()
@@ -336,13 +507,9 @@ def revisar_vista(path, repo, definidos):
 
     tickets = v.metas.get("tickets", "").strip()
     spec = v.metas.get("spec", "").strip()
-    if spec:
-        if "<" in spec:
-            bloquea.append(f"`<meta name=\"spec\">` tiene el marcador de la plantilla: `{spec}`.")
-        elif Path(spec).is_absolute() or repo not in (repo / spec).resolve().parents:
-            bloquea.append(f"El spec de `<meta name=\"spec\">`, `{spec}`, está fuera del repositorio. Va como ruta relativa a su raíz.")
-        elif not (repo / spec).is_file():
-            bloquea.append(f"El spec de `<meta name=\"spec\">`, `{spec}`, no existe en el repositorio.")
+    error = error_del_spec(spec, repo)
+    if error:
+        bloquea.append(error)
     if tickets and "ID-DEL-TICKET" not in tickets:
         cita = f"Tickets: {tickets}"
     elif spec:
@@ -634,11 +801,22 @@ def main():
     if not vistas:
         print("\nNo hay vistas en `design/vistas/<épica>/`.")
         return 1
+    por_vista, por_spec = cruzar_escenarios(repo, vistas)
     for path in vistas:
         rel, esc, cita, b, a = revisar_vista(path, repo, definidos)
+        b, a = b + por_vista[path][0], a + por_vista[path][1]
         total += len(b)
         print(f"\n## {rel}\n")
         print(f"{cita} · Escenarios: {', '.join(esc) or 'ninguno'}\n")
+        for x in b:
+            print(f"- BLOQUEA: {x}")
+        for x in a:
+            print(f"- AVISO: {x}")
+        if not b and not a:
+            print("- Sin hallazgos.")
+    for ruta, (b, a) in por_spec.items():
+        total += len(b)
+        print(f"\n## Escenarios del spec: {ruta}\n")
         for x in b:
             print(f"- BLOQUEA: {x}")
         for x in a:

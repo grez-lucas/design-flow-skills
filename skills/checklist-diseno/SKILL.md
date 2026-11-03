@@ -35,6 +35,7 @@ Si no encontraste intérprete, revisa a mano, y dilo en el informe. Una vista gr
 - Que no haya `@keyframes`, con o sin prefijo (`@-webkit-keyframes`, `@-o-keyframes`), en la vista, en `components.css` ni en `tokens.css`, y que esos dos no importen otras hojas con `@import`. Un comentario que nombra la animación no cuenta: es el comentario de intención que la reemplaza.
 - Que declare los escenarios base (normal, vacio, cargando, error, sin-permiso, muchos-datos) o los marque en `data-no-aplica`, cada uno con su motivo y separados por `;`.
 - Que cada `data-state` corresponda a un escenario declarado.
+- Que cada escenario que no es base esté en la tabla `## Escenarios en pantalla` de su spec, el de `<meta name="spec">` o, sin él, `specs/<épica>/spec.md`, y que cada nombre de esa tabla sea el de un `### Escenario N: <nombre>` del spec. Una fila que ninguna vista declara, un spec sin la tabla o una vista sin spec van en "Conviene mirar".
 - Que no haya colores ni medidas sueltas ni variables que `tokens.css` no define, en `<style>`, en `style=` ni en atributos de SVG.
 - Que cada clase que la vista usa en `class=` tenga regla en `components.css` o en el `<style>` de la vista. Una clase sin regla no se ve, y DEV no sabe cómo construirla.
 - Que no cargue recursos externos, tampoco desde CSS (`@import`, `url()`), ni la vista ni `components.css` ni `tokens.css`. La fuente del producto sí puede ser local: un `.woff2` que existe directo en `design/fuentes/`, cargado con `@font-face` en `tokens.css` y una `url()` relativa. Ninguna otra `url()` local ni `data:` en los compartidos, y ningún `@font-face` en la vista.
@@ -47,7 +48,7 @@ Si no encontraste intérprete, revisa a mano, y dilo en el informe. Una vista gr
 Lo que el script no puede ver, lo revisas tú, vista por vista:
 
 - **Tickets**: lee los tickets que la vista cita (en el tracker o en `specs/<épica>/tickets/`). Cada escenario "Dado, cuando, entonces" tiene que poder verse en algún escenario de la vista. Un criterio que la vista no muestra es lo primero que DEV va a preguntar. Una vista que cita solo `<meta name="spec">` no tiene tickets: no la marques por eso, crúzala contra el spec.
-- **Spec**: compara los escenarios de la vista con "Estados por vista" del spec. Uno que el spec pide y la vista no tiene bloquea. En una vista con solo spec, este cruce reemplaza al de tickets: además de "Estados por vista", cada historia y cada regla del spec que toque la vista tiene que poder verse en algún escenario.
+- **Spec**: el script ya cruzó los slugs con `## Escenarios en pantalla`; tú compara los escenarios de la vista con "Estados por vista" del spec. Uno que el spec pide y la vista no tiene bloquea. En una vista con solo spec, este cruce reemplaza al de tickets: además de "Estados por vista", cada historia y cada regla del spec que toque la vista tiene que poder verse en algún escenario.
 - **Escenarios que se ven iguales**: abre cada escenario mentalmente (o en el navegador si la sesión puede, con `?escenario=<nombre>`): vacío, error y sin permiso tienen que decir qué pasa y qué puede hacer el usuario, no mostrar una pantalla en blanco.
 - **Controles de prototipo**: busca selectores, pestañas o botones dentro de la pantalla que solo sirven para cambiar de caso ("plan vigente / plan expirado"). DEV no distingue andamio de producto. El script solo detecta los que tienen un manejador `on...` o un enlace a `?escenario=`; los demás los ves tú.
 - **Lo que sobra**: un escenario o una acción que ni el spec ni los tickets piden; en una vista con solo spec, lo que el spec no pide. Si implica comportamiento nuevo, bloquea, porque DEV lo construiría sin criterio de aceptación; si es cosmético, va en "Conviene mirar". Los datos y los textos se revisan en "Datos o textos fuera del spec".
@@ -80,11 +81,15 @@ Lista.   (cuando no tiene hallazgos)
 
 <hallazgos de tokens.css, components.css y proto.js, si hay>
 
+## Escenarios del spec · <ruta del spec>
+
+<filas de `## Escenarios en pantalla` que ninguna vista declara, y errores de la tabla, si hay>
+
 ## Siguiente paso
 
 <qué corregir con spec-a-html antes de la planificación, o "listo para llevar a la planificación">
 ```
 
-Bloquea lo que impide construir sin preguntar: un escenario del spec o un criterio de un ticket que no se ve, valores visuales sueltos, variables sin definir o clases sin regla en `components.css` ni en el `<style>` de la vista, controles de prototipo dentro de la pantalla, JavaScript propio, hojas de estilo que no son las del repositorio o animaciones con `@keyframes`, una vista que no cita tickets ni spec o declara un spec que no existe o está fuera del repositorio, aunque cite tickets, recursos externos, texto de relleno, y dominios o marcas que confirmaste que son reales (el script los marca como aviso porque no puede saberlo; tú sí, mirando si el nombre existe fuera del ejemplo). Lo demás va en "Conviene mirar".
+Bloquea lo que impide construir sin preguntar: un escenario del spec o un criterio de un ticket que no se ve, valores visuales sueltos, variables sin definir o clases sin regla en `components.css` ni en el `<style>` de la vista, un escenario de la vista que no es base ni está en `## Escenarios en pantalla` del spec, una fila de esa tabla que no nombra un `### Escenario` del spec, controles de prototipo dentro de la pantalla, JavaScript propio, hojas de estilo que no son las del repositorio o animaciones con `@keyframes`, una vista que no cita tickets ni spec o declara un spec que no existe o está fuera del repositorio, aunque cite tickets, recursos externos, texto de relleno, y dominios o marcas que confirmaste que son reales (el script los marca como aviso porque no puede saberlo; tú sí, mirando si el nombre existe fuera del ejemplo). Lo demás va en "Conviene mirar".
 
 No corrijas las vistas: el informe es para decidir en la planificación. Si la persona quiere corregir, el siguiente paso es `spec-a-html` en modo edición, con la lista de hallazgos. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
