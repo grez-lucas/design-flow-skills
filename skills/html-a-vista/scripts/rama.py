@@ -11,9 +11,9 @@ Uso, desde el repositorio de diseño o con --repo:
 extensión, en minúsculas y con guiones, reemplaza a la épica en la rama.
 
 revisar  antes de la primera escritura. Corre `git fetch`, mira la rama actual en el servidor y devuelve:
-         guardar  la rama actual es la principal del servidor, o una rama del flujo de la épica con upstream vivo:
-                  `spec/`, `tickets/` o `diseno/<épica>`, con o sin sufijo (`-2`, `-3`). Con --mockup, la rama
-                  del flujo es `diseno/<mockup>`, con o sin sufijo.
+         guardar  la rama actual es la principal del servidor, o una rama del flujo de la épica con upstream vivo,
+                  la rama del mismo nombre en origin: `spec/`, `tickets/` o `diseno/<épica>`, con o sin sufijo
+                  (`-2`, `-3`). Con --mockup, la rama del flujo es `diseno/<mockup>`, con o sin sufijo.
          ofrecer  solo con --mockup: la rama actual es una rama del flujo viva de una sola de las épicas, aunque el
                   mockup se llame como ella, y `git status --porcelain --untracked-files=no` no muestra nada. Con
                   el sí de la persona: volver a `principal` con `git switch` y `git pull --ff-only`, y crear
@@ -103,7 +103,8 @@ def revisar(git, args):
     if actual == principal:
         return {"accion": "guardar", "rama": actual}
     sigue = upstream(git, actual)
-    vivo = sigue in ramas
+    # Viva: sigue a la rama del mismo nombre en el servidor, la que recibe `git push`.
+    vivo = sigue == actual and sigue in ramas
     if vivo and args.epicas and any(es_del_flujo(actual, epica) for epica in args.epicas):
         if git.salida("status", "--porcelain", "--untracked-files=no") != "":
             raise Parada("cambios-sin-guardar", f"La rama {actual} es de una sola de las épicas del mockup y la copia "
@@ -113,7 +114,7 @@ def revisar(git, args):
     propia = es_del_flujo(actual, args.mockup, ("diseno",)) if args.epicas else es_del_flujo(actual, args.epica)
     if vivo and propia:
         return {"accion": "guardar", "rama": actual}
-    if sigue is not None and not vivo:
+    if sigue is not None and sigue not in ramas:
         pendientes = git.salida("rev-list", "--count", "HEAD", "--not", "--remotes=origin")
         if pendientes == "0":
             return {"accion": "volver", "rama": actual, "principal": principal}
