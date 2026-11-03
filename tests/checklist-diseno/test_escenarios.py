@@ -131,7 +131,7 @@ class LeerSpec(unittest.TestCase):
         self.assertIn("### Escenario", leido["errores"][0])
 
     def test_la_seccion_sin_tabla_o_con_otras_columnas_es_error(self):
-        sin_tabla = SPEC.split("| Slug |")[0] + "Ninguno.\n"
+        sin_tabla = SPEC.split("| Slug |")[0] + "Los escenarios se ven en la pantalla de pedidos.\n"
         otras = SPEC.replace("| Slug | Nombre | Alcance |", "| Slug | Nombre | Pantalla |")
         for caso, texto in (("sin tabla", sin_tabla), ("otras columnas", otras)):
             with self.subTest(caso=caso):
@@ -161,6 +161,86 @@ class LeerSpec(unittest.TestCase):
         leido = revisar.leer_spec(texto)
         self.assertEqual(leido["errores"], [])
         self.assertEqual([f["slug"] for f in leido["tabla"]], ["pedido-atrasado", "lector-desconectado", "vacio", "vacio"])
+
+    def test_ninguno_no_aplica_o_solo_el_encabezado_son_tabla_vacia(self):
+        cabeza = SPEC.split("| Slug |")[0]
+        casos = {"ninguno": cabeza + "Ninguno.\n", "no aplica": cabeza + "No aplica\n",
+                 "solo encabezado": cabeza + "| Slug | Nombre | Alcance |\n| :--- | :--- | :--- |\n"}
+        for caso, texto in casos.items():
+            with self.subTest(caso=caso):
+                leido = revisar.leer_spec(texto)
+                self.assertEqual((leido["tabla"], leido["errores"]), ([], []))
+
+    def test_el_encabezado_sin_separador_es_error(self):
+        leido = revisar.leer_spec(SPEC.split("| :--- |")[0].rstrip() + "\n")
+        self.assertEqual(len(leido["errores"]), 1, leido["errores"])
+        sin_separador = SPEC.replace("| :--- | :--- | :--- |\n", "")
+        self.assertEqual(len(revisar.leer_spec(sin_separador)["errores"]), 1)
+
+    def test_la_seccion_termina_en_el_siguiente_encabezado_de_segundo_nivel(self):
+        cabeza = SPEC.split("| Slug |")[0]
+        texto = cabeza + "Ninguno.\n\n## Notas\n\n| Slug | Nombre | Alcance |\n| :--- | :--- | :--- |\n| `pedido-atrasado` | Pedido atrasado | Pedidos |\n"
+        self.assertEqual(revisar.leer_spec(texto)["tabla"], [])
+
+    def test_un_encabezado_de_tercer_nivel_no_corta_la_seccion(self):
+        texto = SPEC.replace("## Escenarios en pantalla\n", "## Escenarios en pantalla\n\n### Cómo leer esta tabla\n\nUna fila por escenario.\n")
+        self.assertEqual(len(revisar.leer_spec(texto)["tabla"]), 2)
+
+    def test_el_encabezado_de_la_seccion_no_distingue_mayusculas_y_acepta_cierre(self):
+        texto = SPEC.replace("## Escenarios en pantalla\n", "## escenarios en Pantalla ##\n")
+        leido = revisar.leer_spec(texto)
+        self.assertEqual((len(leido["tabla"]), leido["errores"]), (2, []))
+
+    def test_tabla_sin_barras_en_los_bordes(self):
+        texto = SPEC.split("| Slug |")[0] + ("Slug | Nombre | Alcance\n:--- | :--- | :---\n"
+                                             "`pedido-atrasado` | Pedido atrasado | Pedidos\n")
+        leido = revisar.leer_spec(texto)
+        self.assertEqual((leido["tabla"], leido["errores"]),
+                         ([{"slug": "pedido-atrasado", "nombre": "Pedido atrasado", "alcance": "Pedidos"}], []))
+
+    def test_el_nombre_se_compara_letra_por_letra_en_nfc(self):
+        import unicodedata
+        nfd = SPEC.replace("| Lector de códigos desconectado |", "| " + unicodedata.normalize("NFD", "Lector de códigos desconectado") + " |")
+        self.assertEqual(revisar.leer_spec(nfd)["errores"], [])
+        mayusculas = SPEC.replace("| Pedido atrasado | Pedidos |", "| Pedido Atrasado | Pedidos |")
+        self.assertEqual(len(revisar.leer_spec(mayusculas)["errores"]), 1)
+
+    def test_el_pipe_escapado_es_parte_del_nombre(self):
+        texto = SPEC.replace("### Escenario 2: Pedido atrasado", "### Escenario 2: Pedido atrasado | urgente").replace(
+            "| Pedido atrasado | Pedidos |", "| Pedido atrasado \\| urgente | Pedidos |")
+        leido = revisar.leer_spec(texto)
+        self.assertEqual(leido["errores"], [])
+        self.assertEqual(leido["tabla"][0]["nombre"], "Pedido atrasado | urgente")
+
+    def test_una_cerca_mas_corta_o_de_otro_caracter_no_cierra_el_bloque(self):
+        for cierre in ("```", "~~~~"):
+            with self.subTest(cierre=cierre):
+                texto = SPEC.replace("## Estados por vista", f"````markdown\n{cierre}\n### Escenario 9: Dentro del bloque\n````\n\n## Estados por vista")
+                leido = revisar.leer_spec(texto)
+                self.assertNotIn("Dentro del bloque", leido["escenarios"])
+                self.assertEqual(len(leido["tabla"]), 2)
+
+    def test_una_cerca_con_info_no_cierra_el_bloque(self):
+        texto = SPEC.replace("## Estados por vista", "```\n```gherkin\n### Escenario 9: Dentro del bloque\n```\n\n## Estados por vista")
+        leido = revisar.leer_spec(texto)
+        self.assertNotIn("Dentro del bloque", leido["escenarios"])
+        self.assertEqual((len(leido["tabla"]), leido["errores"]), (2, []))
+
+    def test_solo_cuenta_la_primera_tabla_contigua_de_la_seccion(self):
+        texto = SPEC + "\nOtra tabla, de notas:\n\n| `nota-suelta` | Pedido atrasado | Pedidos |\n"
+        leido = revisar.leer_spec(texto)
+        self.assertEqual([f["slug"] for f in leido["tabla"]], ["pedido-atrasado", "lector-desconectado"])
+
+    def test_una_cerca_sin_cerrar_antes_de_la_seccion_es_error(self):
+        texto = SPEC.replace("## Estados por vista", "```gherkin\nDado que nadie cierra el bloque\n\n## Estados por vista")
+        leido = revisar.leer_spec(texto)
+        self.assertEqual(leido["tabla"], [])
+        self.assertEqual(len(leido["errores"]), 1, leido["errores"])
+        self.assertIn("sin cerrar", leido["errores"][0])
+
+    def test_una_cerca_sin_cerrar_en_un_spec_sin_la_seccion_no_es_error(self):
+        leido = revisar.leer_spec(SIN_TABLA + "\n```\nnota suelta\n")
+        self.assertEqual((leido["tabla"], leido["errores"]), (None, []))
 
     def test_el_slug_va_con_o_sin_comillas_invertidas(self):
         leido = revisar.leer_spec(SPEC.replace("| `pedido-atrasado` |", "| pedido-atrasado |"))
@@ -244,15 +324,65 @@ class Cruce(unittest.TestCase):
     def test_spec_sin_la_tabla_avisa_y_no_bloquea(self):
         self.spec.write_text(SIN_TABLA)
         lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado"))
-        por_vista, por_spec = self.cruzar(lista)
-        bloquea, avisa = por_vista[lista]
+        detalle = self.escribir("pedidos/detalle.html", vista(f"{BASE}, pedido-atrasado"))
+        por_vista, por_spec = self.cruzar(lista, detalle)
+        self.assertEqual(por_vista, {lista: ([], []), detalle: ([], [])})
+        bloquea, avisa = por_spec["specs/pedidos/spec.md"]
         self.assertEqual(bloquea, [])
         self.assertEqual(len(avisa), 1, avisa)
         self.assertIn("## Escenarios en pantalla", avisa[0])
-        self.assertIn("specs/pedidos/spec.md", avisa[0])
-        self.assertEqual(por_spec, {"specs/pedidos/spec.md": ([], [])})
-        codigo, _ = self.main(lista)
+        self.assertIn("grilling-es", avisa[0])
+        codigo, salida = self.main(lista, detalle)
         self.assertEqual(codigo, 0)
+        self.assertEqual(salida.count("no tiene la sección `## Escenarios en pantalla`"), 1, salida)
+
+    def test_una_fila_mala_no_apaga_el_cruce_de_las_vistas(self):
+        self.spec.write_text(SPEC.replace("| Pedido atrasado | Pedidos |", "| Pedido con atraso | Pedidos |"))
+        lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado, bascula-apagada"))
+        por_vista, por_spec = self.cruzar(lista)
+        bloquea, _ = por_vista[lista]
+        self.assertEqual(len(bloquea), 1, bloquea)
+        self.assertIn("`bascula-apagada`", bloquea[0])
+        self.assertNotIn("`pedido-atrasado`", bloquea[0])
+        self.assertEqual(len(por_spec["specs/pedidos/spec.md"][0]), 1)
+
+    def test_una_tabla_ilegible_cruza_contra_cero_filas_y_bloquea(self):
+        self.spec.write_text(SPEC.replace("| Slug | Nombre | Alcance |", "| Slug | Nombre | Pantalla |"))
+        lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado"))
+        por_vista, por_spec = self.cruzar(lista)
+        self.assertEqual(len(por_vista[lista][0]), 1, por_vista[lista])
+        self.assertIn("`pedido-atrasado`", por_vista[lista][0][0])
+        self.assertEqual(len(por_spec["specs/pedidos/spec.md"][0]), 1)
+
+    def test_una_tabla_vacia_cruza_y_bloquea_los_escenarios_propios(self):
+        self.spec.write_text(SPEC.split("| Slug |")[0] + "Ninguno.\n")
+        lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado"))
+        por_vista, por_spec = self.cruzar(lista)
+        self.assertEqual(len(por_vista[lista][0]), 1, por_vista[lista])
+        self.assertEqual(por_spec["specs/pedidos/spec.md"], ([], []))
+
+    def test_el_meta_se_normaliza_y_no_duplica_el_spec(self):
+        lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado, lector-desconectado",
+                                                          meta='<meta name="spec" content="specs/../specs/pedidos/spec.md">'))
+        detalle = self.escribir("pedidos/detalle.html", vista(f"{BASE}, lector-desconectado"))
+        por_vista, por_spec = self.cruzar(lista, detalle)
+        self.assertEqual(list(por_spec), ["specs/pedidos/spec.md"])
+        self.assertEqual(por_spec["specs/pedidos/spec.md"], ([], []))
+
+    def test_un_spec_que_no_es_utf8_bloquea_como_ilegible(self):
+        self.spec.write_bytes(SPEC.encode("utf-8").replace("Pedido atrasado".encode(), b"Pedido atras\xe1do", 1))
+        lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado, lector-desconectado"))
+        bloquea, _ = self.cruzar(lista)[1]["specs/pedidos/spec.md"]
+        self.assertTrue(any("UTF-8" in b for b in bloquea), bloquea)
+
+    def test_un_spec_con_bom_se_lee(self):
+        self.spec.write_bytes(("\ufeff" + SPEC).encode("utf-8"))
+        lista = self.escribir("pedidos/lista.html", vista(f"{BASE}, pedido-atrasado, lector-desconectado"))
+        self.assertEqual(self.cruzar(lista)[1]["specs/pedidos/spec.md"], ([], []))
+        self.assertEqual(revisar.leer_archivo_spec(self.spec)["tabla"][0]["slug"], "pedido-atrasado")
+        primero = self.repo / "specs" / "pedidos" / "primero.md"
+        primero.write_bytes(("\ufeff## Escenarios en pantalla\n\nNinguno.\n").encode("utf-8"))
+        self.assertEqual(revisar.leer_archivo_spec(primero)["tabla"], [])
 
     def test_mockup_sin_spec_avisa_y_no_bloquea(self):
         sin_spec = self.escribir("despacho/ruta.html", vista(f"{BASE}, camion-lleno"))

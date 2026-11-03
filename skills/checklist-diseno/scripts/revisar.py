@@ -13,6 +13,7 @@ ninguna vista declara, un spec sin la tabla o una vista sin spec van como aviso.
 import math
 import re
 import sys
+import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -41,6 +42,8 @@ URL = re.compile(r"""url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))""", re.I)
 CADENA = re.compile(r""""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'""", re.S)
 ATRIBUTO_CLASE = re.compile(r"""\[\s*class\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))\s*([iIsS])?\s*\]""")
 SECCION_ESCENARIOS = "## Escenarios en pantalla"
+ENCABEZADO_ESCENARIOS = re.compile(r"##[ \t]+escenarios[ \t]+en[ \t]+pantalla(?:[ \t]+#*)?[ \t]*$", re.I)
+VACIA = re.compile(r"(?:ninguno|no aplica)\.?", re.I)
 ESCENARIO_SPEC = re.compile(r"### Escenario \d+: (.+)$")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 SEPARADOR = re.compile(r"\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?")
@@ -274,16 +277,20 @@ def error_del_spec(spec, repo):
 
 
 def fuera_de_bloques(texto):
-    """Las líneas del markdown que no están dentro de un bloque de código cercado (``` o ~~~)."""
-    lineas, cerca = [], None
-    for linea in texto.splitlines():
+    """Las líneas del markdown fuera de los bloques de código cercados (``` o ~~~), y el índice de la línea que abre un
+    bloque que nunca se cierra, o None. Una cerca cierra solo con el mismo carácter y al menos el mismo largo."""
+    lineas, cerca, abre = [], None, None
+    for i, linea in enumerate(texto.splitlines()):
         m = CERCA.match(linea)
-        if m and (cerca is None or m.group(1)[0] == cerca[0] and len(m.group(1)) >= len(cerca)):
-            cerca = m.group(1) if cerca is None else None
+        if m and cerca is None:
+            cerca, abre = m.group(1), i
+            continue
+        if m and m.group(1)[0] == cerca[0] and len(m.group(1)) >= len(cerca) and not linea[m.end():].strip():
+            cerca, abre = None, None
             continue
         if cerca is None:
             lineas.append(linea)
-    return lineas
+    return lineas, abre
 
 
 def celdas(fila):
@@ -293,29 +300,51 @@ def celdas(fila):
     return [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", t)]
 
 
+def es_fila(linea):
+    return re.search(r"(?<!\\)\|", linea) is not None
+
+
 def leer_spec(texto):
     """Los nombres de los `### Escenario N: <nombre>` del spec y las filas de `## Escenarios en pantalla`.
 
-    `tabla` es None si el spec no tiene la sección. `errores` lista lo que impide usar la tabla: sin tabla o con otras
-    columnas, una fila sin tres celdas, un slug que no es minúsculas y guiones o que se repite en el mismo alcance,
-    un alcance vacío y un nombre que no es el de ningún `### Escenario N`.
+    El texto se compara en NFC. `tabla` es None si el spec no tiene la sección, y una lista vacía si la sección dice
+    "Ninguno" o "No aplica" o trae solo el encabezado de la tabla. `errores` lista lo que el spec tiene mal en la
+    sección: un bloque de código sin cerrar antes de ella, una tabla sin las columnas Slug, Nombre y Alcance o sin
+    separador, una fila sin tres celdas, un slug que no es minúsculas y guiones o que se repite en el mismo alcance, un
+    alcance vacío y un nombre que no es, letra por letra, el de ningún `### Escenario N`. Las filas que se leen quedan
+    en `tabla` aunque otras tengan errores.
     """
-    lineas = fuera_de_bloques(texto)
+    texto = unicodedata.normalize("NFC", texto)
+    lineas, abre = fuera_de_bloques(texto)
     escenarios = [m.group(1).strip() for m in map(ESCENARIO_SPEC.match, lineas) if m]
-    inicio = next((i for i, l in enumerate(lineas) if l.rstrip() == SECCION_ESCENARIOS), None)
+    inicio = next((i for i, l in enumerate(lineas) if ENCABEZADO_ESCENARIOS.match(l)), None)
     if inicio is None:
+        crudas = texto.splitlines()
+        if abre is not None and any(ENCABEZADO_ESCENARIOS.match(l) for l in crudas[abre + 1:]):
+            return {"escenarios": escenarios, "tabla": [], "errores": [
+                f"El spec tiene un bloque de código sin cerrar desde la línea {abre + 1}, antes de `{SECCION_ESCENARIOS}`: "
+                "la tabla queda dentro del bloque y no se puede leer."]}
         return {"escenarios": escenarios, "tabla": None, "errores": []}
     seccion = []
     for linea in lineas[inicio + 1:]:
-        if re.match(r"#{1,2} ", linea):
+        if re.match(r"#{1,2}(?:\s|$)", linea):
             break
         seccion.append(linea)
-    filas = [l for l in seccion if l.strip().startswith("|")]
+    contenido = [l.strip() for l in seccion if l.strip()]
+    primera = next((i for i, l in enumerate(seccion) if es_fila(l)), None)
+    filas = []
+    if primera is not None:
+        for linea in seccion[primera:]:
+            if not linea.strip() or not es_fila(linea):
+                break
+            filas.append(linea)
     errores, tabla = [], []
     columnas = "`| Slug | Nombre | Alcance |`"
+    if not filas and len(contenido) == 1 and VACIA.fullmatch(contenido[0]):
+        return {"escenarios": escenarios, "tabla": [], "errores": []}
     if len(filas) < 2 or [c.lower() for c in celdas(filas[0])] != ["slug", "nombre", "alcance"] or not SEPARADOR.fullmatch(filas[1].strip()):
-        errores.append(f"`{SECCION_ESCENARIOS}` no tiene una tabla con las columnas {columnas}, así que no se puede "
-                       "cruzar con las vistas.")
+        errores.append(f"`{SECCION_ESCENARIOS}` no tiene una tabla con las columnas {columnas} y su separador, ni dice "
+                       "\"Ninguno\", así que no se puede cruzar con las vistas.")
         return {"escenarios": escenarios, "tabla": [], "errores": errores}
     vistos = set()
     for fila in filas[2:]:
@@ -341,6 +370,16 @@ def leer_spec(texto):
     return {"escenarios": escenarios, "tabla": tabla, "errores": errores}
 
 
+def leer_archivo_spec(path):
+    """leer_spec sobre el archivo en UTF-8, con o sin BOM. Un archivo que no es UTF-8 es un error, no un texto a medias."""
+    try:
+        texto = path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as e:
+        return {"escenarios": [], "tabla": [], "errores": [
+            f"El spec no se puede leer como UTF-8 (byte {e.start}): guárdalo en UTF-8 para que se cruce con las vistas."]}
+    return leer_spec(texto)
+
+
 def declarados(path):
     v = Vista()
     v.feed(path.read_text(errors="ignore"))
@@ -356,7 +395,9 @@ def spec_de_vista(path, repo, metas):
     """
     meta = metas.get("spec", "").strip()
     if meta:
-        return (None, False) if error_del_spec(meta, repo) else (Path(meta).as_posix(), None)
+        if error_del_spec(meta, repo):
+            return None, False
+        return (repo / meta).resolve().relative_to(repo.resolve()).as_posix(), None
     partes = path.relative_to(repo).parts
     if len(partes) != 4 or partes[:2] != ("design", "vistas"):
         return None, None
@@ -369,13 +410,15 @@ def cruzar_escenarios(repo, vistas):
 
     Devuelve los hallazgos por vista ({ruta: (bloquea, avisa)}) y por spec ({ruta relativa: (bloquea, avisa)}). Un
     escenario de la vista que no es base ni está en la tabla bloquea. Una fila de la tabla que ninguna vista de
-    `design/vistas/` declara, revisada o no, avisa: puede llegar en otro ticket. Sin tabla o sin spec, avisa.
+    `design/vistas/` declara, revisada o no, avisa: puede llegar en otro ticket. Un spec sin la tabla avisa una vez, en
+    su sección, y una vista sin spec avisa en la suya. Con la tabla, el cruce usa las filas que se leen aunque otras
+    tengan errores, y no mira el alcance: no hay una correspondencia determinista entre alcance y vista.
     """
     por_vista, por_spec, leidos = {}, {}, {}
 
     def leer(ruta):
         if ruta not in leidos:
-            leidos[ruta] = leer_spec((repo / ruta).read_text(errors="ignore"))
+            leidos[ruta] = leer_archivo_spec(repo / ruta)
         return leidos[ruta]
 
     for path in vistas:
@@ -391,11 +434,7 @@ def cruzar_escenarios(repo, vistas):
             continue
         leido = leer(ruta)
         por_spec.setdefault(ruta, ([], []))
-        if leido["tabla"] is None:
-            avisa.append(f"`{ruta}` no tiene la sección `{SECCION_ESCENARIOS}`, así que sus escenarios no se cruzan con "
-                         "el spec. `grilling-es` la agrega cuando vuelva a tocar ese spec; un spec congelado no se "
-                         "reescribe por esto.")
-        elif not leido["errores"] or leido["tabla"]:
+        if leido["tabla"] is not None:
             tabla = {f["slug"] for f in leido["tabla"]}
             sin_respaldo = [e for e in escenarios if e not in BASE and e not in tabla]
             if sin_respaldo:
@@ -413,6 +452,10 @@ def cruzar_escenarios(repo, vistas):
     for ruta, (bloquea, avisa) in por_spec.items():
         leido = leer(ruta)
         bloquea += leido["errores"]
+        if leido["tabla"] is None:
+            avisa.append(f"`{ruta}` no tiene la sección `{SECCION_ESCENARIOS}`, así que los escenarios de sus vistas no se "
+                         "cruzan con el spec. `grilling-es` la agrega cuando vuelva a tocar ese spec; un spec congelado no "
+                         "se reescribe por esto.")
         for fila in leido["tabla"] or []:
             if fila["slug"] not in usados.get(ruta, set()):
                 avisa.append(f"`{fila['slug']}` (\"{fila['nombre']}\", alcance {fila['alcance'] or 'sin decir'}) está en "

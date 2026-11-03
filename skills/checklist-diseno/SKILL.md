@@ -35,7 +35,7 @@ Si no encontraste intérprete, revisa a mano, y dilo en el informe. Una vista gr
 - Que no haya `@keyframes`, con o sin prefijo (`@-webkit-keyframes`, `@-o-keyframes`), en la vista, en `components.css` ni en `tokens.css`, y que esos dos no importen otras hojas con `@import`. Un comentario que nombra la animación no cuenta: es el comentario de intención que la reemplaza.
 - Que declare los escenarios base (normal, vacio, cargando, error, sin-permiso, muchos-datos) o los marque en `data-no-aplica`, cada uno con su motivo y separados por `;`.
 - Que cada `data-state` corresponda a un escenario declarado.
-- Que cada escenario que no es base esté en la tabla `## Escenarios en pantalla` de su spec, el de `<meta name="spec">` o, sin él, `specs/<épica>/spec.md`, y que cada nombre de esa tabla sea el de un `### Escenario N: <nombre>` del spec. Una fila que ninguna vista declara, un spec sin la tabla o una vista sin spec van en "Conviene mirar".
+- Que cada escenario que no es base esté en la tabla `## Escenarios en pantalla` de su spec, el de `<meta name="spec">` o, sin él, `specs/<épica>/spec.md`, y que cada nombre de esa tabla sea, letra por letra, el de un `### Escenario N: <nombre>` del spec. Una tabla mal formada bloquea, y el cruce sigue con las filas que se leen; "Ninguno" o "No aplica" es una tabla vacía. Una fila que ninguna vista declara, un spec sin la sección o una vista sin spec van en "Conviene mirar". El alcance de la fila no se cruza con la vista.
 - Que no haya colores ni medidas sueltas ni variables que `tokens.css` no define, en `<style>`, en `style=` ni en atributos de SVG.
 - Que cada clase que la vista usa en `class=` tenga regla en `components.css` o en el `<style>` de la vista. Una clase sin regla no se ve, y DEV no sabe cómo construirla.
 - Que no cargue recursos externos, tampoco desde CSS (`@import`, `url()`), ni la vista ni `components.css` ni `tokens.css`. La fuente del producto sí puede ser local: un `.woff2` que existe directo en `design/fuentes/`, cargado con `@font-face` en `tokens.css` y una `url()` relativa. Ninguna otra `url()` local ni `data:` en los compartidos, y ningún `@font-face` en la vista.
@@ -65,7 +65,7 @@ Entrega el informe en el chat, en este orden:
 ```
 ## Resultado
 
-<N> vistas revisadas: <M> listas (con o sin avisos), <K> con bloqueos.
+<N> vistas revisadas: <M> listas (con o sin avisos), <K> con bloqueos. <S> specs con bloqueos en su tabla de escenarios.
 
 ## <ruta de la vista> · <tickets, o Spec: <ruta> si la vista no cita tickets>
 
@@ -83,7 +83,13 @@ Lista.   (cuando no tiene hallazgos)
 
 ## Escenarios del spec · <ruta del spec>
 
-<filas de `## Escenarios en pantalla` que ninguna vista declara, y errores de la tabla, si hay>
+Bloquea:
+- <error de la tabla `## Escenarios en pantalla`> - <qué vista queda sin escenario que la respalde>
+
+Conviene mirar:
+- <fila que ninguna vista declara, o el spec no tiene la sección>
+
+Sin hallazgos.   (cuando no tiene)
 
 ## Siguiente paso
 
