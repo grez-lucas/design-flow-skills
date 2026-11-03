@@ -217,7 +217,9 @@ function ver(id) { document.getElementById(id).classList.add('ver'); }"""
 
 
 def shell(modulos):
-    plantillas = "\n".join(f'<script type="text/plain" id="tpl-{n}">{t.replace("</script>", "<\\/script>")}</script>' for n, t in modulos)
+    # Fuera del f-string: antes de Python 3.12 una expresión de f-string no admite barra invertida.
+    cierre, escapado = "</script>", "<\\/script>"
+    plantillas = "\n".join(f'<script type="text/plain" id="tpl-{n}">{t.replace(cierre, escapado)}</script>' for n, t in modulos)
     return f"""<!doctype html>
 <html lang="es" data-theme="dark">
 <head>
