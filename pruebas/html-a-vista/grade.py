@@ -30,6 +30,7 @@ sys.path.insert(0, str(REVISAR.parent))
 import tokens as T  # noqa: E402
 from aprobadas import clave, palabra, veredictos  # noqa: E402
 from desarmar import DEMO  # noqa: E402
+import revisar  # noqa: E402
 from revisar import keyframes  # noqa: E402
 
 LIMITE = 256 * 1024
@@ -337,6 +338,19 @@ def chequeos_parada(out, mockup, motivo):
     return [check("No lanza subagentes", not agentes, agentes[:3]), lectura]
 
 
+def spec_lista_global(repo, compartido):
+    """Con la tabla `## Escenarios en pantalla`, el escenario compartido tiene su fila con alcance `global`; en un spec
+    sin la tabla, basta con que el spec lo nombre."""
+    for p in archivos(repo / "specs", "*.md"):
+        leido = revisar.leer_archivo_spec(p)
+        if leido["tabla"] is None:
+            if any(e in p.read_text(errors="ignore") for e in compartido):
+                return True
+        elif any(f["slug"] in compartido and f["alcance"].lower() == "global" for f in leido["tabla"]):
+            return True
+    return False
+
+
 def extra_grande(out, htmls, tok):
     repo = out / "repo"
     t = tok.read_text(errors="ignore") if tok.exists() else ""
@@ -359,7 +373,7 @@ def extra_grande(out, htmls, tok):
         check("Una épica por módulo, más el marco", len(epicas) >= 4, sorted(epicas)),
         check("El escenario de la báscula tiene el mismo nombre en vistas de dos módulos o más", compartido,
               {e: sorted(ep) for e, ep in globales.items()}),
-        check("El spec lista el escenario global", compartido and any(e in spec for e in compartido), compartido),
+        check("El spec lista el escenario global", compartido and spec_lista_global(repo, compartido), compartido),
         check("El gráfico de temperatura es un SVG estático", svg, svg[:2]),
         check("El informe describe las tres olas", tres_olas(notas), ""),
         check("Hay capturas en la carpeta de trabajo", pngs, f"{len(pngs)} png"),

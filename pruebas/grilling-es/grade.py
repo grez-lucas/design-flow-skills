@@ -8,6 +8,9 @@ SECCIONES = ["## Contexto", "## Historias", "## Estados por vista", "## Reglas",
 COMO = re.compile(r"^\*\*COMO\*\* .+\n\*\*QUIERO\*\* .+\n\*\*PARA\*\* .+$", re.M)
 ENCABEZADO = re.compile(r"^### Escenario \d+: .+$", re.M)
 GHERKIN = re.compile(r"^### Escenario \d+: .+\n\n```gherkin\n((?:.*\n)*?)```$", re.M)
+# La tabla se califica con leer_spec de revisar.py, el mismo código que la revisa en checklist-diseno. Es aceptable
+# calificar con el código bajo prueba porque leer_spec tiene sus propias pruebas en tests/checklist-diseno, y así el
+# grade no lleva un segundo parser que pueda discrepar del que bloquea en el flujo.
 _REVISAR = Path(__file__).resolve().parents[2] / "skills" / "checklist-diseno" / "scripts" / "revisar.py"
 _spec = importlib.util.spec_from_file_location("revisar_de_grilling", _REVISAR)
 revisar = importlib.util.module_from_spec(_spec)
@@ -38,8 +41,8 @@ def spec_checks(s, pendientes):
     res.append(check("Escenarios como ### Escenario N con un bloque gherkin", encabezados and len(bloques) == len(encabezados) and not sin_pasos,
                      f"{len(encabezados)} encabezados, {len(bloques)} con bloque gherkin; sin Dado, Cuando o Entonces: {sin_pasos}"))
     leido = revisar.leer_spec(s)
-    res.append(check("La tabla Escenarios en pantalla nombra escenarios del spec", bool(leido["tabla"]) and not leido["errores"],
-                     leido["errores"] or ("sin la sección" if leido["tabla"] is None else "sin filas")))
+    res.append(check("La tabla Escenarios en pantalla nombra escenarios del spec", leido["tabla"] is not None and not leido["errores"],
+                     leido["errores"] or ("sin la sección" if leido["tabla"] is None else f"{len(leido['tabla'])} filas")))
     low = s.lower()
     for tema, pat, quien in pendientes:
         res.append(check(f"El spec trata lo que la persona no sabe: {tema}", re.search(pat, low) is not None, ""))
