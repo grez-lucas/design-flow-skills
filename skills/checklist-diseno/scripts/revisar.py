@@ -297,8 +297,8 @@ def leer_spec(texto):
     """Los nombres de los `### Escenario N: <nombre>` del spec y las filas de `## Escenarios en pantalla`.
 
     `tabla` es None si el spec no tiene la sección. `errores` lista lo que impide usar la tabla: sin tabla o con otras
-    columnas, una fila sin tres celdas, un slug que no es minúsculas y guiones o que se repite, un alcance vacío y un
-    nombre que no es el de ningún `### Escenario N`.
+    columnas, una fila sin tres celdas, un slug que no es minúsculas y guiones o que se repite en el mismo alcance,
+    un alcance vacío y un nombre que no es el de ningún `### Escenario N`.
     """
     lineas = fuera_de_bloques(texto)
     escenarios = [m.group(1).strip() for m in map(ESCENARIO_SPEC.match, lineas) if m]
@@ -328,10 +328,10 @@ def leer_spec(texto):
             errores.append(f"El slug `{slug}` de `{SECCION_ESCENARIOS}` no es minúsculas, números y guiones, sin tildes "
                            "ni espacios: las vistas no pueden declararlo igual.")
             continue
-        if slug in vistos:
-            errores.append(f"`{SECCION_ESCENARIOS}` repite el slug `{slug}`.")
+        if (slug, alcance) in vistos:
+            errores.append(f"`{SECCION_ESCENARIOS}` repite el slug `{slug}` con el mismo alcance, {alcance or 'sin decir'}.")
             continue
-        vistos.add(slug)
+        vistos.add((slug, alcance))
         if not alcance:
             errores.append(f"La fila `{slug}` de `{SECCION_ESCENARIOS}` no dice su alcance: `global` o el nombre de la pantalla.")
         if nombre not in escenarios:
