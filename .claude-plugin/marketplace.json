@@ -6,7 +6,7 @@
     {
       "name": "flujo-diseno",
       "source": "./",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "description": "Grilling, spec, tickets, HTML con design system liviano y conversión de mockups."
     }
   ]
