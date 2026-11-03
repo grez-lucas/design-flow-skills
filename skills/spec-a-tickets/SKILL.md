@@ -1,6 +1,6 @@
 ---
 name: spec-a-tickets
-description: Convierte un spec de producto con historias de usuario en tickets listos para construir, una story por historia, con descripción "Como, quiero, para", criterios de aceptación por escenario "Dado, cuando, entonces", pruebas E2E, enlace a la vista de diseño, casos borde y preguntas abiertas. Los publica en el tracker del proyecto (Linear, GitHub, GitLab u otro) o, si no hay tracker, como un archivo markdown por ticket en specs/<épica>/tickets/. Úsala siempre que producto quiera pasar un spec, una épica o unas historias a tickets, issues o stories, aunque no lo diga así - "crea los tickets de este spec", "pasa las historias a Linear", "arma las stories de la épica", "sube esto al tablero", "escribe los criterios de aceptación", "genera los issues para DEV". No la uses para hacer el grilling de un requerimiento (grilling-es), para diseñar pantallas (spec-a-html) ni para cortar trabajo técnico de ingeniería en subtareas.
+description: Convierte un spec de producto con historias de usuario en tickets listos para construir, una story por historia, con la historia COMO, QUIERO, PARA, los escenarios del spec copiados tal cual como criterios de aceptación, pruebas E2E, enlace a la vista de diseño, casos borde y preguntas abiertas. Los publica en el tracker del proyecto (Linear, GitHub, GitLab u otro) o, si no hay tracker, como un archivo markdown por ticket en specs/<épica>/tickets/. Úsala siempre que producto quiera pasar un spec, una épica o unas historias a tickets, issues o stories, aunque no lo diga así - "crea los tickets de este spec", "pasa las historias a Linear", "arma las stories de la épica", "sube esto al tablero", "escribe los criterios de aceptación", "genera los issues para DEV". No la uses para hacer el grilling de un requerimiento (grilling-es), para diseñar pantallas (spec-a-html) ni para cortar trabajo técnico de ingeniería en subtareas.
 ---
 
 # Spec a tickets
@@ -21,7 +21,7 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets: pide el spec en vez de reconstruir el requerimiento de memoria.
 
-El spec sigue una plantilla con contexto, historias "Como, quiero, para" con escenarios "Dado, cuando, entonces", estados por vista, reglas, decisiones, fuera de alcance y enlaces.
+El spec sigue una plantilla con contexto, historias COMO, QUIERO, PARA con sus escenarios `### Escenario N: <nombre>` en un bloque `gherkin`, estados por vista, reglas, decisiones, fuera de alcance, enlaces y la tabla `## Escenarios en pantalla`. La tabla es para las vistas: no pasa a los tickets, que ya llevan cada escenario con su nombre.
 
 ### 2. Revisar que el spec alcance
 
@@ -75,8 +75,8 @@ Si una historia depende de otra (no se puede ver el listado de invitaciones sin 
 Sigue la plantilla del proyecto o la de `references/plantilla-story.md`. Lo esencial:
 
 - **Título** con el formato de ID de las convenciones cuando lo definen (`INV-12: Registrar ingreso de mercadería`), también si el spec trae otro identificador: el ticket se busca en el tracker por ese ID. El identificador del spec queda en el cuerpo, junto al enlace al spec, para rastrear la historia. Si el tracker asigna el ID al crear el ticket, no lo inventes: el ticket queda con el que devuelve el tracker, y si los tickets van como archivos porque todavía no hay acceso al tracker, el título lleva el identificador del spec hasta que pasen. Sin formato en las convenciones, usa el identificador del spec si lo trae (`[US-REC-001] Ver facturas vencidas`) y, si no lo trae, `[US-<ÁREA>-NNN]`, con un código corto de la épica en mayúsculas.
-- **Descripción**: la historia "Como, quiero, para" y un párrafo de contexto tomado del spec.
-- **Criterios de aceptación**: un escenario por bloque, con "Dado, cuando, entonces" y "Y" para resultados adicionales. Afirman comportamiento y datos que se ven, nunca rutas de archivos ni detalles de implementación: las rutas envejecen y el comportamiento no. Los estados del spec (vacío, error, sin permiso, plan expirado) se vuelven escenarios cuando el spec dice qué pasa en ellos.
+- **Descripción**: la historia COMO, QUIERO, PARA como está en el spec y un párrafo de contexto tomado del spec.
+- **Criterios de aceptación**: los escenarios de la historia, copiados tal cual del spec: el mismo `### Escenario N: <nombre>` y el mismo bloque `gherkin`. Afirman comportamiento y datos que se ven, nunca rutas de archivos ni detalles de implementación. Un estado de "Estados por vista" que no es escenario va a casos borde si el spec dice qué pasa, o a preguntas abiertas. Si el spec es anterior a esta plantilla y trae cada escenario en una línea, pásalo al formato sin cambiar lo que dice, con un nombre que resuma su resultado, y muéstralo en la aprobación.
 - **Pruebas**: redacta los flujos E2E a partir de los escenarios. Deja las pruebas unitarias y de integración marcadas "Lo completa DEV": producto no tiene cómo validarlas.
 - **Diseño**: la ruta donde va a quedar la vista, `design/vistas/<épica>/<vista>.html`, marcada "pendiente". Es la misma ruta que usa `spec-a-html`, así que el enlace queda bien sin volver a editar el ticket.
 - **Casos borde**: tabla con los del spec y los que aparecen al redactar, cada uno con su comportamiento esperado. Si no sabes el comportamiento, va a preguntas abiertas, no a la tabla.

@@ -4,21 +4,25 @@ Plantilla por defecto cuando el proyecto no tiene convenciones de gestión, ni e
 
 ## Plantilla
 
-```markdown
+````markdown
 ## 📝 Description
 
-Como <rol>, quiero <capacidad>, para <beneficio>.
+**COMO** <rol>
+**QUIERO** <capacidad>
+**PARA** <beneficio>
 
 <párrafo de contexto que explica el comportamiento, tomado del spec>
 
 ## ✅ Acceptance Criteria
 
-- [ ] **Escenario 1: <nombre>**
+### Escenario 1: <nombre>
 
-> **Dado** que <contexto>
-> **Cuando** <acción>
-> **Entonces** <resultado>
-> **Y** <resultado adicional>
+```gherkin
+Dado que <contexto>
+Cuando <acción>
+Entonces <resultado>
+Y <resultado adicional>
+```
 
 ## 🧪 Testing Requirements (TDD)
 
@@ -52,41 +56,51 @@ Como <rol>, quiero <capacidad>, para <beneficio>.
 ### ❓ Open Questions
 
 - [ ] <pregunta sin responder, con quién la responde si se sabe>
-```
+````
+
+Los escenarios son los de la historia en el spec, copiados tal cual: el mismo encabezado `### Escenario N: <nombre>` y el mismo bloque `gherkin`. La tabla `## Escenarios en pantalla` del spec no pasa al ticket.
 
 ## Ejemplo
 
 Título: `[US-REC-001] Ver facturas vencidas`
 
-```markdown
+````markdown
 ## 📝 Description
 
-Como administrador de la empresa, quiero ver las facturas emitidas que están vencidas, para cobrar a tiempo.
+**COMO** administrador de la empresa
+**QUIERO** ver las facturas emitidas que están vencidas
+**PARA** cobrar a tiempo
 
 Hoy el administrador solo sabe qué facturas están vencidas exportando a una planilla. La vista "Vencidas" las muestra ordenadas por días de atraso, con el estado del recordatorio de cada una.
 
 ## ✅ Acceptance Criteria
 
-- [ ] **Escenario 1: Hay facturas vencidas**
+### Escenario 1: Hay facturas vencidas
 
-> **Dado** que tengo facturas vencidas
-> **Cuando** entro a "Vencidas"
-> **Entonces** veo cliente, número, monto, días de atraso y estado del recordatorio
-> **Y** la lista está ordenada de mayor a menor atraso
+```gherkin
+Dado que tengo facturas vencidas
+Cuando entro a "Vencidas"
+Entonces veo cliente, número, monto, días de atraso y estado del recordatorio
+Y la lista está ordenada de mayor a menor atraso
+```
 
-- [ ] **Escenario 2: No hay facturas vencidas**
+### Escenario 2: No hay facturas vencidas
 
-> **Dado** que no tengo facturas vencidas
-> **Cuando** entro a "Vencidas"
-> **Entonces** veo un mensaje que lo confirma
-> **Y** veo un acceso a "Emitir factura"
+```gherkin
+Dado que no tengo facturas vencidas
+Cuando entro a "Vencidas"
+Entonces veo un mensaje que lo confirma
+Y veo un acceso a "Emitir factura"
+```
 
-- [ ] **Escenario 3: Plan Básico**
+### Escenario 3: Plan Básico
 
-> **Dado** que mi plan es Básico
-> **Cuando** entro a "Vencidas"
-> **Entonces** veo el listado
-> **Y** los recordatorios aparecen bloqueados con una invitación a pasar a plan Pro
+```gherkin
+Dado que mi plan es Básico
+Cuando entro a "Vencidas"
+Entonces veo el listado
+Y los recordatorios aparecen bloqueados con una invitación a pasar a plan Pro
+```
 
 ## 🧪 Testing Requirements (TDD)
 
@@ -123,7 +137,7 @@ Hoy el administrador solo sabe qué facturas están vencidas exportando a una pl
 ### ❓ Open Questions
 
 - [ ] ¿Cuántas facturas se muestran por página cuando hay muchas? Lo decide producto.
-```
+````
 
 ## Archivo markdown sin tracker
 
