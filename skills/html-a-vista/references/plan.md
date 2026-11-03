@@ -34,6 +34,7 @@ Un trozo que pasa el tope de lectura ya viene partido por el script (`.1`, `.2`,
 - La épica sale del spec. En un mockup compuesto, una por módulo.
 - Escenarios: los base (normal, vacio, cargando, error, sin-permiso, muchos-datos), los de controles de prototipo, uno por superposición que se muestre, y los del spec que el mockup no tiene, que la vista escribe desde el spec. Un base que no aplica se dice con su motivo.
 - Un escenario que el mockup sincroniza entre módulos (por ejemplo, el estado de una integración que el shell propaga) lleva el mismo nombre en cada vista donde aplica, y el spec lo lista una vez como global.
+- Con la tabla `## Escenarios en pantalla` en el spec, cada escenario del mockup que coincide con una fila toma su slug, y uno global toma el de la fila con alcance `global`. Un estado del mockup que no está en la tabla va al plan como decisión pendiente de producto, no con un slug inventado: sin su fila, `checklist-diseno` lo bloquearía. Sin la tabla, el nombre sale del mockup y el informe lo dice.
 - Variantes A, B y C de una pantalla: una fila, con la variante que producto elija.
 
 ## Subagentes por ola
