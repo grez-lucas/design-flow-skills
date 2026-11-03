@@ -1,6 +1,6 @@
 ---
 name: grilling-es
-description: Entrevista a producto sobre un requerimiento, en rondas de preguntas con respuesta recomendada, hasta que no quede ninguna decisión sin tomar, y cierra con un spec en español sobre una plantilla fija (contexto, historias "Como, quiero, para" con escenarios "Dado, cuando, entonces", estados por vista, reglas, decisiones, fuera de alcance). Usa Lavish para las rondas cuando la sesión tiene terminal, y el chat cuando no. Úsala siempre que alguien de producto traiga una idea, un pedido, una funcionalidad nueva o un cambio a algo existente y haya que pensarlo antes de diseñar o escribir tickets, aunque no diga "grilling" - "quiero agregar recordatorios de pago", "el cliente pide exportar a Excel", "ayúdame a pensar esta funcionalidad", "arma el spec de...", "hazme preguntas sobre esto", "cambiemos cómo funciona el listado", "grilléame". No la uses para escribir tickets desde un spec ya hecho (spec-a-tickets) ni para diseñar pantallas (spec-a-html).
+description: Entrevista a producto sobre un requerimiento, en rondas de preguntas con respuesta recomendada, hasta que no quede ninguna decisión sin tomar, y cierra con un spec en español sobre una plantilla fija (contexto, historias COMO, QUIERO, PARA con escenarios con nombre en gherkin, estados por vista, reglas, decisiones, fuera de alcance y la tabla de escenarios en pantalla con su slug). Usa Lavish para las rondas cuando la sesión tiene terminal, y el chat cuando no. Úsala siempre que alguien de producto traiga una idea, un pedido, una funcionalidad nueva o un cambio a algo existente y haya que pensarlo antes de diseñar o escribir tickets, aunque no diga "grilling" - "quiero agregar recordatorios de pago", "el cliente pide exportar a Excel", "ayúdame a pensar esta funcionalidad", "arma el spec de...", "hazme preguntas sobre esto", "cambiemos cómo funciona el listado", "grilléame". No la uses para escribir tickets desde un spec ya hecho (spec-a-tickets) ni para diseñar pantallas (spec-a-html).
 ---
 
 # Grilling en español
@@ -69,20 +69,22 @@ Escribe la ronda en el chat con el formato de arriba y pide que respondan por n�
 
 Si el requerimiento cambia algo que ya tiene spec o tickets, busca primero el spec anterior y los tickets (en el tracker o en `specs/<épica>/`) y léelos: son hechos, no preguntas. Pregunta qué cambia y por qué.
 
-Si el spec anterior está congelado, los tickets mandan sobre él. Si no los encuentras ni en el tracker ni en `specs/<épica>/tickets/`, pide que los peguen antes de la primera ronda. Si no aparecen, dilo y registra como pendiente "verificar que US-... coincide con el ticket vigente", con quién lo verifica.
+Si el spec anterior está congelado, los tickets mandan sobre él. Si no tiene `## Escenarios en pantalla`, el spec nuevo la lleva; un spec congelado no se reescribe solo para agregarla. Si no los encuentras ni en el tracker ni en `specs/<épica>/tickets/`, pide que los peguen antes de la primera ronda. Si no aparecen, dilo y registra como pendiente "verificar que US-... coincide con el ticket vigente", con quién lo verifica.
 
 - Si el cambio toca comportamiento, estados, flujo o alcance, haz el grilling completo sobre el requerimiento entero, no solo sobre la diferencia, y cierra con un spec nuevo completo que reemplaza al anterior. Las historias que siguen conservan su ID, las nuevas toman el siguiente libre, y las que se retiran van en "Decisiones del grilling" como "Se retira US-...", decidida.
 - Si es cosmético (un texto, un color, un orden visual), no hace falta grilling: dilo y sugiere `spec-a-html` directo, con el por qué para el commit. Si el texto o el valor que cambia está escrito en un criterio de aceptación de un ticket, el ticket manda y se actualiza primero: muestra cómo queda el criterio, y pide que se aplique en el tracker, o edítalo en `specs/<épica>/tickets/` si no hay tracker. Si el ticket no aparece en ninguno de los dos, entrega el texto nuevo del criterio para que alguien con acceso lo aplique. Recién después va `spec-a-html`, para que el diseño y el ticket digan lo mismo.
 
 ## Cierre
 
-La sesión termina cuando la frontera está vacía: cada rama visitada y nada asumido en silencio. Antes del resumen, recorre cada vista nombrada con los estados base (normal, vacío, cargando, error, sin permiso, muchos datos): cada uno queda decidido, "no aplica" dicho por la persona, o pendiente. Si falta alguno, la frontera no está vacía.
+La sesión termina cuando la frontera está vacía: cada rama visitada y nada asumido en silencio. Antes del resumen, recorre cada vista nombrada con los estados base (normal, vacío, cargando, error, sin permiso, muchos datos): cada uno queda decidido, "no aplica" dicho por la persona, o pendiente. Si falta alguno, la frontera no está vacía. Cada escenario que cambia lo que se ve queda con su pantalla, o como global si cambia todas.
 
 Antes de escribir, muestra un resumen de las decisiones, con una línea por rama del árbol que diga "visitada" o "no aplica", y pregunta si llegaron a un entendimiento compartido. No escribas el spec hasta que la persona lo confirme.
 
 ### Escribir el spec
 
 Usa la plantilla de `references/plantilla-spec.md` tal cual. Cada historia sale de una decisión del grilling, y cada escenario dice solo lo que se decidió: un escenario que agregas por tu cuenta es una decisión que la persona no tomó. Lo pendiente va en "Decisiones del grilling" como pendiente, con quién decide.
+
+El spec cierra con `## Escenarios en pantalla`: un slug por escenario con estado visible, con el nombre de su `### Escenario N` y su alcance. Las vistas declaran esos slugs y `checklist-diseno` bloquea un escenario de una vista que no está ahí ni es base, así que un nombre mal copiado se nota en la revisión.
 
 Muestra el spec completo y ajusta hasta que la persona lo apruebe.
 
