@@ -30,8 +30,9 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          la de `rama-nueva` o la `rama_nueva` de `ofrecer`, aunque siga a otra rama, y para con
          `rama-nueva-rechazada`, sin otro sufijo.
 
-Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, o una épica que no sirve como nombre
-de rama, sale con 2 sin escribir en stdout.
+Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, o una épica o un mockup que no sirve
+como nombre de rama (con mayúsculas, o que termina en guion y número, como `fase-2`), sale con 2 sin escribir en
+stdout y dice en stderr por qué.
 """
 import argparse
 import json
@@ -174,11 +175,16 @@ def rechazo(git, args):
     return {"accion": "rama-nueva", "rama": actual, "rama_nueva": primera_libre(git, ramas, f"{args.tipo}/{nombre}")}
 
 
-def nombre_valido(valor):
-    """Letras, con o sin tilde, y números, separados por guiones; y que git lo acepte como rama."""
-    if not re.fullmatch(r"[^\W_]+(?:-[^\W_]+)*", valor):
-        return False
-    return subprocess.run(["git", "check-ref-format", f"refs/heads/spec/{valor}"], capture_output=True).returncode == 0
+def problema_del_nombre(valor):
+    """Por qué `valor` no sirve como épica o mockup, o None: letras minúsculas, con o sin tilde, y números,
+    separados por guiones, sin terminar en guion y número, y que git lo acepte como rama."""
+    if not re.fullmatch(r"[^\W_]+(?:-[^\W_]+)*", valor) or valor != valor.lower():
+        return "minúsculas y guiones, sin espacios ni /"
+    if re.search(r"-[0-9]+$", valor):
+        return "termina en guion y número, que se confunde con el sufijo de la rama; usa otro, por ejemplo fase-dos"
+    if subprocess.run(["git", "check-ref-format", f"refs/heads/spec/{valor}"], capture_output=True).returncode != 0:
+        return "git no lo acepta como nombre de rama"
+    return None
 
 
 def argumentos(argv):
@@ -196,8 +202,9 @@ def argumentos(argv):
     args = parser.parse_args(argv)
     args.epicas = args.epicas.split(",") if getattr(args, "epicas", None) is not None else None
     for valor in [args.mockup if args.epica is None else args.epica, *(args.epicas or [])]:
-        if not nombre_valido(valor):
-            parser.error(f"{valor!r} no sirve como nombre de rama: minúsculas y guiones, sin espacios ni /")
+        problema = problema_del_nombre(valor)
+        if problema:
+            parser.error(f"{valor!r} no sirve como nombre de rama: {problema}")
     if args.mockup and args.tipo != "diseno":
         parser.error("--mockup va solo con --tipo diseno")
     if args.orden == "revisar" and bool(args.mockup) != bool(args.epicas):
