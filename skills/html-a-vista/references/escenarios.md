@@ -40,7 +40,7 @@ google-chrome --headless=new --disable-gpu --virtual-time-budget=10000 --dump-do
 
 `--dump-dom` no entra a los iframes: renderiza cada parte suelta, que el script dejó abrible sola. Con Playwright, `page.content()` después de cargar, o `page.frames` para un mockup compuesto sin partir.
 
-Para un framework por CDN, después del render vuelve a desarmar el DOM en otra carpeta (`desarmar.py <trabajo>/render/<parte>.html <trabajo>/render-desarmado`) y convierte desde ahí: el estado inicial renderizado es la pantalla. Los colores de las clases utilitarias se leen con `getComputedStyle` en el navegador o se deducen del nombre de la clase (`text-red-600`), y van a tokens como cualquier valor. La vista no lleva el framework, ni CDN, ni JS propio.
+Para un framework por CDN, después del render vuelve a desarmar el DOM en otra carpeta (`<intérprete> -B <skill>/scripts/desarmar.py <trabajo>/render/<parte>.html <trabajo>/render-desarmado`) y convierte desde ahí: el estado inicial renderizado es la pantalla. Los colores de las clases utilitarias se leen con `getComputedStyle` en el navegador o se deducen del nombre de la clase (`text-red-600`), y van a tokens como cualquier valor. La vista no lleva el framework, ni CDN, ni JS propio.
 
 ## Capturas
 

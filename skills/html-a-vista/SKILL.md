@@ -9,6 +9,10 @@ Convierte un mockup HTML hecho en vistas del repositorio de diseño. El resultad
 
 Quien la usa suele ser de producto o de diseño. Habla en español, sin jerga de git ni de CSS salvo que la persona la use primero, y explica cada decisión por lo que se ve en pantalla.
 
+## Intérprete de Python
+
+Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<intérprete> -c "import sys; assert sys.version_info >= (3, 9)"`, y usa el primero que sale sin error como `<intérprete>` en cada orden de esta skill y de sus `references/`, siempre con `-B`, para que Python no deje `__pycache__/` en la carpeta de la skill. Si ninguno responde, no corras ninguna orden con Python y sigue lo que esta skill dice para cuando no encontraste intérprete.
+
 ## Por qué hay subagentes, olas y un script
 
 Un mockup real pesa entre 50 mil y 500 mil tokens, redefine colores en cada pantalla y arma parte de su contenido con JavaScript al abrir un modal. Ningún agente lo lee entero, y `revisar.py` o un render por línea de comandos ven solo el envoltorio de un mockup compuesto. Por eso:
@@ -35,12 +39,14 @@ Donde dice `<ruta-de-esta-skill>`, escribe la ruta absoluta de esta carpeta, no 
 ### 2. Desarmar
 
 ```
-python3 -B <ruta-de-esta-skill>/scripts/desarmar.py <mockup.html | carpeta> <trabajo>
+<intérprete> -B <ruta-de-esta-skill>/scripts/desarmar.py <mockup.html | carpeta> <trabajo>
 ```
 
-El script escribe en `<trabajo>` las partes decodificadas (`partes/`), los trozos de CSS, JS y markup por pantalla o superposición (`trozos/`), `resumen.md` y `manifiesto.json`. Lee `resumen.md`: tiene lo que necesitas para el plan en una lectura. No leas el mockup ni el manifiesto enteros; para un dato puntual del manifiesto, busca con grep o con `python3 -c`.
+El script escribe en `<trabajo>` las partes decodificadas (`partes/`), los trozos de CSS, JS y markup por pantalla o superposición (`trozos/`), `resumen.md` y `manifiesto.json`. Lee `resumen.md`: tiene lo que necesitas para el plan en una lectura. No leas el mockup ni el manifiesto enteros; para un dato puntual del manifiesto, busca con grep o con `<intérprete> -c`.
 
 Si el script sale con error, dile a la persona qué no entendió (el mensaje lo dice) y no sigas: un mockup que no se puede desarmar no se puede repartir.
+
+Si no encontraste intérprete, para aquí y no escribas en el repositorio: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
 
 ### 3. Framework por CDN
 
@@ -72,10 +78,10 @@ Espera el ok. Sin ok no lances subagentes ni escribas en el repositorio. Product
 Con el ok, antes de lanzar la ola 1, decide la rama del repositorio de diseño: el paso 9 guarda en la rama actual, el paso 8 ya escribe en el repositorio, y cambiar de rama con archivos sin guardar puede fallar. La épica es la del plan; si el plan reparte las vistas en más de una, pasa `--mockup <mockup> --epicas <épica>,<épica>` en lugar de `--epica <épica>`, con todas las épicas del plan y `<mockup>` como en el paso 9. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>`:
 
 ```
-python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo diseno --epica <épica> --repo <repo-de-diseño>
+<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo diseno --epica <épica> --repo <repo-de-diseño>
 ```
 
-Busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<intérprete> -c "import sys; assert sys.version_info >= (3, 9)"`, y usa el primero que sale sin error en lugar de `python3` para correr `rama.py`. Si ninguno responde, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes: explica el error en simple; si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo `fase-dos` en lugar de `fase-2`, y vuelve a correrlo. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
+Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes: explica el error en simple; si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo `fase-dos` en lugar de `fase-2`, y vuelve a correrlo. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: guarda en la rama actual.
 - `ofrecer`: la conversión es de varias épicas y estás en la rama de una sola de ellas: no guardes ahí, porque el merge request de esa épica no revisa las demás. Antes de escribir nada, explica en qué rama estás y por qué, y ofrece volver a la principal y guardar en `rama_nueva`. Solo con el sí de la persona, vuelve a correr la misma orden de `rama.py`, porque la copia pudo cambiar mientras esperabas; si no devuelve otra vez `ofrecer`, para y explica por qué. Si la devuelve, corre `git switch <principal>`, `git pull --ff-only` y `git switch -c <rama_nueva>`. Sin el sí, o si un comando falla, para y explica en qué rama quedaste y que el TL dice cómo seguir.
@@ -86,8 +92,8 @@ Busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<
 
 Sigue `references/olas.md`, sección "Ola 1". Primero los tokens, que decides tú con `references/tokens.md`, sin subagente: la salida de `tokens.py` es corta y la tabla se decide con producto en esta conversación.
 
-- Con `design/tokens.css`: corre `python3 -B <ruta-de-esta-skill>/scripts/tokens.py mapear`. Cada valor dentro del umbral va al token más cercano. Lo que queda fuera va a una tabla con el token más cercano y la propuesta de token nuevo: muéstrala y pregunta a producto, fila por fila, si usa el token cercano o aprueba el nuevo, y espera la respuesta antes de escribir `tokens.css`. Si producto acepta tu recomendación sin elegir, o no puede decidir ahora, usa el token existente más cercano entre los del mismo uso (fondo, texto, borde, superposición) y deja ese valor marcado como pendiente de decisión en el informe; si ninguno sirve para ese uso, el valor no se aplica y el informe dice qué se pierde. Nunca agregues un token nuevo que producto no aprobó.
-- Sin `design/tokens.css`: corre `python3 -B <ruta-de-esta-skill>/scripts/tokens.py consolidar` y muestra la tabla de consolidación (tema, valor original, ocurrencias, token propuesto, y un solo token con su valor en cada tema cuando el mockup cambia un color entre temas) antes de escribir. Un color con uso propio entra como token, no como pendiente. Los grupos de reglas sin tema que conviven con uno de un tema y se ven iguales (`tokens.py` los lista) se resuelven en esa tabla. Antes de escribir, `tokens.py verificar` con el `tokens.css` propuesto como único archivo encuentra los pares que se ven iguales; resuélvelos.
+- Con `design/tokens.css`: corre `<intérprete> -B <ruta-de-esta-skill>/scripts/tokens.py mapear`. Cada valor dentro del umbral va al token más cercano. Lo que queda fuera va a una tabla con el token más cercano y la propuesta de token nuevo: muéstrala y pregunta a producto, fila por fila, si usa el token cercano o aprueba el nuevo, y espera la respuesta antes de escribir `tokens.css`. Si producto acepta tu recomendación sin elegir, o no puede decidir ahora, usa el token existente más cercano entre los del mismo uso (fondo, texto, borde, superposición) y deja ese valor marcado como pendiente de decisión en el informe; si ninguno sirve para ese uso, el valor no se aplica y el informe dice qué se pierde. Nunca agregues un token nuevo que producto no aprobó.
+- Sin `design/tokens.css`: corre `<intérprete> -B <ruta-de-esta-skill>/scripts/tokens.py consolidar` y muestra la tabla de consolidación (tema, valor original, ocurrencias, token propuesto, y un solo token con su valor en cada tema cuando el mockup cambia un color entre temas) antes de escribir. Un color con uso propio entra como token, no como pendiente. Los grupos de reglas sin tema que conviven con uno de un tema y se ven iguales (`tokens.py` los lista) se resuelven en esa tabla. Antes de escribir, `<intérprete> -B <ruta-de-esta-skill>/scripts/tokens.py verificar` con el `tokens.css` propuesto como único archivo encuentra los pares que se ven iguales; resuélvelos.
 
 Deja la tabla y el `tokens.css` decidido en `<trabajo>/ola-1/tokens/`. Con los tokens decididos, lanza en paralelo dos subagentes, el de componentes base y el de los escenarios globales, que escriben en `<trabajo>/ola-1/`. El marco no se arma aquí: es una vista más y va a la ola 2.
 
@@ -99,13 +105,13 @@ Un subagente por fila de la tabla, en paralelo, con `references/olas.md`, secci�
 
 Con `references/olas.md`, sección "Ola 3":
 
-1. Integras tú, sin subagente: armas `components.css` final con lo nuevo de cada contrato, dejas las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corres `python3 -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia. Con navegador, sacas aquí las capturas por escenario, del original y de la vista (`references/escenarios.md`, sección "Capturas"): tienen que existir antes de que el revisor empiece. Sin navegador, la verificación queda en el inventario y el informe lo dice.
-2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, le pasas las rutas de las capturas del original y de la vista por escenario, y las compara lado a lado. Deja cada veredicto en `<trabajo>/ola-3/revision.md` con el formato fijo de `references/olas.md`, por la ruta de la vista (`## <épica>/<vista>: ...`), para que se lea sin interpretar y dos vistas con el mismo nombre en épicas distintas no se confundan, y cada aprobación con la huella de lo que aprobó (`aprobadas.py huella <vista>`): si la vista o un compartido cambia después, ya no es lo que el revisor vio.
+1. Integras tú, sin subagente: armas `components.css` final con lo nuevo de cada contrato, dejas las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corres `<intérprete> -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `<intérprete> -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia. Con navegador, sacas aquí las capturas por escenario, del original y de la vista (`references/escenarios.md`, sección "Capturas"): tienen que existir antes de que el revisor empiece. Sin navegador, la verificación queda en el inventario y el informe lo dice.
+2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, le pasas las rutas de las capturas del original y de la vista por escenario, y las compara lado a lado. Deja cada veredicto en `<trabajo>/ola-3/revision.md` con el formato fijo de `references/olas.md`, por la ruta de la vista (`## <épica>/<vista>: ...`), para que se lea sin interpretar y dos vistas con el mismo nombre en épicas distintas no se confundan, y cada aprobación con la huella de lo que aprobó (`<intérprete> -B <ruta-de-esta-skill>/scripts/aprobadas.py huella <vista>`): si la vista o un compartido cambia después, ya no es lo que el revisor vio.
 3. Una vista no aprobada no la corriges tú, aunque el arreglo sea de una línea: vuelve una vez a su subagente de la ola 2 con las notas del revisor, la integras de nuevo y el revisor la mira otra vez. El revisor es la única mirada que no armó la vista; si la corrige quien integra, entra al repositorio sin que nadie independiente la haya visto. Si en esa segunda revisión sigue sin aprobarse, queda fuera, la nombras con `--pendientes` en el paso siguiente y va al informe como pendiente.
 4. Mueves al repositorio con el script, no copiando a mano:
 
    ```
-   python3 -B <ruta-de-esta-skill>/scripts/aprobadas.py mover <trabajo> <repo-de-diseño>
+   <intérprete> -B <ruta-de-esta-skill>/scripts/aprobadas.py mover <trabajo> <repo-de-diseño>
    ```
 
    Copia de `<trabajo>/ola-3/repo/` solo las vistas cuyo último veredicto en `revision.md` es "aprobada" con la huella que tienen hoy en la copia y que tienen en disco su contrato y su inventario, lo que el revisor tuvo que leer, y `tokens.css`, `components.css` y `proto.js` si cambiaron. Si una sola vista queda fuera (no aprobada, sin veredicto, sin huella o con otra, sin contrato o inventario), no mueve nada y sale con 1: esa vista vuelve a su subagente y a la segunda revisión, o al revisor si solo cambió su huella. Así una vista no aprobada no se pierde en silencio entre las que sí entraron.
@@ -113,7 +119,7 @@ Con `references/olas.md`, sección "Ola 3":
    Cuando una vista ya tuvo su segunda revisión y sigue sin aprobarse, nómbrala como pendiente para mover las demás:
 
    ```
-   python3 -B <ruta-de-esta-skill>/scripts/aprobadas.py mover <trabajo> <repo-de-diseño> --pendientes <épica>/<vista>[,<épica>/<vista>...]
+   <intérprete> -B <ruta-de-esta-skill>/scripts/aprobadas.py mover <trabajo> <repo-de-diseño> --pendientes <épica>/<vista>[,<épica>/<vista>...]
    ```
 
    Con `--pendientes` mueve las aprobadas solo si las vistas que quedan fuera son exactamente las nombradas; si sobra o falta una, no mueve nada y dice cuál. Tampoco mueve nada si una nombrada no tiene su veredicto de segunda revisión (`## <épica>/<vista>, segunda revisión: no aprobada`) o si su último veredicto no es `no aprobada`: esa vista vuelve a su subagente, o al revisor si su huella cambió. Cada pendiente va al informe con lo que el revisor dijo que falta. Las secciones del spec que haya que actualizar las copias tú.
@@ -122,7 +128,7 @@ Con `references/olas.md`, sección "Ola 3":
 
 Antes del commit, comprueba:
 
-- `python3 -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py <repo-de-diseño>` sin hallazgos que bloquean.
+- `<intérprete> -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py <repo-de-diseño>` sin hallazgos que bloquean.
 - Todas las pantallas del mockup están convertidas, como vista o como escenario.
 - El archivo original no está en el repositorio, ni copiado ni renombrado, y ningún archivo de la carpeta de trabajo entró.
 
@@ -134,7 +140,7 @@ Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add 
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
 
-La rama quedó revisada en el paso 5. El push va a la rama actual, con `git push`; si el paso 5 creó la rama de `ofrecer`, con `git push -u origin <rama_nueva>`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva con `python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo diseno --epica <épica> --repo <repo-de-diseño>`. Si la conversión es de varias épicas, pasa `--mockup <mockup>` en lugar de `--epica <épica>`.
+La rama quedó revisada en el paso 5. El push va a la rama actual, con `git push`; si el paso 5 creó la rama de `ofrecer`, con `git push -u origin <rama_nueva>`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo diseno --epica <épica> --repo <repo-de-diseño>`. Si la conversión es de varias épicas, pasa `--mockup <mockup>` en lugar de `--epica <épica>`.
 
 - `rama-nueva`: pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica en simple que el servidor no aceptó el cambio en esa rama, que las vistas quedaron en la rama nueva y que el TL revisa y hace el merge request.
 - `parar`: explica en simple el `detalle` y que el TL es quien da los accesos.

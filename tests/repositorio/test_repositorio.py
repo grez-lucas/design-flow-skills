@@ -5,26 +5,120 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 SKILLS = RAIZ / "skills"
+PYTHON_EN_EL_README = "| Python 3.9 o superior (`python3`, `python` o `py -3`)"
 
 
 class RevisarSinBytecode(unittest.TestCase):
-    def test_checklist_diseno_corre_revisar_py_con_python3_b(self):
+    def test_checklist_diseno_corre_revisar_py_con_el_interprete_y_b(self):
         texto = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
-        llamadas = [l for l in texto.splitlines() if "revisar.py" in l and "python" in l]
+        llamadas = [l for l in texto.splitlines() if "revisar.py" in l and "intérprete" in l]
         self.assertTrue(llamadas, "SKILL.md no corre revisar.py")
         for linea in llamadas:
-            self.assertRegex(linea, r"\bpython3 -B ", linea)
+            self.assertRegex(linea, r"(?:^|`)<intérprete> -B ", linea)
 
-    def test_html_a_vista_corre_sus_scripts_con_python3_b(self):
+    def test_html_a_vista_corre_sus_scripts_con_el_interprete_y_b(self):
         for ruta in [SKILLS / "html-a-vista" / "SKILL.md", *sorted((SKILLS / "html-a-vista" / "references").glob("*.md"))]:
-            texto = ruta.read_text(encoding="utf-8")
-            llamadas = re.findall(r"python3?[^`\n]*\.py", texto)
             with self.subTest(archivo=ruta.name):
-                for llamada in llamadas:
-                    self.assertRegex(llamada, r"^python3 -B ", llamada)
+                for orden in Interprete.ordenes(ruta.read_text(encoding="utf-8").replace(Interprete.PARRAFO, "")):
+                    Interprete.revisar_orden(self, orden)
         texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
         for script in ("desarmar.py", "tokens.py", "inventario.py", "revisar.py", "aprobadas.py"):
-            self.assertRegex(texto, rf"python3 -B [^`\n]*{script}", script)
+            self.assertRegex(texto, rf"<intérprete> -B [^`\n]*{script}", script)
+
+
+class Interprete(unittest.TestCase):
+    """Q105 y Q106: cada skill que corre scripts busca el intérprete al empezar, con el mismo párrafo, y cada orden
+    lo usa con `-B`; sin intérprete, cada skill sigue su propio caso."""
+
+    SKILLS_CON_SCRIPTS = ("checklist-diseno", "grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
+    PARRAFO = ("Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con "
+               "`<intérprete> -c \"import sys; assert sys.version_info >= (3, 9)\"`, y usa el primero que sale sin error "
+               "como `<intérprete>` en cada orden de esta skill y de sus `references/`, siempre con `-B`, para que Python "
+               "no deje `__pycache__/` en la carpeta de la skill. Si ninguno responde, no corras ninguna orden con Python "
+               "y sigue lo que esta skill dice para cuando no encontraste intérprete.")
+    SIN_PYTHON_AL_GUARDAR = ("Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o "
+                             "superior y que se instala desde https://www.python.org/downloads/.")
+    # Q106: el caso sin intérprete de cada skill, en el paso donde corre su primer script.
+    SIN_PYTHON = {
+        "grilling-es": ("Guardar", SIN_PYTHON_AL_GUARDAR),
+        "spec-a-tickets": ("3", SIN_PYTHON_AL_GUARDAR),
+        "spec-a-html": ("2", SIN_PYTHON_AL_GUARDAR),
+        "html-a-vista": ("2", "Si no encontraste intérprete, para aquí y no escribas en el repositorio: explica en simple "
+                              "que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/."),
+        "checklist-diseno": ("2", "Si no encontraste intérprete, revisa a mano, y dilo en el informe."),
+    }
+    # Una orden es un trozo de código que llama a un `.py` con argumentos, o que empieza con un intérprete.
+    LLAMA_A_UN_PY = re.compile(r"\.py\s+\S")
+    EMPIEZA_CON_INTERPRETE = re.compile(r"^(?:<intérprete>|python3?|py)\s")
+    ORDEN_BIEN = r"^<intérprete> -B \S+\.py(?:\s|$)"
+    FIJO = re.compile(r"(?<![\w./<-])(?:python3?|py)\s+(?:-|\S+\.py\b)")
+
+    @classmethod
+    def trozos(cls, texto):
+        """Cada trozo en `código` y cada línea de un bloque ``` del texto."""
+        trozos, bloque = [], False
+        for linea in texto.splitlines():
+            if linea.strip().startswith("```"):
+                bloque = not bloque
+            elif bloque:
+                trozos.append(linea.strip())
+            else:
+                trozos += re.findall(r"`([^`\n]+)`", linea)
+        return trozos
+
+    @classmethod
+    def ordenes(cls, texto):
+        return [t for t in cls.trozos(texto) if cls.LLAMA_A_UN_PY.search(t) or cls.EMPIEZA_CON_INTERPRETE.match(t)]
+
+    def revisar_orden(self, orden):
+        """Una orden que llama a un `.py` va con `<intérprete> -B`; una sin script solo puede ser `<intérprete> -c`."""
+        if ".py" in orden:
+            self.assertRegex(orden, Interprete.ORDEN_BIEN, orden)
+        else:
+            self.assertRegex(orden, r"^<intérprete> -c(?:\s|$)", orden)
+
+    def archivos(self, skill):
+        return [SKILLS / skill / "SKILL.md", *sorted((SKILLS / skill / "references").glob("*.md"))]
+
+    def test_son_las_skills_que_tienen_scripts(self):
+        con_scripts = {r.parents[1].name for r in SKILLS.glob("*/scripts/*.py")}
+        self.assertEqual(con_scripts, set(self.SKILLS_CON_SCRIPTS))
+
+    def test_la_busqueda_es_el_mismo_parrafo_al_empezar_cada_skill(self):
+        for skill in self.SKILLS_CON_SCRIPTS:
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                secciones = re.findall(r"^## (.+)$", texto, re.M)
+                self.assertEqual(secciones[:1], ["Intérprete de Python"], "no es la primera sección")
+                cuerpo = re.search(r"^## Intérprete de Python\n(.*?)(?=^#)", texto, re.S | re.M).group(1)
+                self.assertEqual(cuerpo.strip(), self.PARRAFO)
+
+    def test_la_busqueda_va_antes_de_la_primera_orden_con_python(self):
+        for skill in self.SKILLS_CON_SCRIPTS:
+            with self.subTest(skill=skill):
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                ordenes = self.ordenes(texto.replace(self.PARRAFO, ""))
+                self.assertTrue(ordenes, "no corre ningún script")
+                self.assertIn(self.PARRAFO, texto)
+                self.assertLess(texto.index(self.PARRAFO), texto.index(ordenes[0]))
+
+    def test_ninguna_orden_usa_un_interprete_fijo_ni_va_sin_b(self):
+        for skill in sorted(p.name for p in SKILLS.iterdir() if p.is_dir()):
+            for ruta in self.archivos(skill):
+                texto = ruta.read_text(encoding="utf-8").replace(self.PARRAFO, "")
+                with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
+                    self.assertEqual(self.FIJO.findall(texto), [])
+                    for orden in self.ordenes(texto):
+                        self.revisar_orden(orden)
+
+    def test_cada_skill_conserva_su_caso_sin_python(self):
+        for skill, (paso, frase) in self.SIN_PYTHON.items():
+            with self.subTest(skill=skill):
+                texto = MensajeYRamaDelCommit.paso(self, skill, paso)
+                self.assertIn(frase, texto)
+                ordenes = self.ordenes(texto)
+                self.assertTrue(ordenes, "el paso no corre su primer script")
+        self.assertEqual(set(self.SIN_PYTHON), set(self.SKILLS_CON_SCRIPTS))
 
 
 class CommitSoloDeDesignYSpecs(unittest.TestCase):
@@ -228,10 +322,7 @@ class LlamadaARama(unittest.TestCase):
     TIPOS = MensajeYRamaDelCommit.TIPOS
     PASO_DE_LA_RAMA = MensajeYRamaDelCommit.PASO_DE_LA_RAMA
     PASO_GUARDAR = MensajeYRamaDelCommit.PASO_GUARDAR
-    INTERPRETE = ("Busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con "
-                  "`<intérprete> -c \"import sys; assert sys.version_info >= (3, 9)\"`, y usa el primero que sale sin "
-                  "error en lugar de `python3` para correr `rama.py`. Si ninguno responde, para y no guardes: explica "
-                  "en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.")
+    INTERPRETE = Interprete.SIN_PYTHON_AL_GUARDAR
     SI_FALLA = "Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes"
 
     def paso(self, skill, nombre):
@@ -253,7 +344,7 @@ class LlamadaARama(unittest.TestCase):
         for skill, tipo in self.TIPOS.items():
             with self.subTest(skill=skill):
                 rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
-                self.assertIn(f"python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo {tipo} --epica <épica>", rama)
+                self.assertIn(f"<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo {tipo} --epica <épica>", rama)
                 guardar = self.paso(skill, self.PASO_GUARDAR[skill])
                 if rama != guardar:
                     self.assertNotIn("rama.py revisar", guardar)
@@ -277,14 +368,16 @@ class LlamadaARama(unittest.TestCase):
                 rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
                 self.assertIn(self.INTERPRETE, rama)
                 self.assertLess(rama.index(self.INTERPRETE), rama.index("- `guardar`: "))
+                texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertIn(Interprete.PARRAFO, texto)
 
     def test_la_busqueda_del_interprete_es_igual_en_las_cuatro(self):
         parrafos = set()
         for skill in self.TIPOS:
-            rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
-            parrafos.add(next((l for l in rama.splitlines() if "intérprete" in l), ""))
+            texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+            parrafos.add(next((l for l in texto.splitlines() if l.startswith("Al empezar, una sola vez, busca el intérprete")), ""))
         self.assertEqual(len(parrafos), 1, parrafos)
-        self.assertIn(self.INTERPRETE, parrafos.pop())
+        self.assertEqual(Interprete.PARRAFO, parrafos.pop())
 
     def test_si_el_script_falla_o_no_da_json_para(self):
         for skill in self.TIPOS:
@@ -305,7 +398,7 @@ class LlamadaARama(unittest.TestCase):
         for skill, tipo in self.TIPOS.items():
             with self.subTest(skill=skill):
                 guardar = self.paso(skill, self.PASO_GUARDAR[skill])
-                orden = f"python3 -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo {tipo} --epica <épica>"
+                orden = f"<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo {tipo} --epica <épica>"
                 self.assertIn(orden, guardar)
                 for fragmento in ("El push va a la rama actual, con `git push`", "no sea de credenciales",
                                   MensajeYRamaDelCommit.SIN_ATAJOS):
@@ -328,7 +421,7 @@ class LlamadaARama(unittest.TestCase):
                 if skill == "html-a-vista":
                     self.assertIn(f"rama.py rechazo --tipo {tipo} --epica <épica> --repo <repo-de-diseño>`", guardar)
                 else:
-                    self.assertIn("Pide la rama nueva, desde el repositorio de diseño, con `python3 -B ", guardar)
+                    self.assertIn("Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B ", guardar)
 
     def test_las_reglas_viven_en_el_script_y_no_en_el_texto(self):
         for skill in self.TIPOS:
@@ -374,8 +467,9 @@ class LlamadaARama(unittest.TestCase):
     def test_el_readme_pide_python_para_guardar(self):
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         requisitos = re.search(r"^## Requisitos\n.*?(?=^## )", readme, re.S | re.M).group(0)
-        fila = next((l for l in requisitos.splitlines() if l.startswith("| `python3`") and "rama.py" in l), "")
-        self.assertTrue(fila, "Requisitos no lista python3 para rama.py")
+        fila = next((l for l in requisitos.splitlines() if l.startswith(PYTHON_EN_EL_README) and "rama.py" in l), "")
+        self.assertTrue(fila, "Requisitos no lista Python para rama.py")
+        self.assertNotIn("| `python3`", requisitos)
         for skill in self.TIPOS:
             self.assertIn(f"`{skill}`", fila)
         self.assertIn("Python 3.9 o superior", fila)
