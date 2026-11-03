@@ -111,6 +111,22 @@ class Interprete(unittest.TestCase):
                     for orden in self.ordenes(texto):
                         self.revisar_orden(orden)
 
+    BRIEF_DEL_REVISOR = ("Al lanzarlo le pasas el intérprete que encontraste y la ruta absoluta de esta skill, que "
+                         "van en lugar de `<intérprete>` y `<skill>` en la orden de la huella: el revisor no hace la búsqueda.")
+
+    def test_el_revisor_recibe_el_interprete_y_la_ruta_de_la_skill(self):
+        """El subagente revisor de `html-a-vista` corre `aprobadas.py huella` sin haber buscado el intérprete."""
+        olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+        revisor = next((l for l in olas.splitlines() if l.startswith("**Revisor**")), "")
+        self.assertIn(self.BRIEF_DEL_REVISOR, revisor)
+        self.assertLess(olas.index(self.BRIEF_DEL_REVISOR), olas.index("<intérprete> -B <skill>/scripts/aprobadas.py huella"))
+
+    def test_html_a_vista_para_sin_interprete_antes_de_desarmar(self):
+        paso = MensajeYRamaDelCommit.paso(self, "html-a-vista", "2")
+        frase = self.SIN_PYTHON["html-a-vista"][1]
+        self.assertIn(frase, paso)
+        self.assertLess(paso.index(frase), paso.index("scripts/desarmar.py"))
+
     def test_cada_skill_conserva_su_caso_sin_python(self):
         for skill, (paso, frase) in self.SIN_PYTHON.items():
             with self.subTest(skill=skill):
