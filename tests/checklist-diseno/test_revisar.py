@@ -598,6 +598,8 @@ class Revision(unittest.TestCase):
                 self.assertNotIn(f"`.{calza}`", bloqueo)
         self.setUp()
         self.assertIn("`.excluida`", self.clases_que_bloquean('.card:not([class~="excluida"]) { margin: 0; }', "excluida") or "")
+        self.setUp()
+        self.assertIn("`.fila`", self.clases_que_bloquean('[class*=""] { margin: 0; }', "fila") or "", "un valor vacío no calza")
 
     def test_solo_spec_resumen_con_spec(self):
         self.assertTrue(self.resumen("spec-sin-tickets.html").startswith("Spec: specs/pedidos/spec.md · "))

@@ -391,6 +391,13 @@ class Revision(Repositorio):
         ultimo = tokens.read_text().rsplit(":root {", 1)[1]
         self.assertIn("--size-modal: 480px;", ultimo[:ultimo.index("}")])
 
+    def test_los_tokens_nuevos_van_despues_de_la_ultima_declaracion_del_bloque(self):
+        repo = self.repo()
+        correr("aplicar", repo)
+        texto = (repo / "design" / "tokens.css").read_text()
+        self.assertIn("  --size-content-max: 1200px;\n  --color-overlay: rgba(16, 24, 40, 0.45);\n  --size-modal: 480px;\n}", texto)
+        self.assertIn("  --color-primary-contrast: #0f1216;\n  --color-overlay: rgba(0, 0, 0, 0.6);\n}", texto)
+
     def test_token_en_un_comentario_de_tokens_css_falta(self):
         repo = self.repo()
         tokens = repo / "design" / "tokens.css"
