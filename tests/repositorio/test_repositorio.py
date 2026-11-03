@@ -51,7 +51,10 @@ class Interprete(unittest.TestCase):
     LLAMA_A_UN_PY = re.compile(r"\.py\s+\S")
     EMPIEZA_CON_INTERPRETE = re.compile(r"^(?:<intérprete>|python3?|py)\s")
     ORDEN_BIEN = r"^<intérprete> -B \S+\.py(?:\s|$)"
-    FIJO = re.compile(r"(?<![\w./<-])(?:python3?|py)\s+(?:-|\S+\.py\b)")
+    # Un intérprete escrito a mano, también con versión (`python3.12`) o con ruta (`/usr/bin/python3`).
+    FIJO = re.compile(r"(?<![\w.<-])(?:python[\d.]*|py)\s+(?:-|\S+\.py\b)")
+    # `<intérprete>` seguido de algo que no es `-B`, dentro o fuera de un trozo de código.
+    SIN_B = re.compile(r"<intérprete>\s+(?!-B\s)\S+")
 
     @classmethod
     def trozos(cls, texto):
@@ -108,6 +111,7 @@ class Interprete(unittest.TestCase):
                 texto = ruta.read_text(encoding="utf-8").replace(self.PARRAFO, "")
                 with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
                     self.assertEqual(self.FIJO.findall(texto), [])
+                    self.assertEqual(self.SIN_B.findall(texto), [])
                     for orden in self.ordenes(texto):
                         self.revisar_orden(orden)
 
@@ -126,6 +130,12 @@ class Interprete(unittest.TestCase):
         frase = self.SIN_PYTHON["html-a-vista"][1]
         self.assertIn(frase, paso)
         self.assertLess(paso.index(frase), paso.index("scripts/desarmar.py"))
+
+    def test_checklist_diseno_no_para_sin_python(self):
+        """Q106: sin intérprete, `checklist-diseno` revisa a mano; no para ni deja de revisar."""
+        paso = MensajeYRamaDelCommit.paso(self, "checklist-diseno", "2")
+        caso = next(l for l in paso.splitlines() if "no encontraste intérprete" in l)
+        self.assertNotRegex(caso, r"\b(?:para(?! que)|paras|detente|no revises|no sigas)\b")
 
     def test_cada_skill_conserva_su_caso_sin_python(self):
         for skill, (paso, frase) in self.SIN_PYTHON.items():
