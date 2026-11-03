@@ -4,6 +4,7 @@ Cada prueba arma un servidor (repositorio bare con un hook `pre-receive` que sim
 usa la skill y, si hace falta, otra copia de alguien más. Las cuatro copias de rama.py son iguales (tests/repositorio).
 Uso: python3 -m unittest discover -s tests/rama -v
 """
+import importlib.util
 import json
 import os
 import subprocess
@@ -15,8 +16,13 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[2]
 SCRIPT = RAIZ / "skills" / "grilling-es" / "scripts" / "rama.py"
 
-# Sin la configuración global ni la del sistema, para que local y CI corran igual.
-ENTORNO = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+spec = importlib.util.spec_from_file_location("aislar_git", Path(__file__).resolve().parents[1] / "aislar_git.py")
+aislar_git = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(aislar_git)
+
+# Sin la configuración global ni la del sistema, para que local y CI corran igual, y sin GIT_DIR ni las demás
+# variables del repositorio del entorno, como dentro de `git rebase --exec`.
+ENTORNO = {**aislar_git.sin_repositorio(os.environ), "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 
 # Rechaza cualquier ref listada en el archivo `protegidas` del servidor, como una rama protegida.
 HOOK = """#!/bin/sh

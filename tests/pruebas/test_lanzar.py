@@ -20,6 +20,12 @@ spec = importlib.util.spec_from_file_location("lanzar", PRUEBAS / "lanzar.py")
 L = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(L)
 
+spec = importlib.util.spec_from_file_location("aislar_git", Path(__file__).resolve().parents[1] / "aislar_git.py")
+aislar_git = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(aislar_git)
+# Sin GIT_DIR ni las demás variables del repositorio del entorno, como dentro de `git rebase --exec`.
+setUpModule = aislar_git.aislar_modulo
+
 PRUEBA = {"id": 1, "name": "chico-con-ds", "prompt": "Pásalo al repositorio.",
           "reglas": "Repositorio en <outputs>/repo. Mockup en <insumos>/chico.html."}
 

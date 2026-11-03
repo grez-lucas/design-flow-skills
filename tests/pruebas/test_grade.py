@@ -14,6 +14,12 @@ from pathlib import Path
 
 PRUEBAS = Path(__file__).resolve().parents[2] / "pruebas"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+spec = importlib.util.spec_from_file_location("aislar_git", Path(__file__).resolve().parents[1] / "aislar_git.py")
+aislar_git = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(aislar_git)
+# Sin GIT_DIR ni las demás variables del repositorio del entorno, como dentro de `git rebase --exec`.
+setUpModule = aislar_git.aislar_modulo
+
 REQUERIDO = {"checklist-diseno": "informe.md", "grilling-es": "transcripcion.md",
              "spec-a-html": "notas.md", "spec-a-tickets": "notas.md", "html-a-vista": "notas.md"}
 
