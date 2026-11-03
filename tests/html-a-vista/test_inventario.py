@@ -19,7 +19,7 @@ MOCKUPS = RAIZ / "pruebas" / "html-a-vista" / "fixtures" / "mockups"
 
 
 def inventario(vista, *originales, formato="--json"):
-    args = [sys.executable, str(SCRIPT), str(FIX / vista)] + [o if o.startswith("--") else str(FIX / o) for o in map(str, originales)]
+    args = [sys.executable, "-B", str(SCRIPT), str(FIX / vista)] + [o if o.startswith("--") else str(FIX / o) for o in map(str, originales)]
     return subprocess.run(args + ([formato] if formato else []), capture_output=True, text=True)
 
 
@@ -98,7 +98,7 @@ class Inventario(unittest.TestCase):
         self.assertEqual(inventario("vista-fiel.html", "original.html", "--salida").returncode, 2)
 
     def test_uso_incorrecto(self):
-        r = subprocess.run([sys.executable, str(SCRIPT), str(FIX / "vista-fiel.html")], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), str(FIX / "vista-fiel.html")], capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
         r = inventario("no-existe.html", "original.html")
         self.assertEqual(r.returncode, 2)
@@ -136,7 +136,7 @@ class VistasAprobadas(unittest.TestCase):
         if html is not None:
             archivo = self.tmp / f"{vista}-mutada.html"
             archivo.write_text(html)
-        r = subprocess.run([sys.executable, str(SCRIPT), str(archivo), *map(str, self.originales(vista, trozos)), "--json"],
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), str(archivo), *map(str, self.originales(vista, trozos)), "--json"],
                            capture_output=True, text=True)
         self.assertIn(r.returncode, (0, 1), r.stderr)
         return r.returncode, json.loads(r.stdout)

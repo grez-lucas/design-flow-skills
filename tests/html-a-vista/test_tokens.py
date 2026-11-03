@@ -19,7 +19,7 @@ MOCKUPS = PRUEBAS / "fixtures" / "mockups"
 
 
 def correr(*args):
-    return subprocess.run([sys.executable, str(SCRIPT), *map(str, args)], capture_output=True, text=True)
+    return subprocess.run([sys.executable, "-B", str(SCRIPT), *map(str, args)], capture_output=True, text=True)
 
 
 class Mapear(unittest.TestCase):
