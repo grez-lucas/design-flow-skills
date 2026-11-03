@@ -1,6 +1,6 @@
 """Pruebas de skills/spec-a-html/scripts/compartidos.py: llevar los assets nuevos a un repositorio de diseño que ya existe.
 
-`fixtures/repo-viejo/` es el design/ que dejaba la primera versión de la skill (sin `[data-frame]`, `.modal`,
+`fixtures/repo-viejo/` es el design/ que dejaba la skill antes de 8b269c9 (sin `[data-frame]`, `.modal`,
 `.toast-region`, `--color-overlay`, `--size-modal` ni `data-valores` en proto.js); `fixtures/repo-propio/` tiene reglas
 y tokens propios que no se tocan. En los dos, proto.js va como `proto-anterior.js` y la prueba lo renombra.
 Uso: python3 -m unittest discover -s tests/spec-a-html -v
@@ -78,6 +78,7 @@ class RepoViejo(Repositorio):
         self.assertEqual(salida["tokens"]["omitidos"], [])
         self.assertEqual(salida["components"]["faltan"], NUEVAS_DE_LOS_ASSETS)
         self.assertEqual(salida["components"]["omitidos"], [])
+        self.assertEqual(salida["components"]["cambian_lo_propio"], [":where([data-frame])"])
         self.assertEqual(salida["proto"], {"existe": True, "difiere": True})
         self.assertTrue(salida["cambios"])
 
@@ -225,6 +226,7 @@ class RepoPropio(Repositorio):
         omitidos = {o["selector"]: o["motivo"] for o in salida["components"]["omitidos"]}
         self.assertEqual(set(omitidos), {".btn:hover", ".btn:focus-visible", ".btn[disabled]"})
         self.assertIn("`.btn`", omitidos[".btn:hover"])
+        self.assertEqual(salida["components"]["cambian_lo_propio"], ["*::before", "*::after", ":where([data-frame])"])
 
     def test_aplicar_solo_inserta_y_deja_igual_cada_regla_propia(self):
         repo = self.repo("repo-propio")
@@ -263,6 +265,152 @@ class AtRuleDeLosAssets(Repositorio):
         comp = (repo / "design" / "components.css").read_text()
         self.assertIn("@media (min-width: 600px) {\n  .columnas { display: grid; }\n}\n", comp)
         self.assertNotIn("padding: var(--space-6); }\n}", comp)
+
+class Revision(Repositorio):
+    """Los casos de la revisión independiente de la rama."""
+
+    def assets_con(self, components="", tokens=None):
+        """Una copia de assets/ con `components` al final de components.css y, si se da, otro tokens.css."""
+        assets = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, assets)
+        for archivo in COMPARTIDOS:
+            shutil.copy(ASSETS / archivo, assets / archivo)
+        with (assets / "components.css").open("a") as c:
+            c.write(components)
+        if tokens is not None:
+            (assets / "tokens.css").write_text(tokens)
+        return assets
+
+    def compartidos(self):
+        return cargar("compartidos", SCRIPT)
+
+    def test_skill_md_nombra_las_reglas_que_cambian_lo_propio_y_no_promete_que_nada_cambia(self):
+        """Q110: las reglas sin clase cambian cómo se ven las vistas propias, y la skill lo dice antes del sí."""
+        skill = (RAIZ / "skills" / "spec-a-html" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`cambian_lo_propio`", skill)
+        self.assertNotIn("lo que el repositorio ya tiene no cambia", skill)
+        doc = self.compartidos().__doc__
+        self.assertIn("cambian_lo_propio", doc)
+        self.assertNotIn("solo pinta elementos que lo propio no pinta", doc)
+        self.assertNotIn("Nada de lo que ya está cambia", doc)
+
+    def test_bom_inicial_se_reconoce_y_se_conserva(self):
+        sin, con = self.repo(), self.repo()
+        for archivo in ("tokens.css", "components.css"):
+            ruta = con / "design" / archivo
+            ruta.write_bytes(b"\xef\xbb\xbf" + ruta.read_bytes())
+        self.assertEqual(self.json("comparar", con), self.json("comparar", sin))
+        correr("aplicar", sin)
+        correr("aplicar", con)
+        for archivo in ("tokens.css", "components.css"):
+            with self.subTest(archivo=archivo):
+                self.assertEqual((con / "design" / archivo).read_bytes(), b"\xef\xbb\xbf" + (sin / "design" / archivo).read_bytes())
+
+    def test_comentario_o_cadena_sin_cerrar_sale_con_2_sin_escribir(self):
+        casos = {"comentario al final de components.css": ("components.css", "\n/* sin cerrar .modal { }\n"),
+                 "cadena al final de components.css": ("components.css", '\n.x::after { content: "sin cerrar }\n'),
+                 "comentario al final de tokens.css": ("tokens.css", "\n/* sin cerrar\n")}
+        for caso, (archivo, extra) in casos.items():
+            with self.subTest(caso=caso):
+                repo = self.repo()
+                ruta = repo / "design" / archivo
+                ruta.write_text(ruta.read_text() + extra)
+                antes = self.leer(repo)
+                for comando in ("comparar", "mostrar", "aplicar"):
+                    r = correr(comando, repo)
+                    self.assertEqual(r.returncode, 2, (comando, r.stdout))
+                self.assertEqual(self.leer(repo), antes)
+
+    def test_aplicar_el_diff_de_mostrar_da_lo_mismo_que_aplicar(self):
+        """Con LF, con CRLF y sin salto de línea final, `git apply` sobre la salida de mostrar deja los mismos bytes."""
+        for caso in ("lf", "crlf", "sin salto final", "crlf sin salto final", "sin proto.js"):
+            with self.subTest(caso=caso):
+                por_diff, por_aplicar = self.repo(), self.repo()
+                for repo in (por_diff, por_aplicar):
+                    for archivo in ("tokens.css", "components.css", "proto.js"):
+                        ruta = repo / "design" / archivo
+                        datos = ruta.read_bytes()
+                        if "crlf" in caso:
+                            datos = datos.replace(b"\n", b"\r\n")
+                        if "sin salto final" in caso:
+                            datos = datos.rstrip(b"\r\n")
+                        ruta.write_bytes(datos)
+                    if caso == "sin proto.js":
+                        (repo / "design" / "proto.js").unlink()
+                r = subprocess.run([sys.executable, "-B", str(SCRIPT), "mostrar", str(por_diff)], capture_output=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                parche = por_diff / "cambios.diff"
+                parche.write_bytes(r.stdout)
+                g = subprocess.run(["git", "apply", "--whitespace=nowarn", "-p1", str(parche)], cwd=por_diff,
+                                   capture_output=True, text=True)
+                self.assertEqual(g.returncode, 0, g.stderr)
+                correr("aplicar", por_aplicar)
+                self.assertEqual(self.leer(por_diff), self.leer(por_aplicar))
+
+    def test_tema_oscuro_en_root_con_data_theme_o_con_comillas_simples(self):
+        for selector in (':root[data-theme="dark"]', "[data-theme='dark']", "html[data-theme=dark]"):
+            with self.subTest(selector=selector):
+                repo = self.repo()
+                tokens = repo / "design" / "tokens.css"
+                tokens.write_text(tokens.read_text().replace(DARK + " {", selector + " {"))
+                salida = self.json("comparar", repo)
+                self.assertIn((DARK, "--color-overlay"), self.tokens(salida))
+                self.assertEqual(salida["tokens"]["omitidos"], [])
+                correr("aplicar", repo)
+                texto = tokens.read_text()
+                bloque = texto[texto.index(selector + " {"):]
+                self.assertIn("--color-overlay: rgba(0, 0, 0, 0.6);", bloque[:bloque.index("}")])
+
+    def test_tema_oscuro_en_media_que_no_se_reconoce_da_un_motivo_cierto(self):
+        repo = self.repo()
+        tokens = repo / "design" / "tokens.css"
+        texto = tokens.read_text()
+        oscuro = texto[texto.index(DARK):]
+        tokens.write_text(texto[:texto.index(DARK)] + "@media (prefers-color-scheme: dark) {\n:root" + oscuro[len(DARK):] + "}\n")
+        salida = self.json("comparar", repo)
+        motivo = salida["tokens"]["omitidos"][0]["motivo"]
+        self.assertIn(DARK, motivo)
+        self.assertNotIn("tema que no tiene", motivo)
+        correr("aplicar", repo)
+        self.assertEqual(tokens.read_text().count("--color-overlay: rgba(0, 0, 0, 0.6)"), 0)
+
+    def test_proto_js_con_crlf_no_difiere(self):
+        repo = self.repo()
+        (repo / "design" / "proto.js").write_bytes((ASSETS / "proto.js").read_bytes().replace(b"\n", b"\r\n"))
+        self.assertEqual(self.json("comparar", repo)["proto"], {"existe": True, "difiere": False})
+
+    def test_con_root_repetido_agrega_en_el_ultimo(self):
+        repo = self.repo()
+        tokens = repo / "design" / "tokens.css"
+        texto = tokens.read_text()
+        tokens.write_text(texto + "\n:root {\n  --color-brand-alt: #c9a227;\n}\n")
+        correr("aplicar", repo)
+        ultimo = tokens.read_text().rsplit(":root {", 1)[1]
+        self.assertIn("--size-modal: 480px;", ultimo[:ultimo.index("}")])
+
+    def test_token_en_un_comentario_de_tokens_css_falta(self):
+        repo = self.repo()
+        tokens = repo / "design" / "tokens.css"
+        tokens.write_text("/* --size-modal: 480px; */\n" + tokens.read_text())
+        self.assertIn((":root", "--size-modal"), self.tokens(self.json("comparar", repo)))
+
+    def test_clase_nueva_junto_a_una_propia_entra_y_not_no_cuenta_como_exigida(self):
+        """`.btn .icono-nuevo` solo pinta elementos con una clase nueva; `.btn:not(.activo)` pinta el `.btn` propio."""
+        assets = self.assets_con(".btn .icono-nuevo { margin: 0; }\n.btn:not(.activo) { margin: 0; }\n"
+                                 ".btn:has(.icono:not(.lleno)) { margin: 0; }\n")
+        salida = self.compartidos().comparar(self.repo("repo-propio") / "design", assets)
+        self.assertIn(".btn .icono-nuevo", salida["components"]["faltan"])
+        self.assertNotIn(".btn:not(.activo)", salida["components"]["faltan"])
+        omitidos = [o["selector"] for o in salida["components"]["omitidos"]]
+        self.assertIn(".btn:not(.activo)", omitidos)
+        self.assertIn(".btn:has(.icono:not(.lleno))", omitidos)
+
+    def test_sin_salto_final_las_reglas_nuevas_van_tras_una_linea_en_blanco(self):
+        repo = self.repo()
+        comp = repo / "design" / "components.css"
+        comp.write_text(comp.read_text().rstrip("\n"))
+        correr("aplicar", repo)
+        self.assertIn("}\n\n/* Reglas que agregó spec-a-html", comp.read_text())
 
 
 @unittest.skipIf(test_proto.CHROME is None, "No hay Chrome: google-chrome, chromium o Playwright en ~/.cache/ms-playwright.")
