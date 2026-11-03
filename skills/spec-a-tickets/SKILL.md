@@ -76,7 +76,7 @@ Sigue la plantilla del proyecto o la de `references/plantilla-story.md`. Lo esen
 
 - **Título** con el formato de ID de las convenciones cuando lo definen (`INV-12: Registrar ingreso de mercadería`), también si el spec trae otro identificador: el ticket se busca en el tracker por ese ID. El identificador del spec queda en el cuerpo, junto al enlace al spec, para rastrear la historia. Si el tracker asigna el ID al crear el ticket, no lo inventes: el ticket queda con el que devuelve el tracker, y si los tickets van como archivos porque todavía no hay acceso al tracker, el título lleva el identificador del spec hasta que pasen. Sin formato en las convenciones, usa el identificador del spec si lo trae (`[US-REC-001] Ver facturas vencidas`) y, si no lo trae, `[US-<ÁREA>-NNN]`, con un código corto de la épica en mayúsculas.
 - **Descripción**: la historia COMO, QUIERO, PARA como está en el spec y un párrafo de contexto tomado del spec.
-- **Criterios de aceptación**: los escenarios de la historia, copiados tal cual del spec: el mismo `### Escenario N: <nombre>` y el mismo bloque `gherkin`. Afirman comportamiento y datos que se ven, nunca rutas de archivos ni detalles de implementación. Un estado de "Estados por vista" que no es escenario va a casos borde si el spec dice qué pasa, o a preguntas abiertas. Si el spec es anterior a esta plantilla y trae cada escenario en una línea, pásalo al formato sin cambiar lo que dice, con un nombre que resuma su resultado, y muéstralo en la aprobación.
+- **Criterios de aceptación**: los escenarios de la historia, copiados tal cual del spec: el mismo `### Escenario N: <nombre>` y el mismo bloque `gherkin`. Afirman comportamiento y datos que se ven, nunca rutas de archivos ni detalles de implementación. Un estado de "Estados por vista" que no es escenario va a casos borde si el spec dice qué pasa, o a preguntas abiertas. Si el spec es anterior a esta plantilla y trae cada escenario en una línea, pásalo a `### Escenario N: <nombre>` con su bloque `gherkin` sin cambiar lo que dice, con un nombre que resuma su resultado.
 - **Pruebas**: redacta los flujos E2E a partir de los escenarios. Deja las pruebas unitarias y de integración marcadas "Lo completa DEV": producto no tiene cómo validarlas.
 - **Diseño**: la ruta donde va a quedar la vista, `design/vistas/<épica>/<vista>.html`, marcada "pendiente". Es la misma ruta que usa `spec-a-html`, así que el enlace queda bien sin volver a editar el ticket.
 - **Casos borde**: tabla con los del spec y los que aparecen al redactar, cada uno con su comportamiento esperado. Si no sabes el comportamiento, va a preguntas abiertas, no a la tabla.
@@ -88,7 +88,7 @@ Si la plantilla del proyecto no tiene sección de preguntas abiertas, casos bord
 
 ### 6. Aprobación
 
-Muestra el corte en una tabla (identificador, título, escenarios, dependencias) y el primer ticket completo con la plantilla aplicada. Es mucho más barato corregir la plantilla una vez que en diez tickets.
+Muestra el corte en una tabla (identificador, título, escenarios, dependencias) y el primer ticket completo con la plantilla aplicada. Es mucho más barato corregir la plantilla una vez que en diez tickets. Si pusiste nombre a escenarios que el spec no nombraba, muéstralos en la tabla del corte para que la persona los acepte o los cambie antes de publicar.
 
 Si la sesión tiene terminal y `npx` disponible, muéstralo en Lavish para que la persona anote sobre el ticket:
 

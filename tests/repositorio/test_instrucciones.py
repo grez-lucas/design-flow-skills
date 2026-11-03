@@ -140,8 +140,10 @@ class SlugsDeLaTablaDelSpec(unittest.TestCase):
 
     def test_spec_a_html_planifica_con_los_slugs_de_la_tabla(self):
         plan = seccion(self.leer("spec-a-html", "SKILL.md"), "Plan de vistas", 3)
-        self.assertRegex(plan, r"Los escenarios propios de cada vista son los slugs de `## Escenarios en pantalla` del spec "
-                               r"cuyo alcance es esa pantalla o `global`, escritos igual\.")
+        self.assertRegex(plan, r"Para elegir los escenarios propios de cada vista, toma de `## Escenarios en pantalla` del "
+                               r"spec las filas cuyo alcance es esa pantalla o `global`, y escribe sus slugs igual\.")
+        self.assertRegex(plan, r"`checklist-diseno` cruza los slugs con la tabla, no el alcance\.")
+        self.assertNotRegex(plan, r"(bloquea|revisa|cruza)[^.]*alcance[^.]*pantalla")
         self.assertRegex(plan, r"Un estado que la vista necesita y la tabla no tiene no lleva un slug inventado: "
                                r"es una decisión de producto[^.]*`grilling-es`[^.]*\.")
         self.assertRegex(plan, r"Si el spec no tiene la tabla[^.]*`checklist-diseno` lo avisa sin bloquear\.")
@@ -165,6 +167,28 @@ class SlugsDeLaTablaDelSpec(unittest.TestCase):
                                      r"en `## Escenarios en pantalla` del spec")
         self.assertRegex(escenarios, r"lleva el mismo nombre en cada vista donde aplica: el slug de su fila con alcance "
                                      r"`global` en la tabla del spec")
+
+
+class EscenariosDeSpecsAnteriores(unittest.TestCase):
+    """Ante un spec con escenarios en una línea, spec-a-tickets los pasa al formato con un nombre y muestra esos nombres
+    en la aprobación para que la persona los acepte o los cambie."""
+
+    def test_muestra_los_nombres_nuevos_en_la_aprobacion(self):
+        texto = (SKILLS / "spec-a-tickets" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertRegex(texto, r"Si el spec es anterior a esta plantilla y trae cada escenario en una línea, pásalo a "
+                                r"`### Escenario N: <nombre>` con su bloque `gherkin` sin cambiar lo que dice, con un nombre "
+                                r"que resuma su resultado\.")
+        aprobacion = seccion(texto, "Aprobación", 3)
+        self.assertRegex(aprobacion, r"Si pusiste nombre a escenarios que el spec no nombraba, muéstralos en la tabla del "
+                                     r"corte para que la persona los acepte o los cambie antes de publicar\.")
+
+
+class ReferenciaDeLosTicketsEnGrilling(unittest.TestCase):
+    def test_la_oracion_de_la_tabla_no_corta_la_referencia_a_los_tickets(self):
+        texto = (SKILLS / "grilling-es" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertRegex(texto, r"Si el spec anterior está congelado, los tickets mandan sobre él\. Si no los encuentras ni en el tracker")
+        self.assertRegex(texto, r"con quién lo verifica\. Si el spec anterior no tiene `## Escenarios en pantalla`, el spec nuevo la lleva; "
+                                r"un spec congelado no se reescribe solo para agregarla\.")
 
 
 if __name__ == "__main__":
