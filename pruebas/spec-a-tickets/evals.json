@@ -6,7 +6,7 @@
    "name": "sin-tracker-facturo",
    "prompt": "Crea los tickets del spec de recordatorios de Facturo. No usamos tracker.",
    "reglas": "Repositorio de diseño en <outputs>/repo (git); el spec está en specs/recordatorios/spec.md. La persona no puede responder en esta sesión. Si hay que aprobar algo, asume que lo aprueba. Si falta un insumo o una decisión de producto, no la inventes: anótala. Sin navegador ni Lavish. Commit local si corresponde, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste, qué le habrías mostrado o preguntado a la persona y qué asumiste.",
-   "expected_output": "Dos tickets en specs/recordatorios/tickets/NN-*.md con la plantilla de story, títulos con US-REC-00n, criterios Dado/Cuando/Entonces, pruebas para DEV, enlace a design/vistas/recordatorios/, sin campo de aprobación; spec congelado; índice README.md; commit nuevo.",
+   "expected_output": "Dos tickets en specs/recordatorios/tickets/NN-*.md con la plantilla de story, títulos con US-REC-00n, escenarios del spec copiados tal cual como criterios, pruebas para DEV, enlace a design/vistas/recordatorios/, sin campo de aprobación; spec congelado; índice README.md; commit nuevo.",
    "files": [],
    "repo": "fixtures/facturo-diseno"
   },

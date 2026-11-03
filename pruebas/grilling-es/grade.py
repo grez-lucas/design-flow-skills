@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """Revisa las salidas de una iteración de grilling-es y escribe grading.json por corrida."""
-import json, re, subprocess, sys
+import importlib.util, json, re, subprocess, sys
 from pathlib import Path
 
-SECCIONES = ["## Contexto", "## Historias", "## Estados por vista", "## Reglas", "## Decisiones del grilling", "## Fuera de alcance", "## Enlaces"]
+SECCIONES = ["## Contexto", "## Historias", "## Estados por vista", "## Reglas", "## Decisiones del grilling", "## Fuera de alcance", "## Enlaces",
+             "## Escenarios en pantalla"]
+COMO = re.compile(r"^\*\*COMO\*\* .+\n\*\*QUIERO\*\* .+\n\*\*PARA\*\* .+$", re.M)
+ENCABEZADO = re.compile(r"^### Escenario \d+: .+$", re.M)
+GHERKIN = re.compile(r"^### Escenario \d+: .+\n\n```gherkin\n((?:.*\n)*?)```$", re.M)
+_REVISAR = Path(__file__).resolve().parents[2] / "skills" / "checklist-diseno" / "scripts" / "revisar.py"
+_spec = importlib.util.spec_from_file_location("revisar_de_grilling", _REVISAR)
+revisar = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(revisar)
 
 
 def check(text, ok, evidence):
@@ -23,9 +31,15 @@ def spec_checks(s, pendientes):
     """pendientes: (tema, patrón del tema, patrón de quién decide). El tema se busca en todo el spec;
     que quede pendiente con quién decide se verifica aparte, en la misma línea."""
     miss = [h for h in SECCIONES if h not in s]
-    res = [check("El spec sigue la plantilla (siete secciones)", not miss, f"faltan: {miss}")]
-    res.append(check("Historias con Como, quiero, para", bool(re.search(r"Como .+, quiero .+, para", s)), ""))
-    res.append(check("Escenarios con Dado, cuando, entonces", bool(re.search(r"Dado .+cuando .+entonces", s, re.I)), ""))
+    res = [check("El spec sigue la plantilla (ocho secciones)", not miss, f"faltan: {miss}")]
+    res.append(check("Historias con COMO, QUIERO, PARA", COMO.search(s) is not None, ""))
+    encabezados, bloques = ENCABEZADO.findall(s), GHERKIN.findall(s)
+    sin_pasos = [b[:60] for b in bloques if not all(re.search(rf"^{p} ", b, re.M) for p in ("Dado", "Cuando", "Entonces"))]
+    res.append(check("Escenarios como ### Escenario N con un bloque gherkin", encabezados and len(bloques) == len(encabezados) and not sin_pasos,
+                     f"{len(encabezados)} encabezados, {len(bloques)} con bloque gherkin; sin Dado, Cuando o Entonces: {sin_pasos}"))
+    leido = revisar.leer_spec(s)
+    res.append(check("La tabla Escenarios en pantalla nombra escenarios del spec", bool(leido["tabla"]) and not leido["errores"],
+                     leido["errores"] or ("sin la sección" if leido["tabla"] is None else "sin filas")))
     low = s.lower()
     for tema, pat, quien in pendientes:
         res.append(check(f"El spec trata lo que la persona no sabe: {tema}", re.search(pat, low) is not None, ""))

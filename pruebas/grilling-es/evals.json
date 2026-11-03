@@ -6,7 +6,7 @@
    "name": "nuevo-exportar",
    "prompt": "Los contadores nos piden exportar las facturas a Excel. Ayúdame a pensarlo y deja el spec listo.",
    "reglas": "Persona: Camila, de producto de Facturo. Simulas la conversación. Camila responde solo con lo que está en fixtures/persona-exportar.md. Si una pregunta no tiene respuesta ahí, dice \"no lo sé\" o nombra quién decide si el archivo lo dice; no le inventes respuestas. Acepta recomendaciones solo si no contradicen ese archivo y son decisiones de diseño menores. Las decisiones de negocio que el archivo no cubre quedan sin responder. Camila confirma el entendimiento y aprueba el spec si refleja lo que dijo. Escribe cada ronda en <outputs>/transcripcion.md. Sin navegador ni Lavish: formato de chat. Repositorio de diseño en <outputs>/repo (git, sin tracker); commit local, sin push. Al terminar escribe <outputs>/notas.md con qué hiciste y qué asumiste.",
-   "expected_output": "Spec nuevo en specs/<épica>/spec.md con las siete secciones de la plantilla, historias Como/quiero/para con escenarios Dado/cuando/entonces, el límite de filas pendiente del equipo técnico y el plan Básico pendiente de Rodrigo, PDF y correo fuera de alcance, preguntas con respuesta recomendada y un commit nuevo.",
+   "expected_output": "Spec nuevo en specs/<épica>/spec.md con las ocho secciones de la plantilla, historias COMO/QUIERO/PARA con escenarios ### Escenario N en gherkin y la tabla Escenarios en pantalla, el límite de filas pendiente del equipo técnico y el plan Básico pendiente de Rodrigo, PDF y correo fuera de alcance, preguntas con respuesta recomendada y un commit nuevo.",
    "files": [
     "fixtures/persona-exportar.md"
    ],

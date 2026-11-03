@@ -157,6 +157,99 @@ class EstadosBaseDeGrilling(unittest.TestCase):
             self.assertTrue(estados["passed"], estados["evidence"])
 
 
+PLANTILLA_SPEC = Path(__file__).resolve().parents[2] / "skills" / "grilling-es" / "references" / "plantilla-spec.md"
+
+
+def ejemplo_de_spec():
+    """El ejemplo corto de la plantilla del spec de grilling-es, sin su cerca."""
+    texto = PLANTILLA_SPEC.read_text(encoding="utf-8").split("## Ejemplo corto", 1)[1]
+    return texto.split("````markdown\n", 1)[1].rsplit("````", 1)[0]
+
+
+SPEC_EN_PROSA = """# Spec · Recordatorios
+
+## Historias
+
+### US-REC-001 · Ver facturas vencidas
+
+Como administrador, quiero ver las facturas vencidas, para cobrar a tiempo.
+
+- Escenario 1: Dado que tengo facturas vencidas, cuando entro, entonces veo el listado.
+"""
+
+
+class FormatoDelSpecDeGrilling(unittest.TestCase):
+    """El spec de grilling-es lleva la historia COMO, QUIERO, PARA, escenarios `### Escenario N` en gherkin y la tabla
+    `## Escenarios en pantalla`, que nombra escenarios del spec."""
+
+    def chequeos(self, spec):
+        return {r["text"]: r for r in cargar("grilling-es").spec_checks(spec, [])}
+
+    def test_el_ejemplo_de_la_plantilla_pasa_los_chequeos_de_formato(self):
+        res = self.chequeos(ejemplo_de_spec())
+        self.assertEqual({t: r["evidence"] for t, r in res.items() if not r["passed"]}, {})
+        for texto in ("El spec sigue la plantilla (ocho secciones)", "Historias con COMO, QUIERO, PARA",
+                      "Escenarios como ### Escenario N con un bloque gherkin",
+                      "La tabla Escenarios en pantalla nombra escenarios del spec"):
+            self.assertIn(texto, res)
+
+    def test_el_spec_en_prosa_no_pasa_los_chequeos_de_formato(self):
+        res = self.chequeos(SPEC_EN_PROSA)
+        for texto in ("El spec sigue la plantilla (ocho secciones)", "Historias con COMO, QUIERO, PARA",
+                      "Escenarios como ### Escenario N con un bloque gherkin",
+                      "La tabla Escenarios en pantalla nombra escenarios del spec"):
+            self.assertFalse(res[texto]["passed"], texto)
+
+    def test_una_fila_con_un_nombre_que_no_es_escenario_no_pasa(self):
+        spec = ejemplo_de_spec().replace("| Plan Básico | Vencidas |", "| Plan basico | Vencidas |")
+        chequeo = self.chequeos(spec)["La tabla Escenarios en pantalla nombra escenarios del spec"]
+        self.assertFalse(chequeo["passed"])
+        self.assertIn("Plan basico", chequeo["evidence"])
+
+
+class EscenariosCopiadosEnLosTickets(unittest.TestCase):
+    """Cada ticket de spec-a-tickets lleva los escenarios de su historia copiados tal cual del spec."""
+
+    def setUp(self):
+        self.repo = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.repo)
+        fixture = PRUEBAS / "spec-a-tickets" / "fixtures" / "facturo-diseno"
+        shutil.copytree(fixture, self.repo, dirs_exist_ok=True)
+        self.spec = (self.repo / "specs" / "recordatorios" / "spec.md").read_text(encoding="utf-8")
+        (self.repo / "specs" / "recordatorios" / "tickets").mkdir()
+
+    def ticket(self, nombre, id_historia, cambiar=lambda t: t):
+        historia = self.spec.split(f"### {id_historia} ·", 1)[1]
+        fin = historia.find("\n### US-")
+        historia = historia[:fin] if fin >= 0 else historia.split("\n## ", 1)[0]
+        criterios = "### Escenario" + historia.split("### Escenario", 1)[1]
+        texto = f"# [{id_historia}] Ticket\n\n## ✅ Acceptance Criteria\n\n{cambiar(criterios)}\n"
+        (self.repo / "specs" / "recordatorios" / "tickets" / nombre).write_text(texto, encoding="utf-8")
+
+    def chequeo(self):
+        res = cargar("spec-a-tickets").eval1(self.repo)
+        return next(r for r in res if r["text"] == "Criterios copiados tal cual de los escenarios del spec")
+
+    def test_el_spec_de_la_prueba_tiene_escenarios_gherkin(self):
+        self.assertRegex(self.spec, r"(?m)^### Escenario 1: .+\n\n```gherkin\n")
+
+    def test_tickets_con_los_escenarios_copiados_pasan(self):
+        self.ticket("01-ver.md", "US-REC-001")
+        self.ticket("02-configurar.md", "US-REC-002")
+        self.assertTrue(self.chequeo()["passed"], self.chequeo()["evidence"])
+
+    def test_un_escenario_reescrito_o_en_prosa_no_pasa(self):
+        casos = {
+            "una palabra cambiada": lambda t: t.replace("Entonces veo", "Entonces se ve", 1),
+            "en blockquote": lambda t: t.replace("```gherkin\n", "").replace("```", "").replace("\nDado", "\n> **Dado**"),
+        }
+        for caso, cambiar in casos.items():
+            with self.subTest(caso=caso):
+                self.ticket("01-ver.md", "US-REC-001", cambiar)
+                self.ticket("02-configurar.md", "US-REC-002")
+                self.assertFalse(self.chequeo()["passed"], caso)
+
+
 NIEGA_LISTA = """No, todavía no está lista para la planning. Falta el ticket.
 
 ## Lo que bloquea
