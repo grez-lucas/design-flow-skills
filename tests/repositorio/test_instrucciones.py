@@ -79,7 +79,7 @@ class CapturasEnSpecAHtml(unittest.TestCase):
 
     def test_dice_como_saber_si_hay_navegador(self):
         self.assertIn("command -v google-chrome chromium chromium-browser", self.capturas)
-        self.assertRegex(self.capturas, r"`<intérprete> -c \"import playwright\"`")
+        self.assertRegex(self.capturas, r"`<intérprete> -B -c \"import playwright\"`")
 
     def test_las_capturas_quedan_en_la_carpeta_de_trabajo_fuera_del_repositorio(self):
         destinos = re.findall(r"--screenshot=(\S+)", self.capturas)

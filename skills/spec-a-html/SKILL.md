@@ -105,7 +105,7 @@ Sigue `references/vista-html.md`, que trae la plantilla y las reglas. Lo esencia
 
 ### 7. Capturas
 
-`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona. Para saber si hay navegador: `command -v google-chrome chromium chromium-browser`, o `<intérprete> -c "import playwright"` para Playwright.
+`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona. Para saber si hay navegador: `command -v google-chrome chromium chromium-browser`, o `<intérprete> -B -c "import playwright"` para Playwright.
 
 Saca una por escenario y por ancho de referencia (los del comentario de `tokens.css`, por defecto 390, 1280 y 1440) en una carpeta de trabajo fuera del repositorio, por ejemplo la que da `mktemp -d`, para que no entren al commit:
 

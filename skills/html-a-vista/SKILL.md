@@ -42,7 +42,7 @@ Donde dice `<ruta-de-esta-skill>`, escribe la ruta absoluta de esta carpeta, no 
 <intérprete> -B <ruta-de-esta-skill>/scripts/desarmar.py <mockup.html | carpeta> <trabajo>
 ```
 
-El script escribe en `<trabajo>` las partes decodificadas (`partes/`), los trozos de CSS, JS y markup por pantalla o superposición (`trozos/`), `resumen.md` y `manifiesto.json`. Lee `resumen.md`: tiene lo que necesitas para el plan en una lectura. No leas el mockup ni el manifiesto enteros; para un dato puntual del manifiesto, busca con grep o con `<intérprete> -c`.
+El script escribe en `<trabajo>` las partes decodificadas (`partes/`), los trozos de CSS, JS y markup por pantalla o superposición (`trozos/`), `resumen.md` y `manifiesto.json`. Lee `resumen.md`: tiene lo que necesitas para el plan en una lectura. No leas el mockup ni el manifiesto enteros; para un dato puntual del manifiesto, busca con grep o con `<intérprete> -B -c`.
 
 Si el script sale con error, dile a la persona qué no entendió (el mensaje lo dice) y no sigas: un mockup que no se puede desarmar no se puede repartir.
 

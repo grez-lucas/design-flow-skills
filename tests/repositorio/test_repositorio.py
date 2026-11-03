@@ -71,11 +71,11 @@ class Interprete(unittest.TestCase):
         return [t for t in cls.trozos(texto) if cls.LLAMA_A_UN_PY.search(t) or cls.EMPIEZA_CON_INTERPRETE.match(t)]
 
     def revisar_orden(self, orden):
-        """Una orden que llama a un `.py` va con `<intérprete> -B`; una sin script solo puede ser `<intérprete> -c`."""
+        """Una orden que llama a un `.py` va con `<intérprete> -B`; una sin script solo puede ser `<intérprete> -B -c`."""
         if ".py" in orden:
             self.assertRegex(orden, Interprete.ORDEN_BIEN, orden)
         else:
-            self.assertRegex(orden, r"^<intérprete> -c(?:\s|$)", orden)
+            self.assertRegex(orden, r"^<intérprete> -B -c(?:\s|$)", orden)
 
     def archivos(self, skill):
         return [SKILLS / skill / "SKILL.md", *sorted((SKILLS / skill / "references").glob("*.md"))]
