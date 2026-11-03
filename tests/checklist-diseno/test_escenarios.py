@@ -145,13 +145,22 @@ class LeerSpec(unittest.TestCase):
             "slug con tilde": ("| `pedido-atrasado` |", "| `pedido-atrasádo` |", "`pedido-atrasádo`"),
             "alcance vacío": ("| Pedido atrasado | Pedidos |", "| Pedido atrasado |  |", "alcance"),
             "celdas de más": ("| Pedido atrasado | Pedidos |", "| Pedido atrasado | Pedidos | extra |", "tres columnas"),
-            "slug repetido": ("| `lector-desconectado` |", "| `pedido-atrasado` |", "repite"),
+            "slug repetido en el mismo alcance": ("| `lector-desconectado` | Lector de códigos desconectado | global |",
+                                                  "| `pedido-atrasado` | Lector de códigos desconectado | Pedidos |", "repite"),
         }
         for caso, (viejo, nuevo, marca) in casos.items():
             with self.subTest(caso=caso):
                 leido = revisar.leer_spec(SPEC.replace(viejo, nuevo))
                 self.assertTrue(leido["errores"], caso)
                 self.assertTrue(any(marca in e for e in leido["errores"]), leido["errores"])
+
+    def test_el_mismo_slug_en_dos_pantallas_no_es_error(self):
+        texto = SPEC.replace("| `lector-desconectado` | Lector de códigos desconectado | global |",
+                             "| `lector-desconectado` | Lector de códigos desconectado | global |\n"
+                             "| `vacio` | Hay pedidos del día | Pedidos |\n| `vacio` | Pedido atrasado | Despacho |")
+        leido = revisar.leer_spec(texto)
+        self.assertEqual(leido["errores"], [])
+        self.assertEqual([f["slug"] for f in leido["tabla"]], ["pedido-atrasado", "lector-desconectado", "vacio", "vacio"])
 
     def test_el_slug_va_con_o_sin_comillas_invertidas(self):
         leido = revisar.leer_spec(SPEC.replace("| `pedido-atrasado` |", "| pedido-atrasado |"))
