@@ -79,7 +79,7 @@ Si `python3` no está, para y no guardes: explica en simple que falta Python y q
 
 - `guardar`: guarda en la rama actual.
 - `ofrecer`: la conversión es de varias épicas y estás en la rama de una sola de ellas: no guardes ahí, porque el merge request de esa épica no revisa las demás. Antes de escribir nada, explica en qué rama estás y por qué, y ofrece volver a la principal y guardar en `rama_nueva`. Solo con el sí de la persona, corre `git switch <principal>`, `git pull --ff-only` y `git switch -c <rama_nueva>`. Sin el sí, o si un comando falla, para y explica en qué rama quedaste y que el TL dice cómo seguir.
-- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y no tiene commits pendientes. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
 - `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
 
 ### 6. Ola 1: tokens, componentes base y escenarios globales

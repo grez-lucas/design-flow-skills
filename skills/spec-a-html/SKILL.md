@@ -52,7 +52,7 @@ python3 -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo diseno --epica <�
 Si `python3` no está, para y no guardes: explica en simple que falta Python y que se instala desde https://www.python.org/downloads/. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: guarda en la rama actual.
-- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y no tiene commits pendientes. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
 - `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
 
 ### 3. Crear o editar
