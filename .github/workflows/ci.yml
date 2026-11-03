@@ -16,18 +16,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Tests de revisar.py
-        run: python3 -m unittest discover -s tests/checklist-diseno -v
-      - name: Tests de los scripts de html-a-vista
-        run: python3 -m unittest discover -s tests/html-a-vista -v
-      - name: Tests de los grade.py
-        run: python3 -m unittest discover -s tests/pruebas -v
-      - name: Tests de rama.py contra repositorios git
-        run: python3 -m unittest discover -s tests/rama -v
-      - name: Tests del repositorio
-        run: python3 -m unittest discover -s tests/repositorio -v
-      - name: Tests de proto.js en Chrome
-        run: python3 -m unittest discover -s tests/spec-a-html -v
+      - name: Tests de cada carpeta de tests/
+        run: python3 tests/correr.py
 
   plugin:
     runs-on: ubuntu-latest
