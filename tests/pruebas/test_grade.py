@@ -200,6 +200,16 @@ class FormatoDelSpecDeGrilling(unittest.TestCase):
                       "La tabla Escenarios en pantalla nombra escenarios del spec"):
             self.assertFalse(res[texto]["passed"], texto)
 
+    def test_la_seccion_con_ninguno_pasa_y_sin_la_seccion_no(self):
+        ejemplo = ejemplo_de_spec()
+        ninguno = ejemplo.split("| Slug |")[0] + "Ninguno.\n"
+        texto = "La tabla Escenarios en pantalla nombra escenarios del spec"
+        self.assertTrue(self.chequeos(ninguno)[texto]["passed"], self.chequeos(ninguno)[texto]["evidence"])
+        sin_seccion = ejemplo.split("## Escenarios en pantalla")[0]
+        self.assertFalse(self.chequeos(sin_seccion)[texto]["passed"])
+        mala = ejemplo.split("| Slug |")[0] + "Los escenarios están arriba.\n"
+        self.assertFalse(self.chequeos(mala)[texto]["passed"])
+
     def test_una_fila_con_un_nombre_que_no_es_escenario_no_pasa(self):
         spec = ejemplo_de_spec().replace("| Plan Básico | Vencidas |", "| Plan basico | Vencidas |")
         chequeo = self.chequeos(spec)["La tabla Escenarios en pantalla nombra escenarios del spec"]
@@ -749,6 +759,53 @@ htmls[out / "repo" / "design" / "vistas" / "socios" / "v.html"] = '<body data-es
 res = grade.extra_grande(out, htmls, out / "sin-tokens.css")
 print(json.dumps(next(r for r in res if r["text"].startswith("El escenario de la báscula"))))
 """
+
+
+SPEC_CON_GLOBAL = """# Spec · Inventario
+
+### Escenario 1: Báscula desconectada
+
+```gherkin
+Dado que la báscula no responde
+Cuando entro a cualquier pantalla
+Entonces veo un aviso de báscula desconectada
+```
+
+## Escenarios en pantalla
+
+| Slug | Nombre | Alcance |
+| :--- | :--- | :--- |
+| `{slug}` | Báscula desconectada | {alcance} |
+"""
+
+
+class EscenarioGlobalEnLaTabla(unittest.TestCase):
+    """"El spec lista el escenario global" lee la fila `global` de la tabla cuando el spec la tiene; sin tabla, busca el
+    nombre en el texto del spec."""
+
+    def calificar(self, spec):
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, out)
+        (out / "notas.md").write_text("Informe.\n")
+        (out / "repo" / "specs" / "inventario").mkdir(parents=True)
+        (out / "repo" / "specs" / "inventario" / "spec.md").write_text(spec)
+        htmls = {out / "repo" / "design" / "vistas" / e / "v.html": '<body data-escenarios="normal, bascula-desconectada">'
+                 for e in ("inventario", "compostaje")}
+        res = cargar("html-a-vista").extra_grande(out, htmls, out / "sin-tokens.css")
+        return next(r for r in res if r["text"] == "El spec lista el escenario global")
+
+    def test_la_fila_global_con_el_slug_pasa(self):
+        self.assertTrue(self.calificar(SPEC_CON_GLOBAL.format(slug="bascula-desconectada", alcance="global"))["passed"])
+
+    def test_la_fila_del_slug_sin_alcance_global_no_pasa_aunque_el_texto_lo_nombre(self):
+        spec = SPEC_CON_GLOBAL.format(slug="bascula-desconectada", alcance="Inventario")
+        self.assertFalse(self.calificar(spec)["passed"])
+        spec = SPEC_CON_GLOBAL.format(slug="bascula-apagada", alcance="global") + "\nVer bascula-desconectada.\n"
+        self.assertFalse(self.calificar(spec)["passed"])
+
+    def test_sin_tabla_basta_que_el_spec_nombre_el_escenario(self):
+        self.assertTrue(self.calificar("# Spec\n\nEl escenario bascula-desconectada es global.\n")["passed"])
+        self.assertFalse(self.calificar("# Spec\n\nSin escenarios globales.\n")["passed"])
 
 
 class EscenarioDeLaBascula(unittest.TestCase):
