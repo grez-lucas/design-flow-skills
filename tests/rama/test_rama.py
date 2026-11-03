@@ -153,6 +153,27 @@ class AntesDeEscribir(Base):
         resultado = self.revisar("spec", "riego")
         self.assertEqual((resultado["accion"], resultado["motivo"]), ("parar", "otra-rama"))
 
+    def test_rama_del_flujo_que_sigue_a_otra_rama_del_servidor_para(self):
+        """`git push` iría a la principal, no a spec/riego."""
+        git("switch", "-q", "-c", "spec/riego", "origin/main", cwd=self.copia)
+        self.en_el_servidor("spec/riego")
+        resultado = self.revisar("spec", "riego")
+        self.assertEqual((resultado["accion"], resultado["motivo"]), ("parar", "otra-rama"))
+
+    def test_rama_del_flujo_que_sigue_a_otro_remoto_para(self):
+        self.trabajar_en("spec/riego")
+        git("remote", "add", "otro", str(self.servidor), cwd=self.copia)
+        git("fetch", "-q", "otro", cwd=self.copia)
+        git("branch", "-q", "--set-upstream-to=otro/spec/riego", cwd=self.copia)
+        resultado = self.revisar("spec", "riego")
+        self.assertEqual((resultado["accion"], resultado["motivo"]), ("parar", "otra-rama"))
+
+    def test_si_falla_el_fetch_aunque_responda_el_servidor_para(self):
+        git("config", "remote.origin.fetch", "+refs/heads/no-existe:refs/remotes/origin/no-existe", cwd=self.copia)
+        git("ls-remote", "origin", cwd=self.copia)
+        resultado = self.revisar("spec", "riego")
+        self.assertEqual((resultado["accion"], resultado["motivo"]), ("parar", "sin-servidor"))
+
     def test_en_otra_rama_viva_para(self):
         self.trabajar_en("arreglo-menu")
         resultado = self.revisar("spec", "riego")
