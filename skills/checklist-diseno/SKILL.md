@@ -9,6 +9,10 @@ Revisa si las vistas de `design/vistas/` están listas para construir. El result
 
 Quien la usa suele ser de producto. Habla en español y explica cada hallazgo por lo que DEV no podría construir o construiría mal, no por la regla que incumple.
 
+## Intérprete de Python
+
+Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<intérprete> -c "import sys; assert sys.version_info >= (3, 9)"`, y usa el primero que sale sin error como `<intérprete>` en cada orden de esta skill y de sus `references/`, siempre con `-B`, para que Python no deje `__pycache__/` en la carpeta de la skill. Si ninguno responde, no corras ninguna orden con Python y sigue lo que esta skill dice para cuando no encontraste intérprete.
+
 ## Pasos
 
 ### 1. Qué revisar
@@ -20,14 +24,12 @@ Trabaja en el repositorio de diseño (tiene `design/` en la raíz). Si la person
 Corre el script incluido:
 
 ```
-python3 -B <ruta-de-esta-skill>/scripts/revisar.py <repo-de-diseño> [vistas...]
+<intérprete> -B <ruta-de-esta-skill>/scripts/revisar.py <repo-de-diseño> [vistas...]
 ```
-
-`-B` evita que Python deje `__pycache__/` dentro de la carpeta de la skill.
 
 Confirma cada BLOQUEA leyendo la línea antes de pasarlo al informe: el script puede equivocarse con SVG, consultas de contenedor o comentarios. Si descartas un hallazgo, dilo en una línea con el motivo.
 
-Si no hay Python en la máquina, revisa a mano, y dilo en el informe. Una vista grande no se lee entera: busca con grep los atributos y los valores. Lo que hay que revisar:
+Si no encontraste intérprete, revisa a mano, y dilo en el informe. Una vista grande no se lee entera: busca con grep los atributos y los valores. Lo que hay que revisar:
 
 - Que la vista enlace `tokens.css`, `components.css` y `proto.js` de `design/` (`../../tokens.css` desde `design/vistas/<épica>/`), y nada más: ni otra hoja de estilo local, enlazada o con `@import`, ni otro script (`../../mi-proto.js` no es `proto.js`), ni `javascript:` en un enlace o formulario, ni manejadores `on...`. Lo que no se enlaza desde esos tres archivos no lo ve la revisión.
 - Que no haya `@keyframes`, con o sin prefijo (`@-webkit-keyframes`, `@-o-keyframes`), en la vista, en `components.css` ni en `tokens.css`, y que esos dos no importen otras hojas con `@import`. Un comentario que nombra la animación no cuenta: es el comentario de intención que la reemplaza.

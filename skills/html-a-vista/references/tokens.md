@@ -23,7 +23,7 @@ Cómo se llevan los valores del mockup a `design/tokens.css`, con o sin un desig
 ## Con tokens.css
 
 ```
-python3 -B <skill>/scripts/tokens.py mapear design/tokens.css <trabajo>/trozos/*/estilos*.css
+<intérprete> -B <skill>/scripts/tokens.py mapear design/tokens.css <trabajo>/trozos/*/estilos*.css
 ```
 
 1. Lo que está dentro del umbral va al token que el script indica, sin preguntar. Cuando la distancia no es 0, la tabla del script trae el valor del token al lado: una medida de 1100 px que va a un token de 1200 px cambia la pantalla, y el informe lo muestra igual.
@@ -34,7 +34,7 @@ python3 -B <skill>/scripts/tokens.py mapear design/tokens.css <trabajo>/trozos/*
 ## Sin tokens.css
 
 ```
-python3 -B <skill>/scripts/tokens.py consolidar <trabajo>/trozos/*/estilos*.css
+<intérprete> -B <skill>/scripts/tokens.py consolidar <trabajo>/trozos/*/estilos*.css
 ```
 
 El script agrupa los colores por color base dentro del umbral y dentro de su tema (las opacidades quedan anotadas en cada grupo), lleva espacios, radios y medidas fijas a múltiplos de 4 px y junta tamaños de letra a 1 px o menos. Cada grupo dice su tema: `:root` (el tema por defecto, reglas que ningún selector de tema elige), `[data-theme="dark"]`, `[data-theme="light"]`, `.dark`, `@media (prefers-color-scheme: dark)`, o los dos cuando un bloque vale para dos (`:root, [data-theme="dark"]`, un mockup que abre en oscuro). El mismo valor en dos temas va en dos grupos: un blanco de fondo en el claro y un blanco de texto en el oscuro no son el mismo token. La sección "Colores que conviven con las reglas sin tema" lista cada grupo de `:root` que queda dentro del umbral, por color base, de un grupo de otro tema: las reglas sin tema se ven en todos los temas, así que esos dos se ven juntos e iguales aunque estén en grupos distintos (en el mockup grande, el fondo oscuro `#0e1410` y el texto de un botón `#0d1410`, a 0,17). La sección "Un token con un valor por tema" lista cada rol del mockup (una variable, o un selector y su propiedad) que cambia de valor entre temas. Es la base mecánica; sobre ella:
@@ -49,7 +49,7 @@ El script agrupa los colores por color base dentro del umbral y dentro de su tem
 8. Antes de escribir, revisa el archivo contra sí mismo:
 
    ```
-   python3 -B <skill>/scripts/tokens.py verificar <trabajo>/ola-1/tokens/tokens.css
+   <intérprete> -B <skill>/scripts/tokens.py verificar <trabajo>/ola-1/tokens/tokens.css
    ```
 
    Sale con 1 si dos tokens que se ven a la vez tienen valores distintos dentro del umbral, por ejemplo un fondo alterno que no se distingue del fondo (la plantilla de `spec-a-html` trae uno así). Se ven a la vez los de un mismo bloque, y los de `[data-theme="dark"]` con los de `:root` que ese bloque no redefine, porque en oscuro siguen a la vista. Resuelve cada par: o un token toma el valor del otro, o se separan hasta que se vean distintos. Los alias de igual valor (`--color-surface` y `--color-primary-contrast` en blanco) son intencionales y el script no los cuenta.
@@ -61,7 +61,7 @@ Si el mockup tiene tema claro y oscuro (bloques `[data-theme="dark"]`, `.dark` o
 ## Verificar antes de escribir
 
 ```
-python3 -B <skill>/scripts/tokens.py verificar design/tokens.css <trabajo>/ola-1/tokens/tokens.css
+<intérprete> -B <skill>/scripts/tokens.py verificar design/tokens.css <trabajo>/ola-1/tokens/tokens.css
 ```
 
 Sale con 1 si un token nuevo queda dentro del umbral de uno existente. Si pasa, o lo reemplazas por el existente o producto lo aprobó sabiendo que es casi igual, y lo dices en el informe.
