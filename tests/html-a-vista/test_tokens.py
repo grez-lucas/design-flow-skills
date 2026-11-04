@@ -77,11 +77,10 @@ class RolesDelComponentsViejo(unittest.TestCase):
 
     def test_los_candidatos_son_valores_del_mockup_del_mismo_uso(self):
         colores = {g["representante"] for g in self.d["colores"]}
-        # Los fondos del mockup, también los que da por sus variables (`background: var(--crema)`).
-        self.assertTrue(self.roles["--color-surface"]["candidatos"])
+        # Hallazgo 6 de la cuarta revisión: exactamente los fondos del mockup, también los que da por sus variables.
+        self.assertEqual(set(self.roles["--color-surface"]["candidatos"]),
+                         {"#ffffff", "#2e7d4f", "#f6f7f3", "#e3f1e7", "#fdebd9", "#fbe4e4"})
         self.assertLessEqual(set(self.roles["--color-surface"]["candidatos"]), colores)
-        self.assertIn("#f6f7f3", self.roles["--color-surface"]["candidatos"])
-        self.assertNotIn("#1d2b21", self.roles["--color-surface"]["candidatos"], "el color del texto no es un fondo")
         for token in ("--color-text", "--color-primary"):
             with self.subTest(token=token):
                 self.assertFalse(self.roles[token]["por_defecto"])
@@ -109,11 +108,11 @@ ROLES = Path(__file__).resolve().parent / "fixtures" / "roles"
 
 
 class RolesPorPropiedadYTema(unittest.TestCase):
-    """Hallazgos 2 y 3 de la tercera revisión: el tipo y el valor por defecto salen de la propiedad exacta (Q136 vale
-    para todo tipo de rol), y un mockup con tema oscuro propone un valor por tema."""
+    """Q139: candidatos solo de la misma propiedad exacta, con var() resuelto incluido su respaldo; valor por defecto
+    solo si todas las propiedades del rol comparten uno válido; un valor por tema si el mockup tiene más de uno."""
 
-    def roles(self, mockup):
-        r = correr("consolidar", ROLES / mockup, "--roles", ROLES / "components.css", "--json")
+    def roles(self, mockup, components="components.css"):
+        r = correr("consolidar", ROLES / mockup, "--roles", ROLES / components, "--json")
         self.assertEqual(r.returncode, 0, r.stderr)
         return {x["token"]: x for x in json.loads(r.stdout)["roles"]}
 
@@ -128,24 +127,47 @@ class RolesPorPropiedadYTema(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertEqual((roles[token]["tipo"], roles[token]["candidatos"], roles[token]["por_defecto"]), (tipo, [valor], True))
 
+    def test_sin_un_valor_por_defecto_comun_y_valido_producto_decide(self):
+        """Hallazgos 2, 3 y 4 de la cuarta revisión, Q138 y Q139."""
+        roles = self.roles("plano.html", "mezcla.css")
+        esperados = {"--space-4": [], "--color-danger": [], "--color-ring": [], "--opacity-muted": [],
+                     "--font-family-base": ["inherit"], "--color-accent": ["auto"], "--space-2": ["0"]}
+        for token, valor in esperados.items():
+            with self.subTest(token=token):
+                self.assertEqual(roles[token]["candidatos"], valor)
+                self.assertEqual(roles[token]["por_defecto"], bool(valor))
+        md = correr("consolidar", ROLES / "plano.html", "--roles", ROLES / "mezcla.css").stdout
+        self.assertIn("| --color-ring | color | box-shadow | producto decide |", md)
+        self.assertIn("| --font-family-base | otro | font-family | inherit (por defecto del navegador) |", md)
+
     def test_border_radius_y_border_width_no_son_colores(self):
         roles = self.roles("tema.html")
         self.assertEqual((roles["--radius-md"]["tipo"], roles["--radius-md"]["candidatos"]), ("medida", ["8px"]))
-        self.assertEqual(roles["--border-w"]["tipo"], "otro")
-        self.assertNotIn("#dddddd", roles["--border-w"]["candidatos"])
+        self.assertEqual((roles["--border-w"]["tipo"], roles["--border-w"]["candidatos"]), ("otro", ["medium"]))
 
     def test_con_tema_oscuro_cada_rol_propone_un_valor_por_tema(self):
+        """La regla del tema reemplaza a la de :root con el mismo selector y propiedad; las variables de :root valen
+        en el tema si el tema no las redefine; una variable puede usar otra."""
         roles = self.roles("tema.html")
         oscuro = '[data-theme="dark"]'
-        for token, claro, valor_oscuro in (("--color-bg", "#ffffff", "#101010"), ("--color-text", "#222222", "#eeeeee"),
-                                            ("--color-border", "#dddddd", "#333333"), ("--color-surface", "#f4f4f4", "#1c1c1c")):
+        esperados = {"--color-bg": (["#f4f4f4", "#ffffff"], ["#101010", "#1c1c1c", "#f4f4f4"]),
+                     "--color-surface": (["#f4f4f4", "#ffffff"], ["#101010", "#1c1c1c", "#f4f4f4"]),
+                     "--color-text": (["#222222"], ["#eeeeee"]), "--color-border": (["#dddddd"], ["#333333"])}
+        for token, (claro, valor_oscuro) in esperados.items():
             with self.subTest(token=token):
-                self.assertIn(claro, roles[token]["candidatos"])
-                self.assertNotIn(valor_oscuro, roles[token]["candidatos"])
-                self.assertIn(valor_oscuro, roles[token]["por_tema"][oscuro])
-        self.assertNotIn(oscuro, roles["--radius-md"].get("por_tema", {}))
+                self.assertEqual(roles[token]["candidatos"], claro)
+                self.assertEqual(roles[token]["por_tema"], {oscuro: valor_oscuro})
+        for token in ("--radius-md", "--space-3"):
+            self.assertNotIn("por_tema", roles[token])
         md = correr("consolidar", ROLES / "tema.html", "--roles", ROLES / "components.css").stdout
-        self.assertIn(f"{oscuro}: #101010", next(l for l in md.splitlines() if l.startswith("| --color-bg |")))
+        self.assertIn(f"{oscuro}: #101010, #1c1c1c, #f4f4f4", next(l for l in md.splitlines() if l.startswith("| --color-bg |")))
+
+    def test_var_con_respaldo_toma_la_variable_si_existe_y_si_no_el_respaldo(self):
+        """Hallazgo 1 de la cuarta revisión: respaldos con paréntesis y var() anidados."""
+        roles = self.roles("respaldo.html")
+        self.assertEqual(roles["--color-border"]["candidatos"], ["#dddddd"])
+        self.assertEqual(roles["--color-bg"]["candidatos"], ["#abcdef"])
+        self.assertEqual(roles["--color-text"]["candidatos"], ["#111111"])
 
 
 class Mapear(unittest.TestCase):

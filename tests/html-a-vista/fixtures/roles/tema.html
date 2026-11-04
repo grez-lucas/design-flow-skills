@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <title>Prueba · tema oscuro</title>
 <style>
-:root { --fondo: #ffffff; --tinta: #222222; --borde: #dddddd; }
+:root { --fondo: #ffffff; --tinta: #222222; --gris: #dddddd; --borde: var(--gris); --superficie: #f4f4f4; }
 [data-theme="dark"] { --fondo: #101010; --tinta: #eeeeee; --borde: #333333; }
 body { background: var(--fondo); color: var(--tinta); }
-.card { background: #f4f4f4; border: 1px solid var(--borde); border-radius: 8px; padding: 12px; }
+.card { background: var(--superficie); border: 1px solid var(--borde); border-radius: 8px; padding: 12px; }
 [data-theme="dark"] .card { background: #1c1c1c; }
+.panel { background: var(--superficie); }
 </style>
 </head>
-<body><div class="card">Tarjeta</div></body>
+<body><div class="card">Tarjeta</div><div class="panel">Panel</div></body>
 </html>

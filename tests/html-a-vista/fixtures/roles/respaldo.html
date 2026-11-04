@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Prueba · var() con respaldo</title>
+<style>
+:root { --borde: #dddddd; --a: #111111; --b: #222222; --fondo-x: #abcdef; }
+.card { border: 1px solid var(--borde, rgb(1, 2, 3)); }
+.x { background: var(--nada, var(--tampoco, var(--fondo-x))); }
+.y { color: var(--a, var(--b)); }
+</style>
+</head>
+<body><div class="card x y">Texto</div></body>
+</html>

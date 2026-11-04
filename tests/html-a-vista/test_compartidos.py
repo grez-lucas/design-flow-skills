@@ -267,6 +267,20 @@ class PuestaAlDia(unittest.TestCase):
         self.assertLessEqual({"--color-bg", "--color-surface", "--color-text"}, declarados)
         self.assertNotIn("--color-info", declarados)
 
+    def test_solo_usados_lee_el_proto_js_que_va_a_quedar(self):
+        """Sin `design/proto.js`, `--solo-usados` lee el de los assets, que es el que `aplicar` copia."""
+        assets = self.tmp / "assets"
+        assets.mkdir()
+        shutil.copyfile(ASSETS / "tokens.css", assets / "tokens.css")
+        (assets / "proto.js").write_text('var nombres = ["--color-info"];\n', encoding="utf-8")
+        (assets / "components.css").write_text(".nuevo { color: var(--color-primary); }\n", encoding="utf-8")
+        design = self.repo / "design"
+        (design / "proto.js").unlink()
+        (design / "tokens.css").write_text(":root {\n  --color-primary: #2f7d4f;\n}\n", encoding="utf-8")
+        (design / "components.css").write_text(".propia { margin: 0; }\n", encoding="utf-8")
+        salida = compartidos.comparar(design, assets, solo_usados=True)
+        self.assertEqual({t["token"] for t in salida["tokens"]["faltan"]}, {"--color-info"})
+
     def test_solo_usados_cuenta_los_tokens_que_usa_el_tokens_css(self):
         """Hallazgo 6 de la tercera revisión: un token del mockup que usa con var() uno de la plantilla lo hace entrar."""
         tokens = self.repo / "design" / "tokens.css"
