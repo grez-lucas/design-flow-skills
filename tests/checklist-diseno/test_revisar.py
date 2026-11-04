@@ -515,6 +515,12 @@ class Revision(unittest.TestCase):
             self.assertIn(clase, bloquea[0])
         self.assertNotIn("`.card`", bloquea[0])
 
+    def test_la_clase_sin_regla_nombra_las_dos_skills_que_ponen_al_dia_los_compartidos(self):
+        """Issue 39: las reglas de la skill las agrega `spec-a-html` o `html-a-vista` al poner al día los compartidos."""
+        bloquea, _ = self.revisar("clases-sin-definir.html")
+        self.assertIn("Las de la skill, como `.modal` o `.toast-region`, las agregan `spec-a-html` y `html-a-vista` a "
+                      "`components.css` al poner al día los compartidos;", bloquea[0])
+
     def test_clases_de_los_assets_de_la_skill_no_bloquean(self):
         shutil.copy(ASSETS / "tokens.css", self.design / "tokens.css")
         shutil.copy(ASSETS / "components.css", self.design / "components.css")

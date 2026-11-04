@@ -542,8 +542,9 @@ def revisar_vista(path, repo, definidos):
     if sin_regla:
         bloquea.append(f"Usa clases que `components.css` no define, ni el `<style>` de la vista: "
                        f"{', '.join(f'`.{c}`' for c in sin_regla[:8])}. Sin su regla, la pantalla no se ve como DEV la "
-                       "tiene que construir. Las de la skill, como `.modal` o `.toast-region`, las agrega `spec-a-html` a "
-                       "`components.css`; las de una sola vista van en su `<style>`.")
+                       "tiene que construir. Las de la skill, como `.modal` o `.toast-region`, las agregan `spec-a-html` y "
+                       "`html-a-vista` a `components.css` al poner al día los compartidos; las de una sola vista van "
+                       "en su `<style>`.")
 
     if EXTERNAL.search(texto):
         bloquea.append("Carga recursos externos (CDN, fuentes, imágenes remotas).")
