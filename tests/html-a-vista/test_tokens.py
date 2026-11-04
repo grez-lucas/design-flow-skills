@@ -49,18 +49,24 @@ class RolesDelComponentsViejo(unittest.TestCase):
         self.assertEqual(self.roles["--shadow-1"]["tipo"], "otro")
         self.assertEqual(self.roles["--color-border"]["tipo"], "color")
 
-    def test_un_rol_sin_valor_en_el_mockup_queda_sin_candidatos_y_la_tabla_lo_dice(self):
-        self.assertEqual(self.roles["--line-height-base"]["candidatos"], [])
+    def test_un_rol_sin_valor_en_el_mockup_se_propone_con_el_valor_por_defecto_del_navegador(self):
+        """Q134: lo que el mockup de verdad muestra cuando no da la propiedad."""
+        for token, valor in (("--line-height-base", "normal"), ("--shadow-1", "none"), ("--color-border", "currentColor")):
+            with self.subTest(token=token):
+                self.assertEqual(self.roles[token]["candidatos"], [valor])
+                self.assertTrue(self.roles[token]["por_defecto"])
+        self.assertFalse(self.roles["--color-surface"]["por_defecto"])
         md = correr("consolidar", MOCKUPS / "chico.html", "--roles", COMPONENTS_VIEJO).stdout
-        self.assertIn("| --line-height-base | otro | line-height | el mockup no tiene uno |", md)
+        self.assertIn("| --line-height-base | otro | line-height | normal (por defecto del navegador) |", md)
 
     def test_los_candidatos_son_valores_del_mockup_del_mismo_uso(self):
         colores = {g["representante"] for g in self.d["colores"]}
         fondos = {g["representante"] for g in self.d["colores"] if any(u.startswith("background") for u in g["usos"])}
         self.assertTrue(self.roles["--color-surface"]["candidatos"])
         self.assertLessEqual(set(self.roles["--color-surface"]["candidatos"]), fondos)
-        for token in ("--color-text", "--color-border", "--color-primary"):
+        for token in ("--color-text", "--color-primary"):
             with self.subTest(token=token):
+                self.assertFalse(self.roles[token]["por_defecto"])
                 self.assertLessEqual(set(self.roles[token]["candidatos"]), colores)
         espacios = {g["propuesta"] for g in self.d["medidas"] if g["categoria"] == "space"}
         self.assertTrue(self.roles["--space-4"]["candidatos"])
