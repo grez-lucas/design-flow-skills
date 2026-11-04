@@ -3,7 +3,7 @@
 
 Uso:
   python3 tokens.py mapear <tokens.css> <fuente.css|.html> [...] [--json]
-  python3 tokens.py consolidar <fuente.css|.html> [...] [--json]
+  python3 tokens.py consolidar <fuente.css|.html> [...] [--roles <components.css>] [--json]
   python3 tokens.py verificar <tokens-antes.css> <tokens-después.css> [--json]
   python3 tokens.py verificar <tokens.css> [--json]
 
@@ -14,7 +14,11 @@ consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral y
             opacidad anotada en sus miembros; lista los grupos de reglas sin tema (:root) dentro del umbral de un
             grupo de otro tema, porque se ven juntos en ese tema; lista como un token con un valor por tema cada
             rol (una variable, o un selector y su propiedad) que cambia de valor entre temas; lleva espacios, radios y medidas fijas a
-            múltiplos de 4 px y junta tamaños de letra a 1 px o menos.
+            múltiplos de 4 px y junta tamaños de letra a 1 px o menos. Con --roles, lista además como roles a llenar
+            las variables que usa ese components.css y que él no declara (el de un design/ sin tokens.css): cada una
+            con su tipo (color, medida con su categoría, u otro), las propiedades donde la usa y los valores del mockup
+            que sirven para ella, del más usado al menos: los grupos de color con un uso de la misma propiedad, las
+            medidas propuestas de su categoría, o los valores literales que el mockup da a esa propiedad.
 verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
             los pares de tokens que se ven a la vez con valores distintos dentro del umbral, que se ven iguales:
             los de un mismo bloque, y los de un bloque de tema con los de :root que ese bloque no redefine.
@@ -345,6 +349,53 @@ def consolidar(fuentes):
             "conviven": conviven(colores), "por_tema": por_tema, "medidas": orden}
 
 
+COLOR_PROPIEDAD = re.compile(r"(color|background|border|outline|fill|stroke|text-decoration)")
+
+
+def roles_del_components(components, fuentes, d):
+    """Los tokens que usa `components` y que no declara, como roles a llenar con valores del mockup (Q133)."""
+    from desarmar import sin_comentarios_css
+    css = "".join(sin_comentarios_css(Path(components).read_text(errors="replace")))
+    declarados = set(re.findall(r"(--[\w-]+)\s*:", css))
+    usos = {}
+    for _, _, cuerpo in reglas(css):
+        for prop, valor in declaraciones(cuerpo):
+            for nombre in re.findall(r"var\(\s*(--[\w-]+)", valor):
+                if nombre not in declarados:
+                    lista = usos.setdefault(nombre, [])
+                    if prop not in lista:
+                        lista.append(prop)
+    literales = {}
+    for f in fuentes:
+        for _, _, cuerpo in reglas(css_de(Path(f))):
+            for prop, valor in declaraciones(cuerpo):
+                if not prop.startswith("--") and "var(" not in valor and valor:
+                    cuenta = literales.setdefault(prop, {})
+                    cuenta[valor] = cuenta.get(valor, 0) + 1
+    roles = []
+    for nombre, props in usos.items():
+        categoria = next((c for c in map(categoria_de_propiedad, props) if c), None)
+        if nombre.startswith("--color-") or (categoria is None and any(COLOR_PROPIEDAD.match(x) for x in props)):
+            tipo, categoria = "color", None
+            raices = {x.split("-")[0] for x in props}
+            candidatos = [g["representante"] for g in d["colores"] if any(u.split("-")[0] in raices for u in g["usos"])]
+        elif categoria:
+            tipo = "medida"
+            candidatos = [g["propuesta"] for g in sorted(d["medidas"], key=lambda g: -g["ocurrencias"]) if g["categoria"] == categoria]
+        else:
+            tipo = "otro"
+            cuenta = {}
+            for x in props:
+                for valor, n in literales.get(x, {}).items():
+                    cuenta[valor] = cuenta.get(valor, 0) + n
+            candidatos = sorted(cuenta, key=lambda v: -cuenta[v])
+        fila = {"token": nombre, "tipo": tipo, "propiedades": props, "candidatos": list(dict.fromkeys(candidatos))}
+        if categoria:
+            fila["categoria"] = categoria
+        roles.append(fila)
+    return roles
+
+
 def conviven(grupos):
     """Grupos de las reglas sin tema (:root) que quedan dentro del umbral, por color base, de un grupo de otro tema. Las
     reglas sin tema se ven en todos los temas, así que esos dos grupos se ven juntos e iguales en pantalla (o son el
@@ -472,6 +523,13 @@ def md_consolidar(d):
     l += ["", "## Medidas", "", "| Categoría | Propuesta | Ocurrencias | Valores originales |", "| :--- | :--- | :--- | :--- |"]
     l += [f"| {g['categoria']} | {g['propuesta']} | {g['ocurrencias']} | {miembros(g)} |"
           for g in d["medidas"]]
+    if "roles" in d:
+        l += ["", "## Roles del components.css del repositorio", "",
+              "Tokens que usa el `components.css` del repositorio y que el `tokens.css` nuevo tiene que declarar con un "
+              "valor del mockup. Sin fila decidida, la puesta al día los agrega con los valores de la plantilla.", "",
+              "| Token | Tipo | Propiedades | Valores del mockup |", "| :--- | :--- | :--- | :--- |"]
+        l += [f"| {r['token']} | {r['tipo']}{' ' + r['categoria'] if r.get('categoria') else ''} | {', '.join(r['propiedades'])} | "
+              f"{', '.join(r['candidatos'][:4]) or 'el mockup no tiene uno'} |" for r in d["roles"]]
     return "\n".join(l) + "\n"
 
 
@@ -496,12 +554,20 @@ def md_verificar(d):
 def main(argv):
     como_json = "--json" in argv
     args = [a for a in argv[1:] if a != "--json"]
+    roles = None
+    if "--roles" in args:
+        i = args.index("--roles")
+        if args[0] != "consolidar" or i + 1 >= len(args):
+            print(__doc__, file=sys.stderr)
+            return 2
+        roles = args[i + 1]
+        del args[i:i + 2]
     minimo = {"mapear": 3, "consolidar": 2, "verificar": 3}
     minimo["verificar"] = 2
     if not args or args[0] not in minimo or len(args) < minimo[args[0]] or (args[0] == "verificar" and len(args) > 3):
         print(__doc__, file=sys.stderr)
         return 2
-    faltan = [a for a in args[1:] if not Path(a).is_file()]
+    faltan = [a for a in args[1:] + ([roles] if roles else []) if not Path(a).is_file()]
     if faltan:
         print(f"No existe: {', '.join(faltan)}", file=sys.stderr)
         return 2
@@ -510,6 +576,8 @@ def main(argv):
         d, md = mapear(rutas[0], rutas[1:]), md_mapear
     elif args[0] == "consolidar":
         d, md = consolidar(rutas), md_consolidar
+        if roles:
+            d["roles"] = roles_del_components(roles, rutas, d)
     else:
         d, md = verificar(*rutas), md_verificar
     print(json.dumps(d, ensure_ascii=False, indent=1) if como_json else md(d))

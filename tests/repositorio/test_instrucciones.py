@@ -243,7 +243,10 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"quedó a medias:[^\n]*? Detente antes de la ola 1, explícalo en simple y propón armar "
                                     r"`tokens.css` ahora desde el mockup")
         self.assertRegex(self.paso, r"(?m)^<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py consolidar "
-                                    r"<trabajo>/trozos/\*/estilos\*\.css$")
+                                    r"<trabajo>/trozos/\*/estilos\*\.css --roles <repo-de-diseño>/design/components\.css$")
+        self.assertRegex(self.paso, r"La tabla lleva también, como roles a llenar, los tokens que usa el `components.css` "
+                                    r"viejo, cada uno con un valor del mockup[^\n]*?: así la puesta al día no los agrega con "
+                                    r"los valores de la plantilla\.")
         self.assertRegex(self.paso, r"Con el sí a la tabla, escribe `tokens.css` en `design/` del repositorio, corre "
                                     r"`comparar` y sigue con la puesta al día desde ahí\.")
         self.assertRegex(self.paso, r"En la ola 1 ese `tokens.css` ya existe: los valores del mockup se llevan a sus tokens "
