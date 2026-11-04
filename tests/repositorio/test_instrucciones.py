@@ -226,6 +226,17 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         self.assertRegex(self.paso, r"Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en "
                                     r"simple que [^.]*la revisión de la ola 3 va a bloquear[^.]*\.")
 
+    def test_si_el_script_sale_con_error_se_detiene_como_sin_el_si(self):
+        """Q124: un error de `compartidos.py` detiene la skill antes de la ola 1, igual que cuando la persona no acepta."""
+        self.assertRegex(self.paso, r"Si el script sale con error, detente antes de la ola 1 y no escribas en el "
+                                    r"repositorio, como sin el sí: explica en simple qué dice el error y qué hay que "
+                                    r"arreglar en el repositorio[^.]*\.")
+        self.assertNotIn("sigue sin tocar los compartidos", self.paso)
+        olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+        plan = (SKILLS / "html-a-vista" / "references" / "plan.md").read_text(encoding="utf-8")
+        self.assertNotIn("Si la puesta al día salió con error", olas)
+        self.assertNotIn("salió con error, que no se pusieron al día", plan)
+
     def test_la_ola_3_parte_del_repositorio_ya_al_dia(self):
         olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
         integracion = olas.split("## Ola 3")[1].split("**Revisor**")[0]

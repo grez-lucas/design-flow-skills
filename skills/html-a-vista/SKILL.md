@@ -110,7 +110,7 @@ Explícalo en simple: qué reglas y tokens se suman (`faltan`), cuáles quedan f
 <intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py aplicar <repo-de-diseño>
 ```
 
-Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en simple que la ola 3 revisa cada vista contra los compartidos del repositorio, y que sin ponerlos al día la revisión de la ola 3 va a bloquear las vistas que usen lo que falta, así que la conversión no puede terminar. Si el script sale con error, explícalo en simple y sigue sin tocar los compartidos, como `spec-a-html`; el informe dice que no se pusieron al día.
+Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en simple que la ola 3 revisa cada vista contra los compartidos del repositorio, y que sin ponerlos al día la revisión de la ola 3 va a bloquear las vistas que usen lo que falta, así que la conversión no puede terminar. Si el script sale con error, detente antes de la ola 1 y no escribas en el repositorio, como sin el sí: explica en simple qué dice el error y qué hay que arreglar en el repositorio (el mensaje nombra el archivo y lo que no entendió, por ejemplo una llave sin cerrar en `components.css`) para volver a convertir el mockup.
 
 ### 7. Ola 1: tokens, componentes base y escenarios globales
 
