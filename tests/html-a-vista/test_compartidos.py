@@ -130,8 +130,14 @@ class PuestaAlDia(unittest.TestCase):
 
     def tokens_desde_la_tabla(self, consolidacion):
         """El `tokens.css` que sale de la tabla de consolidación cuando producto acepta cada grupo: un token por grupo
-        de color en su tema y uno por medida propuesta."""
+        de color en su tema, uno por medida propuesta y, para cada rol del components.css viejo (Q133), el primer
+        candidato del mockup. Un rol sin candidato lo decide producto en la tabla; aquí, el primer valor del mockup de
+        su tipo."""
         bloques = {}
+        respaldo = {"color": consolidacion["colores"][0]["representante"], "medida": consolidacion["medidas"][0]["propuesta"]}
+        for rol in consolidacion["roles"]:
+            valor = (rol["candidatos"] or [respaldo.get(rol["tipo"], "inherit")])[0]
+            bloques.setdefault(":root", []).append(f"{rol['token']}: {valor};")
         for n, grupo in enumerate(consolidacion["colores"], 1):
             bloques.setdefault(grupo["tema"], []).append(f"--color-mockup-{n}: {grupo['representante']};")
         for n, medida in enumerate(consolidacion["medidas"], 1):
@@ -150,18 +156,24 @@ class PuestaAlDia(unittest.TestCase):
         self.assertEqual({p.name: p.read_bytes() for p in (self.repo / "design").iterdir()}, antes)
 
         texto = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-        orden = re.search(r"^<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py consolidar (<trabajo>/trozos/\*/estilos\*\.css)$",
-                          texto, re.M)
+        orden = re.search(r"^<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py consolidar <trabajo>/trozos/\*/estilos\*\.css "
+                          r"--roles <repo-de-diseño>/design/components\.css$", texto, re.M)
         self.assertIsNotNone(orden, "SKILL.md no da la orden `tokens.py consolidar` para el design/ a medias")
         r = correr([sys.executable, "-B", SKILL / "scripts" / "desarmar.py"], MOCKUP, self.trabajo)
         self.assertEqual(r.returncode, 0, r.stderr)
         estilos = sorted(self.trabajo.glob("trozos/*/estilos*.css"))
         self.assertTrue(estilos)
-        r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "consolidar"], *estilos, "--json")
+        r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "consolidar"], *estilos,
+                   "--roles", self.repo / "design" / "components.css", "--json")
         self.assertEqual(r.returncode, 0, r.stderr)
         (self.repo / "design" / "tokens.css").write_text(self.tokens_desde_la_tabla(json.loads(r.stdout)), encoding="utf-8")
 
-        self.assertTrue(json_cambios(correr(self.orden("comparar"), self.repo)))
+        r = correr(self.orden("comparar"), self.repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        faltan = {t["token"] for t in json.loads(r.stdout)["tokens"]["faltan"]}
+        usados = set(re.findall(r"var\(\s*(--[\w-]+)", (self.repo / "design" / "components.css").read_text(encoding="utf-8")))
+        self.assertEqual(faltan & usados, set(), "la puesta al día agregaría con valores de la plantilla tokens que usa el components.css viejo")
+        self.assertTrue(json_cambios(r))
         self.poner_al_dia()
         r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "mapear", self.repo / "design" / "tokens.css"], *estilos, "--json")
         self.assertEqual(r.returncode, 0, r.stderr)

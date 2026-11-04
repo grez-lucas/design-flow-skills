@@ -22,6 +22,65 @@ def correr(*args):
     return subprocess.run([sys.executable, "-B", str(SCRIPT), *map(str, args)], capture_output=True, text=True)
 
 
+COMPONENTS_VIEJO = RAIZ / "tests" / "spec-a-html" / "fixtures" / "repo-viejo" / "design" / "components.css"
+
+
+class RolesDelComponentsViejo(unittest.TestCase):
+    """Q133: en un design/ a medias, `consolidar --roles <components.css>` pone en la tabla como roles a llenar los
+    tokens que usa el components.css viejo, con los valores del mockup que sirven para cada uno."""
+
+    def setUp(self):
+        r = correr("consolidar", MOCKUPS / "chico.html", "--roles", COMPONENTS_VIEJO, "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.d = json.loads(r.stdout)
+        self.roles = {x["token"]: x for x in self.d["roles"]}
+
+    def test_cada_token_que_usa_el_components_css_es_un_rol(self):
+        import re
+        usados = set(re.findall(r"var\(\s*(--[\w-]+)", COMPONENTS_VIEJO.read_text(encoding="utf-8")))
+        self.assertEqual(set(self.roles), usados)
+
+    def test_cada_rol_dice_su_tipo_y_donde_lo_usa_el_components_css(self):
+        self.assertEqual(self.roles["--color-surface"]["tipo"], "color")
+        self.assertIn("background", self.roles["--color-surface"]["propiedades"])
+        self.assertEqual((self.roles["--space-4"]["tipo"], self.roles["--space-4"]["categoria"]), ("medida", "space"))
+        self.assertEqual((self.roles["--radius-md"]["tipo"], self.roles["--radius-md"]["categoria"]), ("medida", "radius"))
+        self.assertEqual(self.roles["--font-family-base"]["tipo"], "otro")
+        self.assertEqual(self.roles["--shadow-1"]["tipo"], "otro")
+        self.assertEqual(self.roles["--color-border"]["tipo"], "color")
+
+    def test_un_rol_sin_valor_en_el_mockup_queda_sin_candidatos_y_la_tabla_lo_dice(self):
+        self.assertEqual(self.roles["--line-height-base"]["candidatos"], [])
+        md = correr("consolidar", MOCKUPS / "chico.html", "--roles", COMPONENTS_VIEJO).stdout
+        self.assertIn("| --line-height-base | otro | line-height | el mockup no tiene uno |", md)
+
+    def test_los_candidatos_son_valores_del_mockup_del_mismo_uso(self):
+        colores = {g["representante"] for g in self.d["colores"]}
+        fondos = {g["representante"] for g in self.d["colores"] if any(u.startswith("background") for u in g["usos"])}
+        self.assertTrue(self.roles["--color-surface"]["candidatos"])
+        self.assertLessEqual(set(self.roles["--color-surface"]["candidatos"]), fondos)
+        for token in ("--color-text", "--color-border", "--color-primary"):
+            with self.subTest(token=token):
+                self.assertLessEqual(set(self.roles[token]["candidatos"]), colores)
+        espacios = {g["propuesta"] for g in self.d["medidas"] if g["categoria"] == "space"}
+        self.assertTrue(self.roles["--space-4"]["candidatos"])
+        self.assertLessEqual(set(self.roles["--space-4"]["candidatos"]), espacios)
+        self.assertIn("'Nunito', sans-serif", self.roles["--font-family-base"]["candidatos"])
+        self.assertIn("700", self.roles["--font-weight-medium"]["candidatos"])
+
+    def test_la_tabla_en_markdown_lista_los_roles(self):
+        md = correr("consolidar", MOCKUPS / "chico.html", "--roles", COMPONENTS_VIEJO).stdout
+        self.assertIn("## Roles del components.css del repositorio", md)
+        self.assertIn("| --color-surface | color | ", md)
+
+    def test_sin_roles_la_salida_no_cambia(self):
+        r = correr("consolidar", MOCKUPS / "chico.html", "--json")
+        self.assertNotIn("roles", json.loads(r.stdout))
+
+    def test_roles_sin_archivo_sale_con_2(self):
+        self.assertEqual(correr("consolidar", MOCKUPS / "chico.html", "--roles").returncode, 2)
+
+
 class Mapear(unittest.TestCase):
     def setUp(self):
         r = correr("mapear", FIX / "tokens.css", FIX / "mockup.html", "--json")
