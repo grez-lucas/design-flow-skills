@@ -1,0 +1,8 @@
+/* components.css de la prueba: roles en propiedades que no comparten un valor por defecto, o sin uno claro. */
+.a { min-height: var(--space-4); padding: var(--space-4); }
+.b { color: var(--color-danger); background: var(--color-danger); }
+.c { box-shadow: 0 0 0 2px var(--color-ring); }
+.d { font-family: var(--font-family-base); }
+.e { opacity: var(--opacity-muted); }
+.f { accent-color: var(--color-accent); }
+.g { padding: var(--space-2); margin: var(--space-2); }

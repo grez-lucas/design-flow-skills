@@ -258,8 +258,10 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"conversión no empezó\.")
         # Hallazgo 7: Q136 por propiedad, todos los candidatos y un valor por tema.
         self.assertRegex(self.paso, r"Un rol para el que el mockup no tiene valor se propone con el valor por defecto del "
-                                    r"navegador para la propiedad donde lo usa el `components.css`[^\n]*?; producto puede "
-                                    r"cambiarlo\.")
+                                    r"navegador para la propiedad donde lo usa el `components.css`[^\n]*?, solo si todas las "
+                                    r"propiedades donde se usa comparten ese valor; producto puede cambiarlo\. Si no lo comparten, "
+                                    r"o la propiedad no tiene un valor por defecto claro[^\n]*?, la fila dice \"producto decide\" "
+                                    r"y no propone nada\.")
         self.assertRegex(self.paso, r"Si el mockup tiene tema oscuro, cada rol lleva además el valor del mockup en ese tema, "
                                     r"que va al bloque del tema en `tokens.css`\.")
         tokens_md = (SKILLS / "html-a-vista" / "references" / "tokens.md").read_text(encoding="utf-8")
