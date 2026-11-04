@@ -270,7 +270,7 @@ class MensajeYRamaDelCommit(unittest.TestCase):
 
     # Paso donde la skill ubica el repositorio de diseño, antes de cualquier escritura, y paso donde guarda.
     PASO_DE_LA_RAMA = {"grilling-es": "Guardar", "spec-a-tickets": "3", "spec-a-html": "2", "html-a-vista": "5"}
-    PASO_GUARDAR = {"grilling-es": "Guardar", "spec-a-tickets": "9", "spec-a-html": "9", "html-a-vista": "9"}
+    PASO_GUARDAR = {"grilling-es": "Guardar", "spec-a-tickets": "9", "spec-a-html": "9", "html-a-vista": "10"}
 
     def paso(self, skill, nombre):
         texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
@@ -459,7 +459,7 @@ class LlamadaARama(unittest.TestCase):
     def test_html_a_vista_pasa_el_mockup_y_las_epicas_si_son_varias(self):
         rama = self.paso("html-a-vista", "5")
         self.assertIn("`--mockup <mockup> --epicas <épica>,<épica>`", rama)
-        self.assertIn("pasa `--mockup <mockup>` en lugar de `--epica <épica>`", self.paso("html-a-vista", "9"))
+        self.assertIn("pasa `--mockup <mockup>` en lugar de `--epica <épica>`", self.paso("html-a-vista", "10"))
         for skill in ("grilling-es", "spec-a-tickets", "spec-a-html"):
             with self.subTest(skill=skill):
                 texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
@@ -487,7 +487,7 @@ class LlamadaARama(unittest.TestCase):
 
     def test_html_a_vista_empuja_con_upstream_la_rama_de_ofrecer(self):
         """Q98: la rama de `ofrecer` se empuja con `-u`; si el servidor la rechaza, `rechazo` devuelve `parar`."""
-        guardar = self.paso("html-a-vista", "9")
+        guardar = self.paso("html-a-vista", "10")
         self.assertIn("si el paso 5 creó la rama de `ofrecer`, con `git push -u origin <rama_nueva>`", guardar)
 
     def test_el_readme_pide_python_para_guardar(self):

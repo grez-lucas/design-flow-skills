@@ -191,5 +191,48 @@ class ReferenciaDeLosTicketsEnGrilling(unittest.TestCase):
                                 r"un spec congelado no se reescribe solo para agregarla\.")
 
 
+class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
+    """Issue 39: html-a-vista pone al día los compartidos de un repositorio de diseño viejo antes de la ola 1, con el
+    script de spec-a-html y por su mismo camino, y se detiene si la persona no acepta. Las regex toman la oración
+    entera que fija la decisión, para que una negación no pase."""
+
+    def setUp(self):
+        self.texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
+        self.pasos = re.findall(r"^### (\d+)\. (.+)$", self.texto, flags=re.M)
+        self.paso = seccion(self.texto, "Compartidos al día", 3)
+
+    def numero(self, titulo):
+        return next(int(n) for n, t in self.pasos if titulo in t)
+
+    def test_los_pasos_estan_numerados_en_orden(self):
+        self.assertEqual([int(n) for n, _ in self.pasos], list(range(1, len(self.pasos) + 1)))
+
+    def test_va_despues_del_plan_y_la_rama_y_antes_de_la_ola_1(self):
+        self.assertEqual(self.numero("Compartidos al día"), self.numero("Plan y ok") + 1)
+        self.assertEqual(self.numero("Ola 1"), self.numero("Compartidos al día") + 1)
+
+    def test_compara_muestra_y_aplica_con_el_script_de_spec_a_html(self):
+        for comando in ("comparar", "mostrar", "aplicar"):
+            with self.subTest(comando=comando):
+                self.assertRegex(self.paso, rf"(?m)^<intérprete> -B <ruta-de-esta-skill>/\.\./spec-a-html/scripts/"
+                                            rf"compartidos\.py {comando} <repo-de-diseño>$")
+
+    def test_nombra_las_reglas_que_cambian_lo_propio_y_aplica_solo_con_el_si(self):
+        self.assertRegex(self.paso, r"Nombra una por una las reglas de `cambian_lo_propio`: no tienen clase, pintan "
+                                    r"elementos que ya existen y cambian cómo se ven las vistas que el repositorio ya tiene\.")
+        self.assertRegex(self.paso, r"Escribe solo con el sí de la persona:\n\n```\n<intérprete> -B [^\n]*compartidos\.py aplicar ")
+
+    def test_sin_el_si_se_detiene_y_explica_que_la_ola_3_va_a_bloquear(self):
+        self.assertRegex(self.paso, r"Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en "
+                                    r"simple que [^.]*la revisión de la ola 3 va a bloquear[^.]*\.")
+
+    def test_la_ola_3_parte_del_repositorio_ya_al_dia(self):
+        olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+        integracion = olas.split("## Ola 3")[1].split("**Revisor**")[0]
+        self.assertRegex(integracion, r"1\. Copias el repositorio de diseño, ya al día con los compartidos de "
+                                      r"`spec-a-html` \(paso 6 de `SKILL\.md`\), en `<trabajo>/ola-3/repo/`")
+        self.assertNotIn("copias `proto.js` de `spec-a-html` sin modificar si no existe", integracion)
+
+
 if __name__ == "__main__":
     unittest.main()

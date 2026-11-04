@@ -75,7 +75,7 @@ Reglas de la tabla: una vista por pantalla, panel o ruta; modales, drawers y sub
 
 Espera el ok. Sin ok no lances subagentes ni escribas en el repositorio. Producto puede cambiar la tabla; rehazla y vuelve a mostrarla.
 
-Con el ok, antes de lanzar la ola 1, decide la rama del repositorio de diseño: el paso 9 guarda en la rama actual, el paso 8 ya escribe en el repositorio, y cambiar de rama con archivos sin guardar puede fallar. La épica es la del plan; si el plan reparte las vistas en más de una, pasa `--mockup <mockup> --epicas <épica>,<épica>` en lugar de `--epica <épica>`, con todas las épicas del plan y `<mockup>` como en el paso 9. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>`:
+Con el ok, antes de lanzar la ola 1, decide la rama del repositorio de diseño: el paso 10 guarda en la rama actual, los pasos 6 y 9 ya escriben en el repositorio, y cambiar de rama con archivos sin guardar puede fallar. La épica es la del plan; si el plan reparte las vistas en más de una, pasa `--mockup <mockup> --epicas <épica>,<épica>` en lugar de `--epica <épica>`, con todas las épicas del plan y `<mockup>` como en el paso 10. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>`:
 
 ```
 <intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo diseno --epica <épica> --repo <repo-de-diseño>
@@ -88,7 +88,31 @@ Si no encontraste intérprete, para y no guardes: explica en simple que falta Py
 - `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
 - `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
 
-### 6. Ola 1: tokens, componentes base y escenarios globales
+### 6. Compartidos al día
+
+Un repositorio de diseño creado con una versión anterior de las skills no tiene las reglas, los tokens ni el `proto.js` de hoy. Una vista convertida que usa un modal o un aviso sale sin estilo, y `revisar.py` la bloquea en la ola 3 porque usa clases que `components.css` no define. Por eso los compartidos se ponen al día antes de la ola 1, con el script de `spec-a-html`: las tres olas trabajan sobre el repositorio ya al día, y los tokens de la ola 1 y las huellas del revisor parten de los compartidos que van a quedar.
+
+Si el repositorio no tiene `design/tokens.css`, no hay compartidos que poner al día: la ola 1 los arma desde los de `spec-a-html`. Si lo tiene, compara:
+
+```
+<intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py comparar <repo-de-diseño>
+```
+
+Si el JSON trae `"cambios": false`, sigue con la ola 1. Si trae `"cambios": true`, muestra el cambio antes de escribirlo:
+
+```
+<intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py mostrar <repo-de-diseño>
+```
+
+Explícalo en simple: qué reglas y tokens se suman (`faltan`), cuáles quedan fuera y por qué (`omitidos`) y, si `proto.js` difiere, que se reemplaza por el de la skill. Nombra una por una las reglas de `cambian_lo_propio`: no tienen clase, pintan elementos que ya existen y cambian cómo se ven las vistas que el repositorio ya tiene. El resto solo pinta las clases nuevas. Escribe solo con el sí de la persona:
+
+```
+<intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py aplicar <repo-de-diseño>
+```
+
+Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en simple que la ola 3 revisa cada vista contra los compartidos del repositorio, y que sin ponerlos al día la revisión de la ola 3 va a bloquear las vistas que usen lo que falta, así que la conversión no puede terminar. Si el script sale con error, explícalo en simple y sigue sin tocar los compartidos, como `spec-a-html`; el informe dice que no se pusieron al día.
+
+### 7. Ola 1: tokens, componentes base y escenarios globales
 
 Sigue `references/olas.md`, sección "Ola 1". Primero los tokens, que decides tú con `references/tokens.md`, sin subagente: la salida de `tokens.py` es corta y la tabla se decide con producto en esta conversación.
 
@@ -97,15 +121,15 @@ Sigue `references/olas.md`, sección "Ola 1". Primero los tokens, que decides t�
 
 Deja la tabla y el `tokens.css` decidido en `<trabajo>/ola-1/tokens/`. Con los tokens decididos, lanza en paralelo dos subagentes, el de componentes base y el de los escenarios globales, que escriben en `<trabajo>/ola-1/`. El marco no se arma aquí: es una vista más y va a la ola 2.
 
-### 7. Ola 2: una vista por subagente
+### 8. Ola 2: una vista por subagente
 
 Un subagente por fila de la tabla, en paralelo, con `references/olas.md`, sección "Ola 2". El marco es una fila como las demás: tiene su subagente y su contrato, y si el revisor no lo aprueba vuelve a ese subagente. No juntes vistas en un subagente, aunque sean chicas o del mismo módulo: cada borrador sale de un contexto propio, su contrato es independiente y el revisor aprueba o devuelve vista por vista. Un subagente con dos vistas mezcla sus decisiones, y si una vuelve con notas, vuelven las dos. Nombra cada uno con su ola y su vista (`Ola 2: <vista>`), así se coteja con el plan. Cada uno recibe las rutas de sus trozos, los tokens y componentes de la ola 1 (no el CSS entero del mockup), los nombres de los escenarios globales y la plantilla del contrato. Escribe el borrador de su vista y su contrato en `<trabajo>/ola-2/<épica>/<vista>/` y devuelve solo la ruta y un resumen de cinco líneas.
 
-### 8. Ola 3: integrar, inventariar y revisar
+### 9. Ola 3: integrar, inventariar y revisar
 
 Con `references/olas.md`, sección "Ola 3":
 
-1. Integras tú, sin subagente: armas `components.css` final con lo nuevo de cada contrato, dejas las vistas en `<trabajo>/ola-3/repo/` (una copia del repositorio con los cambios), corres `<intérprete> -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `<intérprete> -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia. Con navegador, sacas aquí las capturas por escenario, del original y de la vista (`references/escenarios.md`, sección "Capturas"): tienen que existir antes de que el revisor empiece. Sin navegador, la verificación queda en el inventario y el informe lo dice.
+1. Integras tú, sin subagente: copias el repositorio, ya al día desde el paso 6, en `<trabajo>/ola-3/repo/`, armas ahí `components.css` final con lo nuevo de cada contrato, dejas las vistas en la copia, corres `<intérprete> -B <ruta-de-esta-skill>/scripts/inventario.py` por vista, con `--salida` para que el inventario quede en disco, y `<intérprete> -B <ruta-de-esta-skill>/../checklist-diseno/scripts/revisar.py` sobre esa copia. Con navegador, sacas aquí las capturas por escenario, del original y de la vista (`references/escenarios.md`, sección "Capturas"): tienen que existir antes de que el revisor empiece. Sin navegador, la verificación queda en el inventario y el informe lo dice.
 2. Un revisor que no armó ninguna vista lee el inventario de cada vista, su contrato y el spec, y decide vista por vista: aprobada, o con lo que falta. Con navegador, le pasas las rutas de las capturas del original y de la vista por escenario, y las compara lado a lado. Deja cada veredicto en `<trabajo>/ola-3/revision.md` con el formato fijo de `references/olas.md`, por la ruta de la vista (`## <épica>/<vista>: ...`), para que se lea sin interpretar y dos vistas con el mismo nombre en épicas distintas no se confundan, y cada aprobación con la huella de lo que aprobó (`<intérprete> -B <ruta-de-esta-skill>/scripts/aprobadas.py huella <vista>`): si la vista o un compartido cambia después, ya no es lo que el revisor vio.
 3. Una vista no aprobada no la corriges tú, aunque el arreglo sea de una línea: vuelve una vez a su subagente de la ola 2 con las notas del revisor, la integras de nuevo y el revisor la mira otra vez. El revisor es la única mirada que no armó la vista; si la corrige quien integra, entra al repositorio sin que nadie independiente la haya visto. Si en esa segunda revisión sigue sin aprobarse, queda fuera, la nombras con `--pendientes` en el paso siguiente y va al informe como pendiente.
 4. Mueves al repositorio con el script, no copiando a mano:
@@ -124,7 +148,7 @@ Con `references/olas.md`, sección "Ola 3":
 
    Con `--pendientes` mueve las aprobadas solo si las vistas que quedan fuera son exactamente las nombradas; si sobra o falta una, no mueve nada y dice cuál. Tampoco mueve nada si una nombrada no tiene su veredicto de segunda revisión (`## <épica>/<vista>, segunda revisión: no aprobada`) o si su último veredicto no es `no aprobada`: esa vista vuelve a su subagente, o al revisor si su huella cambió. Cada pendiente va al informe con lo que el revisor dijo que falta. Las secciones del spec que haya que actualizar las copias tú.
 
-### 9. Guardar
+### 10. Guardar
 
 Antes del commit, comprueba:
 
@@ -152,6 +176,6 @@ Vistas: design/vistas/riego/panel.html, design/vistas/riego/historial.html
 Tickets: SEM-14
 ```
 
-### 10. Informe
+### 11. Informe
 
 Cierra con el informe en el chat, con `references/plan.md`, sección "Informe": plan ejecutado, decisiones de tokens y los valores pendientes de decisión, escenarios que salieron de controles de prototipo, lo que no tiene equivalente y cómo quedó (cada lógica JS como criterio para su ticket), variante elegida si había varias, inventario por vista con quién lo revisó, capturas o la mención de que se verificó sin render, y lo que no se pudo ver. Termina sugiriendo correr `checklist-diseno` sobre las vistas nuevas antes de la planificación, y `spec-a-tickets` para las vistas sin ticket que se vayan a construir. Nombra las skills como figuran en tu lista de skills: instaladas como plugin de Claude Code son `flujo-diseno:checklist-diseno` y `flujo-diseno:spec-a-tickets`; con `npx skills`, `checklist-diseno` y `spec-a-tickets`.
