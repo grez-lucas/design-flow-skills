@@ -31,8 +31,9 @@ de assets, con el comentario que las precede y solo con sus selectores que falta
 va con su preludio.
 
 --solo-usados. Para un tokens.css recién armado desde un mockup (html-a-vista, design/ a medias): un token que falta
-se agrega solo si algún compartido lo usa, con var(), en components.css tal como queda después de aplicar o en
-tokens.css, y también los que usan los tokens que entran. Los demás van a omitidos con su motivo, para que tokens.css
+se agrega solo si algún compartido lo usa: con var() en components.css tal como queda después de aplicar o en
+tokens.css, o por su nombre entre comillas en proto.js tal como queda (que lee --color-bg, --color-surface y --color-text
+para saber si hay tema oscuro), y también los que usan los tokens que entran. Los demás van a omitidos con su motivo, para que tokens.css
 no mezcle la escala del mockup con la de la plantilla. Sin el modo, como en spec-a-html, entran todos.
 
 proto.js. Si falta o difiere, se reemplaza por el de assets, sin modificar. Si falta components.css, se copia entero.
@@ -347,8 +348,16 @@ def calcular(design, assets=ASSETS, solo_usados=False):
     if not (design / "tokens.css").exists():
         raise Ilegible("No existe `design/tokens.css`: el design system se arma antes, en el paso 4 de spec-a-html.")
     salida, cambios = {}, {}
-    componentes, nuevo_components = components(design, assets)
-    salida["tokens"], nuevo = tokens(design, assets, sin_bom(nuevo_components)[1] if solo_usados else None)
+    if solo_usados:
+        # tokens.css se calcula con components.css y proto.js tal como quedan; sin el modo, en el orden de siempre.
+        componentes, nuevo_components = components(design, assets)
+        proto = assets / "proto.js" if not (design / "proto.js").exists() or sin_crlf((design / "proto.js").read_bytes()) != \
+            sin_crlf((assets / "proto.js").read_bytes()) else design / "proto.js"
+        en_proto = " ".join(f"var({n})" for n in re.findall(r"""["'](--[\w-]+)["']""", proto.read_text(encoding="utf-8")))
+        salida["tokens"], nuevo = tokens(design, assets, sin_bom(nuevo_components)[1] + "\n" + en_proto)
+    else:
+        salida["tokens"], nuevo = tokens(design, assets)
+        componentes, nuevo_components = components(design, assets)
     if salida["tokens"]["faltan"]:
         cambios["tokens.css"] = (leer(design / "tokens.css"), nuevo)
     salida["components"] = componentes

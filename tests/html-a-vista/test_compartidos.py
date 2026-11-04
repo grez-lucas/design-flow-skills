@@ -251,6 +251,41 @@ class PuestaAlDia(unittest.TestCase):
         self.assertNotIn("--color-info", despues)
         self.assertFalse(json.loads(correr([sys.executable, "-B", script, "comparar"], self.repo, "--solo-usados").stdout)["cambios"])
 
+    def test_solo_usados_cuenta_los_tokens_que_lee_proto_js(self):
+        """Hallazgo 4 de la tercera revisión: proto.js lee --color-bg, --color-surface y --color-text para saber si hay
+        tema oscuro. Con assets cuyo components.css no los usa, `--solo-usados` igual los agrega."""
+        assets = self.tmp / "assets"
+        assets.mkdir()
+        shutil.copyfile(ASSETS / "tokens.css", assets / "tokens.css")
+        shutil.copyfile(ASSETS / "proto.js", assets / "proto.js")
+        (assets / "components.css").write_text(".nuevo { color: var(--color-primary); }\n", encoding="utf-8")
+        design = self.repo / "design"
+        (design / "tokens.css").write_text(":root {\n  --color-primary: #2f7d4f;\n}\n", encoding="utf-8")
+        (design / "components.css").write_text(".propia { margin: 0; }\n", encoding="utf-8")
+        compartidos.aplicar(design, assets, solo_usados=True)
+        declarados = set(re.findall(r"(--[\w-]+)\s*:", (design / "tokens.css").read_text(encoding="utf-8")))
+        self.assertLessEqual({"--color-bg", "--color-surface", "--color-text"}, declarados)
+        self.assertNotIn("--color-info", declarados)
+
+    def test_solo_usados_cuenta_los_tokens_que_usa_el_tokens_css(self):
+        """Hallazgo 6 de la tercera revisión: un token del mockup que usa con var() uno de la plantilla lo hace entrar."""
+        tokens = self.repo / "design" / "tokens.css"
+        tokens.write_text(":root {\n  --color-primary: #2f7d4f;\n  --color-aviso: var(--color-info);\n}\n", encoding="utf-8")
+        script = RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py"
+        solo = json.loads(correr([sys.executable, "-B", script, "comparar"], self.repo, "--solo-usados").stdout)
+        self.assertIn("--color-info", {t["token"] for t in solo["tokens"]["faltan"]})
+
+    def test_sin_el_modo_el_primer_error_sigue_siendo_el_de_tokens_css(self):
+        """Hallazgo 5 de la tercera revisión: con los dos archivos rotos, sin `--solo-usados` el error nombra
+        tokens.css, como antes del modo."""
+        design = self.repo / "design"
+        (design / "tokens.css").write_text(":root { --color-primary: #2f7d4f; /* sin cerrar }\n", encoding="utf-8")
+        (design / "components.css").write_text(".x { color: red;\n", encoding="utf-8")
+        script = RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py"
+        r = correr([sys.executable, "-B", script, "comparar"], self.repo)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("`tokens.css`", r.stderr)
+
     def test_un_css_con_una_llave_sin_cerrar_se_corrige_y_comparar_sigue(self):
         """Q125 con Q131: `comparar` sale con 2 y nombra el archivo; corregido lo que señala, la puesta al día sigue."""
         components = self.repo / "design" / "components.css"
