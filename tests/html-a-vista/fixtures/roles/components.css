@@ -1,0 +1,3 @@
+/* components.css viejo de la prueba: cada regla usa tokens que el tokens.css nuevo tiene que declarar. */
+body { background: var(--color-bg); color: var(--color-text); font-size: var(--font-size-md); }
+.card { background: var(--color-surface); border: 1px solid var(--color-border); padding: var(--space-3); border-radius: var(--radius-md); line-height: var(--line-height-base); outline-offset: var(--focus-offset); border-width: var(--border-w); box-shadow: var(--shadow-1); }

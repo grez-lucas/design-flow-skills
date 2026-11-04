@@ -51,7 +51,7 @@ class RolesDelComponentsViejo(unittest.TestCase):
 
     def test_un_rol_sin_valor_en_el_mockup_se_propone_con_el_valor_por_defecto_del_navegador(self):
         """Q134: lo que el mockup de verdad muestra cuando no da la propiedad."""
-        for token, valor in (("--line-height-base", "normal"), ("--shadow-1", "none"), ("--color-border", "currentColor")):
+        for token, valor in (("--line-height-base", "normal"), ("--shadow-1", "none")):
             with self.subTest(token=token):
                 self.assertEqual(self.roles[token]["candidatos"], [valor])
                 self.assertTrue(self.roles[token]["por_defecto"])
@@ -59,11 +59,29 @@ class RolesDelComponentsViejo(unittest.TestCase):
         md = correr("consolidar", MOCKUPS / "chico.html", "--roles", COMPONENTS_VIEJO).stdout
         self.assertIn("| --line-height-base | otro | line-height | normal (por defecto del navegador) |", md)
 
+    def test_los_valores_que_el_mockup_da_por_sus_variables_son_candidatos(self):
+        """Hallazgo 1 de la tercera revisión: `border: 1px solid var(--borde)` llena el borde con el gris del mockup, no
+        con el valor por defecto del navegador."""
+        borde = self.roles["--color-border"]
+        self.assertFalse(borde["por_defecto"])
+        self.assertEqual(borde["candidatos"][0], "#d6dcd0")
+        for token, valor in (("--color-text", "#1d2b21"), ("--color-bg", "#f6f7f3"), ("--color-primary", "#2e7d4f")):
+            with self.subTest(token=token):
+                self.assertIn(valor, self.roles[token]["candidatos"])
+
+    def test_la_tabla_muestra_todos_los_candidatos(self):
+        md = correr("consolidar", MOCKUPS / "chico.html", "--roles", COMPONENTS_VIEJO).stdout
+        fila = next(l for l in md.splitlines() if l.startswith("| --color-text |"))
+        for valor in self.roles["--color-text"]["candidatos"]:
+            self.assertIn(valor, fila)
+
     def test_los_candidatos_son_valores_del_mockup_del_mismo_uso(self):
         colores = {g["representante"] for g in self.d["colores"]}
-        fondos = {g["representante"] for g in self.d["colores"] if any(u.startswith("background") for u in g["usos"])}
+        # Los fondos del mockup, también los que da por sus variables (`background: var(--crema)`).
         self.assertTrue(self.roles["--color-surface"]["candidatos"])
-        self.assertLessEqual(set(self.roles["--color-surface"]["candidatos"]), fondos)
+        self.assertLessEqual(set(self.roles["--color-surface"]["candidatos"]), colores)
+        self.assertIn("#f6f7f3", self.roles["--color-surface"]["candidatos"])
+        self.assertNotIn("#1d2b21", self.roles["--color-surface"]["candidatos"], "el color del texto no es un fondo")
         for token in ("--color-text", "--color-primary"):
             with self.subTest(token=token):
                 self.assertFalse(self.roles[token]["por_defecto"])
@@ -85,6 +103,49 @@ class RolesDelComponentsViejo(unittest.TestCase):
 
     def test_roles_sin_archivo_sale_con_2(self):
         self.assertEqual(correr("consolidar", MOCKUPS / "chico.html", "--roles").returncode, 2)
+
+
+ROLES = Path(__file__).resolve().parent / "fixtures" / "roles"
+
+
+class RolesPorPropiedadYTema(unittest.TestCase):
+    """Hallazgos 2 y 3 de la tercera revisión: el tipo y el valor por defecto salen de la propiedad exacta (Q136 vale
+    para todo tipo de rol), y un mockup con tema oscuro propone un valor por tema."""
+
+    def roles(self, mockup):
+        r = correr("consolidar", ROLES / mockup, "--roles", ROLES / "components.css", "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return {x["token"]: x for x in json.loads(r.stdout)["roles"]}
+
+    def test_sin_valor_en_el_mockup_cada_rol_lleva_el_valor_por_defecto_de_su_propiedad(self):
+        roles = self.roles("plano.html")
+        esperados = {"--radius-md": ("medida", "0"), "--border-w": ("otro", "medium"), "--focus-offset": ("otro", "0"),
+                     "--color-border": ("color", "currentColor"), "--space-3": ("medida", "0"),
+                     "--color-text": ("color", "CanvasText"), "--color-bg": ("color", "transparent"),
+                     "--font-size-md": ("medida", "medium"), "--line-height-base": ("otro", "normal"),
+                     "--shadow-1": ("otro", "none")}
+        for token, (tipo, valor) in esperados.items():
+            with self.subTest(token=token):
+                self.assertEqual((roles[token]["tipo"], roles[token]["candidatos"], roles[token]["por_defecto"]), (tipo, [valor], True))
+
+    def test_border_radius_y_border_width_no_son_colores(self):
+        roles = self.roles("tema.html")
+        self.assertEqual((roles["--radius-md"]["tipo"], roles["--radius-md"]["candidatos"]), ("medida", ["8px"]))
+        self.assertEqual(roles["--border-w"]["tipo"], "otro")
+        self.assertNotIn("#dddddd", roles["--border-w"]["candidatos"])
+
+    def test_con_tema_oscuro_cada_rol_propone_un_valor_por_tema(self):
+        roles = self.roles("tema.html")
+        oscuro = '[data-theme="dark"]'
+        for token, claro, valor_oscuro in (("--color-bg", "#ffffff", "#101010"), ("--color-text", "#222222", "#eeeeee"),
+                                            ("--color-border", "#dddddd", "#333333"), ("--color-surface", "#f4f4f4", "#1c1c1c")):
+            with self.subTest(token=token):
+                self.assertIn(claro, roles[token]["candidatos"])
+                self.assertNotIn(valor_oscuro, roles[token]["candidatos"])
+                self.assertIn(valor_oscuro, roles[token]["por_tema"][oscuro])
+        self.assertNotIn(oscuro, roles["--radius-md"].get("por_tema", {}))
+        md = correr("consolidar", ROLES / "tema.html", "--roles", ROLES / "components.css").stdout
+        self.assertIn(f"{oscuro}: #101010", next(l for l in md.splitlines() if l.startswith("| --color-bg |")))
 
 
 class Mapear(unittest.TestCase):
