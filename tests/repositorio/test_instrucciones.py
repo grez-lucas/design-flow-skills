@@ -229,18 +229,28 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"cómo se ven las vistas que el repositorio ya tiene, como `:where\(\[data-frame\]\)`, "
                                     r"sin que la persona las vea antes\.")
         self.assertNotIn("bloquear", self.paso)
+        self.assertRegex(self.paso, r"Di qué quedó sin hacer: nombra los compartidos que siguen viejos[^\n]*? y que la "
+                                    r"conversión no empezó\.")
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         self.assertRegex(readme, r"`html-a-vista` hace lo mismo antes de la ola 1, con el script de `spec-a-html`, y si la "
                                  r"persona no acepta se detiene: sin la puesta al día queda un `proto.js` viejo y entran "
                                  r"reglas que cambian cómo se ven las vistas que ya existen, sin que la persona las vea antes\.")
         self.assertNotIn("bloquearía las vistas que usen lo que falta", readme)
 
-    def test_design_a_medias_se_detiene_y_deriva_a_spec_a_html(self):
-        """Q129: `design/` con `components.css` o `proto.js` pero sin `tokens.css`."""
-        self.assertRegex(self.paso, r"Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, detente antes "
-                                    r"de la ola 1 y no escribas en el repositorio: explica en simple que el repositorio "
-                                    r"quedó a medias y deriva a `spec-a-html`, cuyo paso 4 crea `tokens.css` y pone al día "
-                                    r"lo demás[^.]*\.")
+    def test_design_a_medias_arma_tokens_css_desde_el_mockup_y_sigue(self):
+        """Q132, que supersede Q129: `design/` con `components.css` o `proto.js` pero sin `tokens.css`."""
+        self.assertRegex(self.paso, r"Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, el repositorio "
+                                    r"quedó a medias:[^\n]*? Detente antes de la ola 1, explícalo en simple y propón armar "
+                                    r"`tokens.css` ahora desde el mockup")
+        self.assertRegex(self.paso, r"(?m)^<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py consolidar "
+                                    r"<trabajo>/trozos/\*/estilos\*\.css$")
+        self.assertRegex(self.paso, r"Con el sí a la tabla, escribe `tokens.css` en `design/` del repositorio, corre "
+                                    r"`comparar` y sigue con la puesta al día desde ahí\.")
+        self.assertRegex(self.paso, r"En la ola 1 ese `tokens.css` ya existe: los valores del mockup se llevan a sus tokens "
+                                    r"con `<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py mapear`, no se consolidan otra vez\.")
+        self.assertRegex(self.paso, r"Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: "
+                                    r"falta `tokens.css`[^\n]*? y la conversión no empezó\.")
+        self.assertNotIn("deriva a `spec-a-html`", self.paso)
 
     def test_si_el_script_sale_con_error_propone_el_arreglo_y_vuelve_a_comparar(self):
         """Q125 con Q131: se detiene, propone corregir lo que el mensaje señala, lo aplica con el sí, vuelve a correr

@@ -26,6 +26,7 @@ REVISAR = RAIZ / "skills" / "checklist-diseno" / "scripts" / "revisar.py"
 APROBADAS = SKILL / "scripts" / "aprobadas.py"
 REPO_VIEJO = RAIZ / "tests" / "spec-a-html" / "fixtures" / "repo-viejo"
 FIX = Path(__file__).resolve().parent / "fixtures" / "puesta-al-dia"
+MOCKUP = RAIZ / "pruebas" / "html-a-vista" / "fixtures" / "mockups" / "chico.html"
 VISTA = Path("design") / "vistas" / "pedidos" / "lista.html"
 # Las reglas que la ola 1 copia de assets/components.css cuando el mockup tiene modales o avisos (olas.md, "Ola 1").
 REGLAS_DE_LA_OLA_1 = (":where([data-frame])", ".modal", ".modal__dialog", ".modal__actions", ".toast-region")
@@ -127,17 +128,46 @@ class PuestaAlDia(unittest.TestCase):
                 self.assertEqual(Path(self.orden(comando)[2]).resolve(), RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py")
         self.assertFalse((SKILL / "scripts" / "compartidos.py").exists())
 
-    def test_design_a_medias_sin_tokens_css_no_se_compara_y_la_skill_se_detiene(self):
-        """Q129: con `components.css` y `proto.js` viejos y sin `tokens.css`, `comparar` sale con 2 sin escribir, y el
-        paso 6 nombra ese caso para detenerse y derivar a spec-a-html."""
+    def tokens_desde_la_tabla(self, consolidacion):
+        """El `tokens.css` que sale de la tabla de consolidación cuando producto acepta cada grupo: un token por grupo
+        de color en su tema y uno por medida propuesta."""
+        bloques = {}
+        for n, grupo in enumerate(consolidacion["colores"], 1):
+            bloques.setdefault(grupo["tema"], []).append(f"--color-mockup-{n}: {grupo['representante']};")
+        for n, medida in enumerate(consolidacion["medidas"], 1):
+            bloques.setdefault(":root", []).append(f"--{medida['categoria']}-mockup-{n}: {medida['propuesta']};")
+        return "".join(f"{tema} {{\n" + "".join(f"  {d}\n" for d in decls) + "}\n" for tema, decls in bloques.items())
+
+    def test_design_a_medias_arma_tokens_css_desde_el_mockup_y_sigue_la_puesta_al_dia(self):
+        """Q132: con `components.css` y `proto.js` viejos y sin `tokens.css`, `comparar` sale con 2 sin escribir. Con
+        `tokens.css` armado desde el mockup por `tokens.py consolidar`, `comparar` sigue, la puesta al día se aplica,
+        la ola 1 mapea sobre ese `tokens.css` y `revisar.py` pasa al final."""
         (self.repo / "design" / "tokens.css").unlink()
         antes = {p.name: p.read_bytes() for p in (self.repo / "design").iterdir()}
         r = correr(self.orden("comparar"), self.repo)
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertIn("No existe `design/tokens.css`", r.stderr)
         self.assertEqual({p.name: p.read_bytes() for p in (self.repo / "design").iterdir()}, antes)
+
         texto = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, detente antes de la ola 1", texto)
+        orden = re.search(r"^<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py consolidar (<trabajo>/trozos/\*/estilos\*\.css)$",
+                          texto, re.M)
+        self.assertIsNotNone(orden, "SKILL.md no da la orden `tokens.py consolidar` para el design/ a medias")
+        r = correr([sys.executable, "-B", SKILL / "scripts" / "desarmar.py"], MOCKUP, self.trabajo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        estilos = sorted(self.trabajo.glob("trozos/*/estilos*.css"))
+        self.assertTrue(estilos)
+        r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "consolidar"], *estilos, "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        (self.repo / "design" / "tokens.css").write_text(self.tokens_desde_la_tabla(json.loads(r.stdout)), encoding="utf-8")
+
+        self.assertTrue(json_cambios(correr(self.orden("comparar"), self.repo)))
+        self.poner_al_dia()
+        r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "mapear", self.repo / "design" / "tokens.css"], *estilos, "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.integrar()
+        r = self.revisar()
+        self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_un_css_con_una_llave_sin_cerrar_se_corrige_y_comparar_sigue(self):
         """Q125 con Q131: `comparar` sale con 2 y nombra el archivo; corregido lo que señala, la puesta al día sigue."""
