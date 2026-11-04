@@ -80,6 +80,24 @@ class Revision(unittest.TestCase):
         bloquea, _ = self.revisar("autocerradas.html")
         self.assertEqual([b for b in bloquea if "Controles de prototipo" in b], [])
 
+    def test_cierre_explicito_de_void_no_cierra_el_frame(self):
+        """El `<input>` abierto antes del frame queda en la pila: su `</input>` dentro del frame no lo cierra."""
+        limpia = (FIXTURES / "limpia.html").read_text()
+        bloquea, _ = self.revisar_texto(limpia.replace(
+            "<main data-frame>", '<input><main data-frame></input><button onclick="x()">x</button>'))
+        controles = [b for b in bloquea if "Controles de prototipo" in b]
+        self.assertEqual(len(controles), 1, bloquea)
+        self.assertIn("<button> con onclick", controles[0])
+
+    def test_frame_anidado_no_cierra_el_frame_exterior(self):
+        """Un segundo `data-frame` dentro del primero no mueve el frame: al cerrarse, el exterior sigue abierto."""
+        limpia = (FIXTURES / "limpia.html").read_text()
+        bloquea, _ = self.revisar_texto(limpia.replace(
+            "<main data-frame>", '<main data-frame><section data-frame></section><button onclick="x()">x</button>'))
+        controles = [b for b in bloquea if "Controles de prototipo" in b]
+        self.assertEqual(len(controles), 1, bloquea)
+        self.assertIn("<button> con onclick", controles[0])
+
     def test_comentarios_css_no_son_valores_sueltos(self):
         self.assertEqual(self.revisar("comentarios-css.html"), ([], []))
 
