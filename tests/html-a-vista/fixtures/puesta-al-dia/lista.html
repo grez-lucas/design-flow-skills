@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="spec" content="specs/pedidos/spec.md">
+  <title>Pedidos · Lista</title>
+  <link rel="stylesheet" href="../../tokens.css">
+  <link rel="stylesheet" href="../../components.css">
+  <script src="../../proto.js" defer></script>
+</head>
+<body data-escenarios="normal,anular" data-no-aplica="vacio: la prueba muestra un pedido fijo; cargando: sin datos remotos; error: sin datos remotos; sin-permiso: todos los roles ven la lista; muchos-datos: un solo pedido">
+  <main data-frame>
+    <h1>Pedidos</h1>
+    <p>Vista convertida de un mockup que abre un modal al anular un pedido.</p>
+    <button type="button" class="btn">Anular pedido</button>
+    <div class="modal" data-state="anular">
+      <dialog open class="modal__dialog" aria-labelledby="titulo-anular">
+        <h2 id="titulo-anular">¿Anular el pedido?</h2>
+        <p>El pedido vuelve a borrador.</p>
+        <div class="modal__actions">
+          <button type="button" class="btn">Cancelar</button>
+          <button type="button" class="btn btn--danger">Anular</button>
+        </div>
+      </dialog>
+    </div>
+  </main>
+</body>
+</html>
