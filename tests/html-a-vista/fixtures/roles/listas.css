@@ -1,0 +1,4 @@
+/* components.css de la prueba: listas que empiezan con var(--x, respaldo) y terminan en paréntesis. */
+.a { box-shadow: var(--shadow-sm, none), 0 0 0 2px var(--ring); }
+.b { font-family: var(--font-sans, Arial), var(--font-emoji); }
+.e { background: var(--color-fondo, red), url(x.png); }
