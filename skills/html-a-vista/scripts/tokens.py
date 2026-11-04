@@ -21,9 +21,11 @@ consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral y
             respaldo (Q139): colores con el representante de su grupo, medidas con su propuesta, o el valor entero.
             Con más de un tema, por_tema trae los valores de cada tema que no es :root. Un rol sin valor en el mockup
             se propone con el valor por defecto del navegador, marcado con por_defecto, solo si todas sus
-            propiedades comparten uno que vale en cada una (normal para line-height, none para box-shadow,
-            currentColor para un borde, transparent para un fondo, 0 para un relleno, inherit para font-family); si
-            no, sin propuesta, y la tabla dice que producto decide. La tabla muestra todos los valores.
+            propiedades comparten uno (normal para line-height, none para box-shadow, currentColor para un borde,
+            transparent para un fondo, 0 para un relleno, inherit para font-family) y el token es el valor entero de
+            la declaración, o el color de un abreviado de borde o contorno para un --color-* (Q140); si no, sin
+            propuesta, y la tabla dice que producto decide. Un rol de tipo otro que ocupa una parte del valor no
+            recibe el valor entero del mockup. La tabla muestra todos los valores.
 verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
             los pares de tokens que se ven a la vez con valores distintos dentro del umbral, que se ven iguales:
             los de un mismo bloque, y los de un bloque de tema con los de :root que ese bloque no redefine.
@@ -367,11 +369,24 @@ POR_DEFECTO = {"line-height": "normal", "box-shadow": "none", "text-shadow": "no
                "min-width": "auto", "min-height": "auto", "max-width": "none", "max-height": "none", "gap": "0",
                "row-gap": "0", "column-gap": "0", **{f"{p}{l}": "0" for p in ("padding", "margin")
                                                        for l in ("", "-top", "-right", "-bottom", "-left")}}
+ABREVIADOS = {"border", "border-top", "border-right", "border-bottom", "border-left", "outline"}
 
 
-def tipo_de_rol(nombre, props):
-    categoria = next((c for c in map(categoria_de_propiedad, props) if c), None)
-    if nombre.startswith("--color-") or (not categoria and any(x in COLOR_POR_DEFECTO for x in props)):
+def posicion(nombre, prop, valor):
+    """Dónde va el token en su declaración (Q140): "entero" si var() es todo el valor, "color" si es un --color-* en el
+    lugar del color de un abreviado de borde o contorno, y "parte" en cualquier otro lugar."""
+    patron = rf"var\(\s*{re.escape(nombre)}(?![\w-])"
+    if re.fullmatch(patron + r"\s*(,.*)?\)", valor.strip(), re.S):
+        return "entero"
+    antes = valor[:re.search(patron, valor).start()]
+    if nombre.startswith("--color-") and prop in ABREVIADOS and antes.count("(") == antes.count(")"):
+        return "color"
+    return "parte"
+
+
+def tipo_de_rol(nombre, usos):
+    categoria = next((c for c in (categoria_de_propiedad(p) for p, _ in usos) if c), None)
+    if nombre.startswith("--color-") or (not categoria and any(p in COLOR_POR_DEFECTO and l == "entero" for p, l in usos)):
         return "color", None
     return ("medida", categoria) if categoria else ("otro", None)
 
@@ -442,8 +457,8 @@ def candidatos_de_rol(tipo, props, decls, d, tema):
 
 def roles_del_components(components, fuentes, d):
     """Los tokens que usa `components` y que no declara, como roles a llenar con valores del mockup (Q133, Q139), con
-    un valor por tema si el mockup tiene más de uno. Sin valor en el mockup, el valor por defecto del navegador si todas
-    las propiedades del rol comparten uno; si no, la tabla dice que producto decide."""
+    un valor por tema si el mockup tiene más de uno. Sin valor en el mockup, el valor por defecto del navegador que
+    comparten todos sus usos, cada uno en una posición donde vale (Q140); si no, producto decide."""
     from desarmar import sin_comentarios_css
     css = "".join(sin_comentarios_css(Path(components).read_text(errors="replace")))
     declarados = set(re.findall(r"(--[\w-]+)\s*:", css))
@@ -451,23 +466,29 @@ def roles_del_components(components, fuentes, d):
     for _, _, cuerpo in reglas(css):
         for prop, valor in declaraciones(cuerpo):
             for nombre in re.findall(r"var\(\s*(--[\w-]+)", valor):
-                if nombre not in declarados and prop not in usos.setdefault(nombre, []):
-                    usos[nombre].append(prop)
+                uso = (prop, posicion(nombre, prop, valor))
+                if nombre not in declarados and uso not in usos.setdefault(nombre, []):
+                    usos[nombre].append(uso)
     temas = d["temas"] or [":root"]
     base = ":root" if ":root" in temas else temas[0]
     decls = declaraciones_resueltas(fuentes, temas)
     roles = []
-    for nombre, props in usos.items():
-        tipo, categoria = tipo_de_rol(nombre, props)
-        candidatos = candidatos_de_rol(tipo, props, decls[base], d, base)
-        defecto = {(COLOR_POR_DEFECTO if tipo == "color" else POR_DEFECTO).get(x) for x in props}
+    for nombre, lugares in usos.items():
+        props = list(dict.fromkeys(p for p, _ in lugares))
+        tipo, categoria = tipo_de_rol(nombre, lugares)
+        # Un rol de tipo otro que ocupa una parte del valor no recibe el valor entero del mockup (Q140).
+        entero = tipo != "otro" or all(l == "entero" for _, l in lugares)
+        def del_mockup(t):
+            return candidatos_de_rol(tipo, props, decls[t], d, t) if entero else []
+        candidatos = del_mockup(base)
+        tabla = COLOR_POR_DEFECTO if tipo == "color" else POR_DEFECTO
+        defecto = {"currentColor" if l == "color" else tabla.get(p) if l == "entero" else None for p, l in lugares}
         proponer = not candidatos and len(defecto) == 1 and None not in defecto
         fila = {"token": nombre, "tipo": tipo, "propiedades": props,
                 "candidatos": candidatos or (list(defecto) if proponer else []), "por_defecto": proponer}
         if categoria:
             fila["categoria"] = categoria
-        por_tema = {t: c for t in temas if t != base for c in [candidatos_de_rol(tipo, props, decls[t], d, t)]
-                    if c and c != candidatos}
+        por_tema = {t: c for t in temas if t != base for c in [del_mockup(t)] if c and c != candidatos}
         if por_tema:
             fila["por_tema"] = por_tema
         roles.append(fila)
