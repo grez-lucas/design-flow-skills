@@ -314,5 +314,29 @@ class PruebasConArnes(unittest.TestCase):
                 self.assertLessEqual(set(p.get("arnes", [])), conocidas, f"{skill} {p['name']}")
 
 
+class PuestaAlDiaEnLasPruebas(unittest.TestCase):
+    """Issue 39: html-a-vista se detiene si la persona no acepta poner al día los compartidos. Las pruebas cuyo
+    repositorio de diseño tiene compartidos viejos dicen en sus reglas que la persona acepta; las demás no lo dicen."""
+
+    ACEPTA = "Acepta la puesta al día de los compartidos del repositorio de diseño cuando se la muestran."
+    COMPARTIDOS = RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py"
+
+    def cambios(self, repo):
+        if not (repo / "design" / "tokens.css").exists():
+            return False
+        r = subprocess.run([sys.executable, "-B", str(self.COMPARTIDOS), "comparar", str(repo)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)["cambios"]
+
+    def test_la_persona_acepta_la_puesta_al_dia_solo_donde_hay_cambios(self):
+        base = PRUEBAS / "html-a-vista"
+        pruebas = json.loads((base / "evals.json").read_text(encoding="utf-8"))["evals"]
+        con_cambios = {p["name"] for p in pruebas if self.cambios(base / p["repo"])}
+        self.assertTrue(con_cambios)
+        for p in pruebas:
+            with self.subTest(prueba=p["name"]):
+                self.assertEqual(self.ACEPTA in p["reglas"], p["name"] in con_cambios)
+
+
 if __name__ == "__main__":
     unittest.main()
