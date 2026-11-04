@@ -375,8 +375,8 @@ ABREVIADOS = {"border", "border-top", "border-right", "border-bottom", "border-l
 def posicion(nombre, prop, valor):
     """Dónde va el token en su declaración (Q140): "entero" si var() es todo el valor, "color" si es un --color-* en el
     lugar del color de un abreviado de borde o contorno, y "parte" en cualquier otro lugar."""
-    patron = rf"var\(\s*{re.escape(nombre)}(?![\w-])"
-    if re.fullmatch(patron + r"\s*(,.*)?\)", valor.strip(), re.S):
+    patron, v = rf"var\(\s*{re.escape(nombre)}(?![\w-])", valor.strip()
+    if re.match(patron, v) and cierre(v, 0) == len(v):
         return "entero"
     antes = valor[:re.search(patron, valor).start()]
     if nombre.startswith("--color-") and prop in ABREVIADOS and antes.count("(") == antes.count(")"):
@@ -391,16 +391,22 @@ def tipo_de_rol(nombre, usos):
     return ("medida", categoria) if categoria else ("otro", None)
 
 
+def cierre(valor, i):
+    """La posición después del `)` que cierra el `var(` que empieza en `i`, contando paréntesis."""
+    nivel, j = 1, i + 4
+    while j < len(valor) and nivel:
+        nivel += {"(": 1, ")": -1}.get(valor[j], 0)
+        j += 1
+    return j
+
+
 def resolver(valor, variables, prof=0):
     """El valor con cada var(--x, respaldo) reemplazada por el valor de --x en `variables`, o por su respaldo, que
     puede tener paréntesis y otro var()."""
     i = valor.find("var(")
     if i == -1 or prof > 8:
         return valor
-    nivel, j = 1, i + 4
-    while j < len(valor) and nivel:
-        nivel += {"(": 1, ")": -1}.get(valor[j], 0)
-        j += 1
+    j = cierre(valor, i)
     nombre, coma, respaldo = valor[i + 4:j - 1].partition(",")
     nombre = nombre.strip()
     dentro = variables[nombre] if nombre in variables else respaldo.strip() if coma else None

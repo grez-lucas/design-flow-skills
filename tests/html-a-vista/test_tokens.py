@@ -182,6 +182,14 @@ class RolesPorPropiedadYTema(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertEqual(roles[token]["candidatos"], [])
 
+    def test_una_lista_que_empieza_con_var_y_respaldo_no_es_el_valor_entero(self):
+        """Revisión de bb1fd57: `var(--x, respaldo), otro` es una lista aunque termine en paréntesis."""
+        for mockup in ("plano.html", "sin-sombra.html"):
+            roles = self.roles(mockup, "listas.css")
+            for token in ("--shadow-sm", "--font-sans", "--color-fondo"):
+                with self.subTest(mockup=mockup, token=token):
+                    self.assertEqual((roles[token]["candidatos"], roles[token]["por_defecto"]), ([], False))
+
     def test_var_con_respaldo_toma_la_variable_si_existe_y_si_no_el_respaldo(self):
         """Hallazgo 1 de la cuarta revisión: respaldos con paréntesis y var() anidados."""
         roles = self.roles("respaldo.html")
