@@ -4,9 +4,12 @@ spec-a-html a un repositorio de diseño creado con una versión anterior, antes 
 El repositorio viejo es `tests/spec-a-html/fixtures/repo-viejo/`, el design/ que dejaba spec-a-html antes de 8b269c9
 (sin `.modal`, `--color-overlay` ni el proto.js de hoy). `fixtures/puesta-al-dia/` trae la vista que deja la conversión
 de un mockup que abre un modal y su spec. Las órdenes se leen de SKILL.md y se corren como las corre la skill, con
-`<ruta-de-esta-skill>` y `<intérprete>` en su lugar.
+`<ruta-de-esta-skill>` y `<intérprete>` en su lugar. La ola 1 se modela con lo que `references/olas.md` le pide sobre
+los compartidos: el subagente de componentes base copia de los assets la regla del frame y las del modal y los avisos,
+y la tabla de tokens propone `--color-overlay` y `--size-modal`.
 Uso: python3 -m unittest discover -s tests/html-a-vista -v
 """
+import importlib.util
 import json
 import re
 import shutil
@@ -24,6 +27,8 @@ APROBADAS = SKILL / "scripts" / "aprobadas.py"
 REPO_VIEJO = RAIZ / "tests" / "spec-a-html" / "fixtures" / "repo-viejo"
 FIX = Path(__file__).resolve().parent / "fixtures" / "puesta-al-dia"
 VISTA = Path("design") / "vistas" / "pedidos" / "lista.html"
+# Las reglas que la ola 1 copia de assets/components.css cuando el mockup tiene modales o avisos (olas.md, "Ola 1").
+REGLAS_DE_LA_OLA_1 = (":where([data-frame])", ".modal", ".modal__dialog", ".modal__actions", ".toast-region")
 ORDEN = re.compile(r"^<intérprete> -B <ruta-de-esta-skill>/(\S+/compartidos\.py) (comparar|mostrar|aplicar) <repo-de-diseño>$", re.M)
 
 
@@ -31,6 +36,11 @@ def ordenes():
     """{comando: argv} de las órdenes de compartidos.py que da SKILL.md, con el intérprete y la ruta de la skill."""
     texto = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     return {comando: [sys.executable, "-B", str(SKILL / script), comando] for script, comando in ORDEN.findall(texto)}
+
+
+_spec = importlib.util.spec_from_file_location("compartidos", RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py")
+compartidos = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(compartidos)
 
 
 def correr(argv, *args):
@@ -68,9 +78,27 @@ class PuestaAlDia(unittest.TestCase):
             r = correr(self.orden(comando), self.repo)
             self.assertEqual(r.returncode, 0, f"{comando}: {r.stderr}")
 
+    def ola_1(self, design):
+        """Lo que la ola 1 deja en tokens.css y components.css para un mockup con modal: los tokens del velo y del
+        ancho del cuadro, y las reglas de REGLAS_DE_LA_OLA_1 que el repositorio no tiene, copiadas de los assets."""
+        _, tokens = compartidos.tokens(design, ASSETS)
+        (design / "tokens.css").write_text(tokens, encoding="utf-8")
+        asset = (ASSETS / "components.css").read_text(encoding="utf-8")
+        actual = (design / "components.css").read_text(encoding="utf-8")
+        propios, _ = compartidos.selectores_y_clases(compartidos.arbol(actual, "components.css"))
+        reglas = []
+        for nodo in compartidos.recorrer(compartidos.arbol(asset, "assets/components.css")):
+            selectores = [s for s in compartidos.separar(nodo["preludio"])
+                          if s in REGLAS_DE_LA_OLA_1 and compartidos.normal(s) not in propios]
+            if selectores:
+                reglas.append(", ".join(selectores) + " " + asset[nodo["abre"]:nodo["cierra"] + 1])
+        (design / "components.css").write_text(actual + "\n" + "\n".join(reglas) + "\n", encoding="utf-8")
+
     def integrar(self):
-        """Ola 3, paso 1: la copia parte del repositorio de diseño y recibe la vista convertida."""
+        """Ola 3, paso 1: la copia parte del repositorio de diseño, con los compartidos de la ola 1, y recibe la vista
+        convertida."""
         shutil.copytree(self.repo, self.copia)
+        self.ola_1(self.copia / "design")
         (self.copia / VISTA).parent.mkdir(parents=True)
         shutil.copyfile(FIX / "lista.html", self.copia / VISTA)
 
@@ -99,12 +127,14 @@ class PuestaAlDia(unittest.TestCase):
                 self.assertEqual(Path(self.orden(comando)[2]).resolve(), RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py")
         self.assertFalse((SKILL / "scripts" / "compartidos.py").exists())
 
-    def test_sin_poner_al_dia_la_vista_con_modal_bloquea_en_la_ola_3(self):
+    def test_sin_poner_al_dia_la_ola_1_cubre_el_modal_y_queda_el_proto_js_viejo(self):
+        """Sin la puesta al día, lo que la ola 1 no trae de los assets queda viejo: proto.js, que revisar.py solo avisa."""
         self.assertTrue(json_cambios(correr(self.orden("comparar"), self.repo)))
         self.integrar()
         r = self.revisar()
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertRegex(r.stdout, r"BLOQUEA: Usa clases que `components.css` no define[^\n]*`\.modal`")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("AVISO: `proto.js` no es igual al de la skill `spec-a-html`", r.stdout)
+        self.assertNotEqual((self.copia / "design" / "proto.js").read_bytes(), (ASSETS / "proto.js").read_bytes())
 
     def test_puesta_al_dia_antes_de_la_ola_1_deja_pasar_la_vista_con_modal(self):
         self.poner_al_dia()
@@ -114,19 +144,34 @@ class PuestaAlDia(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertEqual((self.copia / "design" / "proto.js").read_bytes(), (ASSETS / "proto.js").read_bytes())
 
-    def test_la_puesta_al_dia_cambia_proto_js_y_la_huella_del_revisor(self):
+    def solo_proto_js_viejo(self):
+        """El repositorio con tokens.css y components.css al día y proto.js viejo: la puesta al día cambia solo proto.js."""
+        viejo = (self.repo / "design" / "proto.js").read_bytes()
+        self.poner_al_dia()
+        (self.repo / "design" / "proto.js").write_bytes(viejo)
+        salida = json.loads(correr(self.orden("comparar"), self.repo).stdout)
+        self.assertEqual((salida["tokens"]["faltan"], salida["components"]["faltan"], salida["proto"]["difiere"]), ([], [], True))
         self.integrar()
-        vieja = self.huella()
+
+    def aplicar_en_la_copia(self):
+        """La puesta al día corrida sobre la copia de la ola 3; tokens.css y components.css quedan igual."""
+        antes = {a: (self.copia / "design" / a).read_bytes() for a in ("tokens.css", "components.css")}
         r = correr(self.orden("aplicar"), self.copia)
         self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual({a: (self.copia / "design" / a).read_bytes() for a in antes}, antes)
         self.assertEqual((self.copia / "design" / "proto.js").read_bytes(), (ASSETS / "proto.js").read_bytes())
+
+    def test_la_puesta_al_dia_cambia_proto_js_y_la_huella_del_revisor(self):
+        self.solo_proto_js_viejo()
+        vieja = self.huella()
+        self.aplicar_en_la_copia()
         self.assertNotEqual(self.huella(), vieja)
 
     def test_una_aprobacion_sobre_el_proto_js_viejo_no_entra_al_repositorio(self):
-        """Si los compartidos se ponen al día después de la revisión, la vista ya no es la que el revisor vio."""
-        self.integrar()
+        """Si proto.js se pone al día después de la revisión, la vista ya no es la que el revisor vio."""
+        self.solo_proto_js_viejo()
         self.aprobar(self.huella())
-        self.assertEqual(correr(self.orden("aplicar"), self.copia).returncode, 0)
+        self.aplicar_en_la_copia()
         r = self.mover()
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertFalse((self.repo / VISTA).exists())
