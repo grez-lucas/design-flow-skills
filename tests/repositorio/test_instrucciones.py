@@ -254,10 +254,16 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         self.assertRegex(self.paso, r"Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: "
                                     r"falta `tokens.css`[^\n]*? y la conversión no empezó\.")
         self.assertNotIn("deriva a `spec-a-html`", self.paso)
-        # Hallazgo 1: lo que queda en `faltan` después de llenar los roles, con los valores de la plantilla.
-        self.assertRegex(self.paso, r"Después de llenar los roles, `faltan` trae todavía los tokens de la plantilla que el "
-                                    r"`tokens.css` nuevo no declara y el `components.css` viejo no usa[^\n]*?, con los valores "
-                                    r"de la plantilla: nómbralos al pedir el sí de la puesta al día\.")
+        # Q137: en el design/ a medias la puesta al día va con --solo-usados y agrega solo lo que usa algún compartido.
+        for comando in ("comparar", "mostrar", "aplicar"):
+            with self.subTest(comando=comando):
+                self.assertRegex(self.paso, rf"(?m)^<intérprete> -B <ruta-de-esta-skill>/\.\./spec-a-html/scripts/"
+                                            rf"compartidos\.py {comando} <repo-de-diseño> --solo-usados$")
+        self.assertRegex(self.paso, r"Con `--solo-usados`, `faltan` trae solo los tokens de la plantilla que usa algún "
+                                    r"compartido, como `--color-overlay` y `--size-modal` de las reglas del modal, con los "
+                                    r"valores de la plantilla: nómbralos al pedir el sí\. El resto de la escala de la "
+                                    r"plantilla queda en `omitidos` y no entra[^\n]*?\.")
+        self.assertNotIn("Después de llenar los roles, `faltan` trae todavía", self.paso)
         # Hallazgo 3: si acepta la tabla y rechaza la puesta al día, el `tokens.css` nuevo ya quedó escrito.
         self.assertRegex(self.paso, r"Si en este paso ya escribiste `tokens.css` desde el mockup, di también que quedó "
                                     r"escrito en `design/` del repositorio, sin commit\.")

@@ -30,6 +30,8 @@ MOCKUP = RAIZ / "pruebas" / "html-a-vista" / "fixtures" / "mockups" / "chico.htm
 VISTA = Path("design") / "vistas" / "pedidos" / "lista.html"
 # Las reglas que la ola 1 copia de assets/components.css cuando el mockup tiene modales o avisos (olas.md, "Ola 1").
 REGLAS_DE_LA_OLA_1 = (":where([data-frame])", ".modal", ".modal__dialog", ".modal__actions", ".toast-region")
+ORDEN_SOLO_USADOS = re.compile(r"^<intérprete> -B <ruta-de-esta-skill>/(\S+/compartidos\.py) (comparar|mostrar|aplicar) "
+                               r"<repo-de-diseño> --solo-usados$", re.M)
 ORDEN = re.compile(r"^<intérprete> -B <ruta-de-esta-skill>/(\S+/compartidos\.py) (comparar|mostrar|aplicar) <repo-de-diseño>$", re.M)
 
 
@@ -42,6 +44,17 @@ def ordenes():
 _spec = importlib.util.spec_from_file_location("compartidos", RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py")
 compartidos = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(compartidos)
+
+
+def ordenes_solo_usados():
+    """{comando: argv} de las órdenes con `--solo-usados` que da SKILL.md para el design/ a medias (Q137)."""
+    texto = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    return {comando: [sys.executable, "-B", str(SKILL / script), comando]
+            for script, comando in ORDEN_SOLO_USADOS.findall(texto)}
+
+
+def usados(css):
+    return set(re.findall(r"var\(\s*(--[\w-]+)", css))
 
 
 def correr(argv, *args):
@@ -167,13 +180,28 @@ class PuestaAlDia(unittest.TestCase):
         consolidacion = json.loads(r.stdout)
         (self.repo / "design" / "tokens.css").write_text(self.tokens_desde_la_tabla(consolidacion), encoding="utf-8")
 
-        r = correr(self.orden("comparar"), self.repo)
+        solo = ordenes_solo_usados()
+        self.assertEqual(set(solo), {"comparar", "mostrar", "aplicar"}, "SKILL.md no da las órdenes con `--solo-usados`")
+        viejo = usados((self.repo / "design" / "components.css").read_text(encoding="utf-8"))
+        r = correr(solo["comparar"], self.repo, "--solo-usados")
         self.assertEqual(r.returncode, 0, r.stderr)
-        faltan = {t["token"] for t in json.loads(r.stdout)["tokens"]["faltan"]}
-        usados = set(re.findall(r"var\(\s*(--[\w-]+)", (self.repo / "design" / "components.css").read_text(encoding="utf-8")))
-        self.assertEqual(faltan & usados, set(), "la puesta al día agregaría con valores de la plantilla tokens que usa el components.css viejo")
-        self.assertTrue(json_cambios(r))
-        self.poner_al_dia()
+        salida = json.loads(r.stdout)
+        faltan = {t["token"] for t in salida["tokens"]["faltan"]}
+        self.assertEqual(faltan & viejo, set(), "la puesta al día agregaría con valores de la plantilla tokens que usa el components.css viejo")
+        # Q137: solo entran los tokens de la plantilla que usa algún compartido, como los del modal.
+        self.assertLessEqual({"--color-overlay", "--size-modal"}, faltan)
+        for token in ("--color-info", "--font-size-lg", "--space-8", "--size-content-max", "--font-family-mono"):
+            self.assertNotIn(token, faltan)
+        self.assertTrue(salida["cambios"])
+        for comando in ("mostrar", "aplicar"):
+            r = correr(solo[comando], self.repo, "--solo-usados")
+            self.assertEqual(r.returncode, 0, f"{comando}: {r.stderr}")
+        components = (self.repo / "design" / "components.css").read_text(encoding="utf-8")
+        tokens_css = (self.repo / "design" / "tokens.css").read_text(encoding="utf-8")
+        nuevos = set(re.findall(r"(--[\w-]+)\s*:", tokens_css))
+        self.assertLessEqual(faltan, usados(components) | usados(tokens_css), "entró un token de la plantilla que nada usa")
+        self.assertLessEqual(usados(components), nuevos, "components.css usa un token que tokens.css no declara")
+        self.assertFalse(json.loads(correr(solo["comparar"], self.repo, "--solo-usados").stdout)["cambios"])
         tokens = (self.repo / "design" / "tokens.css").read_text(encoding="utf-8")
         declarados = dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+);", tokens))
         for rol in consolidacion["roles"]:
@@ -189,10 +217,39 @@ class PuestaAlDia(unittest.TestCase):
             with self.subTest(valor=v["valor"]):
                 self.assertTrue(v["dentro"], v)
                 self.assertEqual(declarados.get(v["token"]), v["valor_token"])
-                self.assertNotIn(v["token"], faltan, "un color del mockup se mapeó a un token de la plantilla")
+        mapeados = [v for v in json.loads(r.stdout)["valores"] if v.get("token")]
+        self.assertTrue(any(v["tipo"] == "medida" for v in mapeados))
+        for v in mapeados:
+            with self.subTest(valor=v["valor"], tipo=v["tipo"]):
+                self.assertNotIn(v["token"], faltan, "un valor del mockup se mapeó a un token de la plantilla")
         self.integrar()
         r = self.revisar()
         self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_solo_usados_deja_en_omitidos_los_tokens_de_la_plantilla_que_nada_usa(self):
+        """Q137: `--solo-usados` agrega solo los tokens que usa algún compartido; sin el modo, como spec-a-html, todos."""
+        tokens = self.repo / "design" / "tokens.css"
+        tokens.write_text(":root {\n  --color-primary: #2f7d4f;\n}\n", encoding="utf-8")
+        script = RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py"
+        todos = json.loads(correr([sys.executable, "-B", script, "comparar"], self.repo).stdout)
+        solo = json.loads(correr([sys.executable, "-B", script, "comparar"], self.repo, "--solo-usados").stdout)
+        nombres = lambda s, clave: {t["token"] for t in s["tokens"][clave]}
+        self.assertIn("--color-info", nombres(todos, "faltan"))
+        self.assertNotIn("--color-info", nombres(solo, "faltan"))
+        sin_uso = {t["token"]: t["motivo"] for t in solo["tokens"]["omitidos"]}
+        self.assertIn("--color-info", sin_uso)
+        self.assertIn("ningún compartido lo usa", sin_uso["--color-info"])
+        self.assertLessEqual({"--color-overlay", "--size-modal", "--color-surface"}, nombres(solo, "faltan"))
+        self.assertEqual(nombres(solo, "faltan") | {t for t in sin_uso}, nombres(todos, "faltan"))
+        diff = correr([sys.executable, "-B", script, "mostrar"], self.repo, "--solo-usados").stdout
+        self.assertIn("+  --size-modal: 480px;", diff.splitlines())
+        self.assertNotIn("--color-info", diff)
+        antes = tokens.read_text(encoding="utf-8")
+        self.assertEqual(correr([sys.executable, "-B", script, "aplicar"], self.repo, "--solo-usados").returncode, 0)
+        despues = tokens.read_text(encoding="utf-8")
+        self.assertTrue(despues.startswith(antes.rstrip("}\n")))
+        self.assertNotIn("--color-info", despues)
+        self.assertFalse(json.loads(correr([sys.executable, "-B", script, "comparar"], self.repo, "--solo-usados").stdout)["cambios"])
 
     def test_un_css_con_una_llave_sin_cerrar_se_corrige_y_comparar_sigue(self):
         """Q125 con Q131: `comparar` sale con 2 y nombra el archivo; corregido lo que señala, la puesta al día sigue."""

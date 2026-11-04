@@ -2,9 +2,9 @@
 """Lleva a un repositorio de diseño que ya existe lo nuevo de los assets de spec-a-html, sin borrar ni cambiar su texto.
 
 Uso:
-  python3 -B compartidos.py comparar <repo-de-diseño>
-  python3 -B compartidos.py mostrar <repo-de-diseño>
-  python3 -B compartidos.py aplicar <repo-de-diseño>
+  python3 -B compartidos.py comparar <repo-de-diseño> [--solo-usados]
+  python3 -B compartidos.py mostrar <repo-de-diseño> [--solo-usados]
+  python3 -B compartidos.py aplicar <repo-de-diseño> [--solo-usados]
 
 comparar  imprime un JSON con lo que falta en design/ respecto de assets/:
             tokens      {existe, faltan: [{bloque, token, valor}], omitidos: [{bloque, token, motivo}]}
@@ -29,6 +29,11 @@ clases (`body`, `*::before`, `:where([data-frame])`) se agrega igual (Q110) y va
 elementos que ya existen y cambia cómo se ven las vistas propias. Las reglas nuevas van al final, en el orden
 de assets, con el comentario que las precede y solo con sus selectores que faltan; una regla dentro de un `@media`
 va con su preludio.
+
+--solo-usados. Para un tokens.css recién armado desde un mockup (html-a-vista, design/ a medias): un token que falta
+se agrega solo si algún compartido lo usa, con var(), en components.css tal como queda después de aplicar o en
+tokens.css, y también los que usan los tokens que entran. Los demás van a omitidos con su motivo, para que tokens.css
+no mezcle la escala del mockup con la de la plantilla. Sin el modo, como en spec-a-html, entran todos.
 
 proto.js. Si falta o difiere, se reemplaza por el de assets, sin modificar. Si falta components.css, se copia entero.
 
@@ -252,16 +257,42 @@ def insertar(texto, nodo, lineas, nl):
     return pos, "".join(nl + sangria + l for l in lineas)
 
 
-def tokens(design, assets):
+VAR = re.compile(r"var\(\s*(--[\w-]+)")
+SIN_USO = "ningún compartido lo usa: `--solo-usados` deja fuera la escala de la plantilla que el repositorio no usa."
+
+
+def usados(css, asset, definidos):
+    """Los tokens que usa `css` con var(), más los que usan, en assets/tokens.css, los tokens que entran."""
+    nombres, pendientes = set(), set(VAR.findall(enmascarar(css)))
+    valores = {}
+    for nodo in arbol(asset, "assets/tokens.css"):
+        if not es_regla_at(nodo):
+            for n, v in declaraciones(asset, nodo):
+                valores.setdefault(n, []).append(v)
+    while pendientes:
+        n = pendientes.pop()
+        if n not in nombres:
+            nombres.add(n)
+            if n not in definidos:
+                pendientes |= {x for v in valores.get(n, []) for x in VAR.findall(v)}
+    return nombres
+
+
+def tokens(design, assets, solo=None):
+    """`solo`: con --solo-usados, el texto de components.css después de aplicar."""
     asset = (assets / "tokens.css").read_text(encoding="utf-8")
     bom, texto = sin_bom(leer(design / "tokens.css"))
     nodos = arbol(texto, "tokens.css")
     definidos = set(re.findall(r"(--[\w-]+)\s*:", re.sub(r"/\*.*?\*/", "", texto, flags=re.S)))
+    en_uso = usados(solo + "\n" + texto, asset, definidos) if solo is not None else None
     faltan, omitidos, por_bloque = [], [], []
     for nodo in arbol(asset, "assets/tokens.css"):
         if es_regla_at(nodo):
             continue
         nuevas = [(n, v) for n, v in declaraciones(asset, nodo) if n not in definidos]
+        if en_uso is not None:
+            omitidos += [{"bloque": nodo["preludio"], "token": n, "motivo": SIN_USO} for n, _ in nuevas if n not in en_uso]
+            nuevas = [(n, v) for n, v in nuevas if n in en_uso]
         if not nuevas:
             continue
         selector = nodo["preludio"]
@@ -309,20 +340,21 @@ def escribir(ruta, texto):
         f.write(texto)
 
 
-def calcular(design, assets=ASSETS):
+def calcular(design, assets=ASSETS, solo_usados=False):
     """(JSON de comparar, {archivo: (texto actual o None, texto nuevo)} de lo que cambia)."""
     if not design.is_dir():
         raise Ilegible(f"No existe `{design}`: el repositorio de diseño todavía no tiene design/.")
     if not (design / "tokens.css").exists():
         raise Ilegible("No existe `design/tokens.css`: el design system se arma antes, en el paso 4 de spec-a-html.")
     salida, cambios = {}, {}
-    salida["tokens"], nuevo = tokens(design, assets)
+    componentes, nuevo_components = components(design, assets)
+    salida["tokens"], nuevo = tokens(design, assets, sin_bom(nuevo_components)[1] if solo_usados else None)
     if salida["tokens"]["faltan"]:
         cambios["tokens.css"] = (leer(design / "tokens.css"), nuevo)
-    salida["components"], nuevo = components(design, assets)
+    salida["components"] = componentes
     if salida["components"]["faltan"]:
         actual = design / "components.css"
-        cambios["components.css"] = (leer(actual) if actual.exists() else None, nuevo)
+        cambios["components.css"] = (leer(actual) if actual.exists() else None, nuevo_components)
     proto, original = design / "proto.js", assets / "proto.js"
     existe = proto.exists()
     salida["proto"] = {"existe": existe, "difiere": not existe or sin_crlf(proto.read_bytes()) != sin_crlf(original.read_bytes())}
@@ -332,12 +364,12 @@ def calcular(design, assets=ASSETS):
     return salida, cambios
 
 
-def comparar(design, assets=ASSETS):
-    return calcular(design, assets)[0]
+def comparar(design, assets=ASSETS, solo_usados=False):
+    return calcular(design, assets, solo_usados)[0]
 
 
-def aplicar(design, assets=ASSETS):
-    salida, cambios = calcular(design, assets)
+def aplicar(design, assets=ASSETS, solo_usados=False):
+    salida, cambios = calcular(design, assets, solo_usados)
     for archivo in cambios:
         if archivo == "proto.js":
             shutil.copyfile(assets / "proto.js", design / "proto.js")
@@ -348,10 +380,10 @@ def aplicar(design, assets=ASSETS):
     return salida
 
 
-def mostrar(design, assets=ASSETS):
+def mostrar(design, assets=ASSETS, solo_usados=False):
     """El diff unificado de lo que aplicar escribe, con los fines de línea de cada archivo y la marca de diff para un
     archivo sin salto de línea final, para que `git apply` o `patch` den los mismos bytes."""
-    _, cambios = calcular(design, assets)
+    _, cambios = calcular(design, assets, solo_usados)
     partes = []
     for archivo, (antes, despues) in cambios.items():
         desde = "/dev/null" if antes is None else f"a/design/{archivo}"
@@ -364,13 +396,15 @@ def main(argv=None):
     uso = argparse.ArgumentParser(prog="compartidos.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     uso.add_argument("comando", choices=("comparar", "mostrar", "aplicar"))
     uso.add_argument("repo")
+    uso.add_argument("--solo-usados", action="store_true")
     args = uso.parse_args(argv)
     design = Path(args.repo).resolve() / "design"
     try:
         if args.comando == "mostrar":
-            sys.stdout.buffer.write((mostrar(design) or "Sin cambios.\n").encode("utf-8"))
+            sys.stdout.buffer.write((mostrar(design, solo_usados=args.solo_usados) or "Sin cambios.\n").encode("utf-8"))
         else:
-            print(json.dumps((comparar if args.comando == "comparar" else aplicar)(design), ensure_ascii=False, indent=1))
+            orden = comparar if args.comando == "comparar" else aplicar
+            print(json.dumps(orden(design, solo_usados=args.solo_usados), ensure_ascii=False, indent=1))
     except Ilegible as e:
         print(e, file=sys.stderr)
         return 2
