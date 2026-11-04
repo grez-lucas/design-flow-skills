@@ -254,6 +254,13 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         self.assertRegex(self.paso, r"Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: "
                                     r"falta `tokens.css`[^\n]*? y la conversión no empezó\.")
         self.assertNotIn("deriva a `spec-a-html`", self.paso)
+        # Hallazgo 1: lo que queda en `faltan` después de llenar los roles, con los valores de la plantilla.
+        self.assertRegex(self.paso, r"Después de llenar los roles, `faltan` trae todavía los tokens de la plantilla que el "
+                                    r"`tokens.css` nuevo no declara y el `components.css` viejo no usa[^\n]*?, con los valores "
+                                    r"de la plantilla: nómbralos al pedir el sí de la puesta al día\.")
+        # Hallazgo 3: si acepta la tabla y rechaza la puesta al día, el `tokens.css` nuevo ya quedó escrito.
+        self.assertRegex(self.paso, r"Si en este paso ya escribiste `tokens.css` desde el mockup, di también que quedó "
+                                    r"escrito en `design/` del repositorio, sin commit\.")
 
     def test_si_el_script_sale_con_error_propone_el_arreglo_y_vuelve_a_comparar(self):
         """Q125 con Q131: se detiene, propone corregir lo que el mensaje señala, lo aplica con el sí, vuelve a correr
@@ -283,11 +290,30 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
         integracion = olas.split("## Ola 3")[1].split("**Revisor**")[0]
         self.assertRegex(integracion, r"Lo que bloquea en las vistas convertidas lo corriges tú antes de lanzar al revisor")
-        self.assertRegex(integracion, r"Si para eso hacen falta reglas o tokens compartidos que no vienen de la ola 1 ni de la "
-                                      r"puesta al día que aprobó la persona, detente antes de agregarlos: muéstraselos[^.]*\.")
+        self.assertRegex(integracion, r"puesta al día que aprobó la persona, detente antes de agregarlos: muéstraselos[^.]*\.")
         self.assertRegex(integracion, r"Con el sí, agrégalos a la copia, vuelve a correr `revisar.py` y sigue desde ahí\.")
         self.assertRegex(integracion, r"Sin el sí, queda detenida antes del revisor y di qué vistas quedaron sin integrar "
                                       r"y por qué[^.]*\.")
+        # Hallazgo 4: lo que ya está escrito en el repositorio.
+        self.assertRegex(integracion, r"Di también que la puesta al día del paso 6 de `SKILL\.md`, y el `tokens.css` si ese "
+                                      r"paso lo armó, ya quedaron escritos en el repositorio, sin commit\.")
+
+    def test_lo_nuevo_de_los_contratos_entra_sin_un_si_aparte(self):
+        """Q135: Q130 rige solo para lo que no viene de la ola 1, de los contratos ni de la puesta al día."""
+        olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+        integracion = olas.split("## Ola 3")[1].split("**Revisor**")[0]
+        self.assertRegex(integracion, r"Las reglas nuevas que piden los contratos de las olas 1 y 2 entran sin un sí aparte: "
+                                      r"son parte de la conversión que la persona aprobó en el plan\.")
+        self.assertRegex(integracion, r"Si para eso hacen falta reglas o tokens compartidos que no vienen de la ola 1, de los "
+                                      r"contratos de la ola 2 ni de la puesta al día que aprobó la persona, detente")
+
+    def test_el_informe_nombra_el_tokens_css_que_armo_el_paso_6(self):
+        """Hallazgo 6: el informe dice cuándo el paso 6 armó `tokens.css` desde el mockup."""
+        plan = (SKILLS / "html-a-vista" / "references" / "plan.md").read_text(encoding="utf-8")
+        resultado = next(l for l in plan.splitlines() if l.startswith("1. **Resultado**"))
+        self.assertRegex(resultado, r"Si el paso 6 armó `tokens.css` desde el mockup porque `design/` estaba a medias, dilo, "
+                                    r"con los roles del `components.css` viejo que llenó[^\n]*? y los tokens de la plantilla "
+                                    r"que entraron con la puesta al día\.")
 
 
 if __name__ == "__main__":
