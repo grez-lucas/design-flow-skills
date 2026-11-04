@@ -90,7 +90,7 @@ Si no encontraste intérprete, para y no guardes: explica en simple que falta Py
 
 ### 6. Compartidos al día
 
-Un repositorio de diseño creado con una versión anterior de las skills no tiene las reglas, los tokens ni el `proto.js` de hoy. Una vista convertida que usa un modal o un aviso sale sin estilo, y `revisar.py` la bloquea en la ola 3 porque usa clases que `components.css` no define. Por eso los compartidos se ponen al día antes de la ola 1, con el script de `spec-a-html`: las tres olas trabajan sobre el repositorio ya al día, y los tokens de la ola 1 y las huellas del revisor parten de los compartidos que van a quedar.
+Un repositorio de diseño creado con una versión anterior de las skills no tiene las reglas, los tokens ni el `proto.js` de hoy. La ola 1 trae por su cuenta la regla del frame, las del modal y los avisos y sus tokens cuando el mockup los tiene, pero no `proto.js`: sin la puesta al día, las vistas se arman y se revisan con el `proto.js` viejo, que `revisar.py` solo avisa, y lo que copia la ola 1 entra sin que la persona vea antes que `:where([data-frame])` cambia cómo se ven las vistas que el repositorio ya tiene. Por eso los compartidos se ponen al día antes de la ola 1, con el script de `spec-a-html`: las tres olas trabajan sobre el repositorio ya al día, y los tokens de la ola 1 y las huellas del revisor parten de los compartidos que van a quedar.
 
 Si el repositorio no tiene `design/tokens.css`, no hay compartidos que poner al día: la ola 1 los arma desde los de `spec-a-html`. Si lo tiene, compara:
 
