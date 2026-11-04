@@ -222,15 +222,35 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"elementos que ya existen y cambian cómo se ven las vistas que el repositorio ya tiene\.")
         self.assertRegex(self.paso, r"Escribe solo con el sí de la persona:\n\n```\n<intérprete> -B [^\n]*compartidos\.py aplicar ")
 
-    def test_sin_el_si_se_detiene_y_explica_que_la_ola_3_va_a_bloquear(self):
+    def test_sin_el_si_se_detiene_por_el_proto_js_viejo_y_las_reglas_que_cambian_lo_propio(self):
+        """Q128, que supersede el motivo de Q124: la ola 1 ya copia `.modal`, así que el motivo no es el bloqueo."""
         self.assertRegex(self.paso, r"Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en "
-                                    r"simple que [^.]*la revisión de la ola 3 va a bloquear[^.]*\.")
+                                    r"simple que sin la puesta al día queda un `proto.js` viejo y entran reglas que cambian "
+                                    r"cómo se ven las vistas que el repositorio ya tiene, como `:where\(\[data-frame\]\)`, "
+                                    r"sin que la persona las vea antes\.")
+        self.assertNotIn("bloquear", self.paso)
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertRegex(readme, r"`html-a-vista` hace lo mismo antes de la ola 1, con el script de `spec-a-html`, y si la "
+                                 r"persona no acepta se detiene: sin la puesta al día queda un `proto.js` viejo y entran "
+                                 r"reglas que cambian cómo se ven las vistas que ya existen, sin que la persona las vea antes\.")
+        self.assertNotIn("bloquearía las vistas que usen lo que falta", readme)
 
-    def test_si_el_script_sale_con_error_se_detiene_como_sin_el_si(self):
-        """Q124: un error de `compartidos.py` detiene la skill antes de la ola 1, igual que cuando la persona no acepta."""
-        self.assertRegex(self.paso, r"Si el script sale con error, detente antes de la ola 1 y no escribas en el "
-                                    r"repositorio, como sin el sí: explica en simple qué dice el error y qué hay que "
-                                    r"arreglar en el repositorio[^.]*\.")
+    def test_design_a_medias_se_detiene_y_deriva_a_spec_a_html(self):
+        """Q129: `design/` con `components.css` o `proto.js` pero sin `tokens.css`."""
+        self.assertRegex(self.paso, r"Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, detente antes "
+                                    r"de la ola 1 y no escribas en el repositorio: explica en simple que el repositorio "
+                                    r"quedó a medias y deriva a `spec-a-html`, cuyo paso 4 crea `tokens.css` y pone al día "
+                                    r"lo demás[^.]*\.")
+
+    def test_si_el_script_sale_con_error_propone_el_arreglo_y_vuelve_a_comparar(self):
+        """Q125 con Q131: se detiene, propone corregir lo que el mensaje señala, lo aplica con el sí, vuelve a correr
+        `comparar` y sigue; sin el sí queda detenida y dice qué quedó sin hacer."""
+        self.assertRegex(self.paso, r"Si el script sale con error, detente antes de la ola 1: explica en simple qué dice el "
+                                    r"error y propón corregirlo tú")
+        self.assertRegex(self.paso, r"Muestra el cambio antes de escribirlo y, con el sí, corrígelo, vuelve a correr "
+                                    r"`comparar` y sigue con la puesta al día desde ahí\.")
+        self.assertRegex(self.paso, r"Sin el sí, o si el error no se puede corregir desde la sesión, queda detenida sin "
+                                    r"escribir en el repositorio y di qué quedó sin hacer[^.]*\.")
         self.assertNotIn("sigue sin tocar los compartidos", self.paso)
         olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
         plan = (SKILLS / "html-a-vista" / "references" / "plan.md").read_text(encoding="utf-8")
@@ -243,6 +263,18 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         self.assertRegex(integracion, r"1\. Copias el repositorio de diseño, ya al día con los compartidos de "
                                       r"`spec-a-html` \(paso 6 de `SKILL\.md`\), en `<trabajo>/ola-3/repo/`")
         self.assertNotIn("copias `proto.js` de `spec-a-html` sin modificar si no existe", integracion)
+
+    def test_compartidos_que_faltan_en_la_ola_3_se_muestran_y_entran_con_el_si(self):
+        """Q130 con Q131: quien integra corrige lo de las vistas convertidas; un compartido que no vino de la ola 1 ni de
+        la puesta al día se muestra, entra con el sí y se vuelve a correr `revisar.py` antes de seguir."""
+        olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+        integracion = olas.split("## Ola 3")[1].split("**Revisor**")[0]
+        self.assertRegex(integracion, r"Lo que bloquea en las vistas convertidas lo corriges tú antes de lanzar al revisor")
+        self.assertRegex(integracion, r"Si para eso hacen falta reglas o tokens compartidos que no vienen de la ola 1 ni de la "
+                                      r"puesta al día que aprobó la persona, detente antes de agregarlos: muéstraselos[^.]*\.")
+        self.assertRegex(integracion, r"Con el sí, agrégalos a la copia, vuelve a correr `revisar.py` y sigue desde ahí\.")
+        self.assertRegex(integracion, r"Sin el sí, queda detenida antes del revisor y di qué vistas quedaron sin integrar "
+                                      r"y por qué[^.]*\.")
 
 
 if __name__ == "__main__":

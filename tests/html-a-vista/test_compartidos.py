@@ -127,6 +127,32 @@ class PuestaAlDia(unittest.TestCase):
                 self.assertEqual(Path(self.orden(comando)[2]).resolve(), RAIZ / "skills" / "spec-a-html" / "scripts" / "compartidos.py")
         self.assertFalse((SKILL / "scripts" / "compartidos.py").exists())
 
+    def test_design_a_medias_sin_tokens_css_no_se_compara_y_la_skill_se_detiene(self):
+        """Q129: con `components.css` y `proto.js` viejos y sin `tokens.css`, `comparar` sale con 2 sin escribir, y el
+        paso 6 nombra ese caso para detenerse y derivar a spec-a-html."""
+        (self.repo / "design" / "tokens.css").unlink()
+        antes = {p.name: p.read_bytes() for p in (self.repo / "design").iterdir()}
+        r = correr(self.orden("comparar"), self.repo)
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("No existe `design/tokens.css`", r.stderr)
+        self.assertEqual({p.name: p.read_bytes() for p in (self.repo / "design").iterdir()}, antes)
+        texto = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, detente antes de la ola 1", texto)
+
+    def test_un_css_con_una_llave_sin_cerrar_se_corrige_y_comparar_sigue(self):
+        """Q125 con Q131: `comparar` sale con 2 y nombra el archivo; corregido lo que señala, la puesta al día sigue."""
+        components = self.repo / "design" / "components.css"
+        sano = components.read_text(encoding="utf-8")
+        components.write_text(sano.rstrip().rstrip("}") + "\n", encoding="utf-8")
+        r = correr(self.orden("comparar"), self.repo)
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("`components.css` deja una llave sin cerrar", r.stderr)
+        components.write_text(sano, encoding="utf-8")
+        self.assertTrue(json_cambios(correr(self.orden("comparar"), self.repo)))
+        self.poner_al_dia()
+        self.integrar()
+        self.assertEqual(self.revisar().returncode, 0)
+
     def test_sin_poner_al_dia_la_ola_1_cubre_el_modal_y_queda_el_proto_js_viejo(self):
         """Sin la puesta al día, lo que la ola 1 no trae de los assets queda viejo: proto.js, que revisar.py solo avisa."""
         self.assertTrue(json_cambios(correr(self.orden("comparar"), self.repo)))
