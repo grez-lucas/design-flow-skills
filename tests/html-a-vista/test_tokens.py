@@ -162,6 +162,26 @@ class RolesPorPropiedadYTema(unittest.TestCase):
         md = correr("consolidar", ROLES / "tema.html", "--roles", ROLES / "components.css").stdout
         self.assertIn(f"{oscuro}: #101010, #1c1c1c, #f4f4f4", next(l for l in md.splitlines() if l.startswith("| --color-bg |")))
 
+    def test_el_valor_por_defecto_solo_va_donde_el_token_es_el_valor_entero(self):
+        """Q140: con var() como valor entero de la declaración, o un --color-* en el lugar del color de un abreviado de
+        borde o contorno. Dentro de calc(), de una lista de sombras o en el ancho de un abreviado, producto decide."""
+        roles = self.roles("plano.html", "posiciones.css")
+        esperados = {"--border-width": ("otro", []), "--color-border": ("color", ["currentColor"]),
+                     "--space-2": ("medida", []), "--size-sidebar": ("medida", []), "--font-sans": ("otro", []),
+                     "--shadow-sm": ("otro", []), "--shadow-ring": ("otro", []), "--duracion": ("otro", []),
+                     "--borde-arriba": ("color", ["currentColor"])}
+        for token, (tipo, valor) in esperados.items():
+            with self.subTest(token=token):
+                self.assertEqual((roles[token]["tipo"], roles[token]["candidatos"]), (tipo, valor))
+
+    def test_un_token_que_ocupa_una_parte_del_valor_no_recibe_el_valor_entero_del_mockup(self):
+        """Q140: ni el color del borde para su ancho ni la sombra entera para el lugar de un color."""
+        roles = self.roles("sombra.html", "posiciones.css")
+        self.assertEqual(roles["--color-border"]["candidatos"], ["#dddddd"])
+        for token in ("--border-width", "--shadow-ring", "--shadow-sm"):
+            with self.subTest(token=token):
+                self.assertEqual(roles[token]["candidatos"], [])
+
     def test_var_con_respaldo_toma_la_variable_si_existe_y_si_no_el_respaldo(self):
         """Hallazgo 1 de la cuarta revisión: respaldos con paréntesis y var() anidados."""
         roles = self.roles("respaldo.html")

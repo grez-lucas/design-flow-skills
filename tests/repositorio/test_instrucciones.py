@@ -264,7 +264,14 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"y no propone nada\.")
         self.assertRegex(self.paso, r"Si el mockup tiene tema oscuro, cada rol lleva además el valor del mockup en ese tema, "
                                     r"que va al bloque del tema en `tokens.css`\.")
+        # Q140: el valor por defecto solo donde el token es el valor entero, o el color de un abreviado de borde.
+        self.assertRegex(self.paso, r"Ese valor se propone solo donde el token es el valor entero de la declaración, o el "
+                                    r"color de un abreviado de borde o de contorno para un `--color-\*`; en otra posición, "
+                                    r"como dentro de `calc\(\)`, de una lista de sombras o en el ancho de un abreviado, la "
+                                    r"fila dice \"producto decide\", y un token que ocupa solo una parte del valor no recibe "
+                                    r"el valor entero del mockup\.")
         tokens_md = (SKILLS / "html-a-vista" / "references" / "tokens.md").read_text(encoding="utf-8")
+        self.assertIn("valor entero de la declaración", tokens_md)
         self.assertIn("Roles del components.css del repositorio", tokens_md)
         self.assertIn("--roles", tokens_md)
         self.assertNotIn("deriva a `spec-a-html`", self.paso)

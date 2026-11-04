@@ -1,0 +1,9 @@
+/* components.css de la prueba: tokens que ocupan solo una parte del valor de su declaración (Q140). */
+.a { border: var(--border-width) solid var(--color-border); }
+.b { margin: calc(var(--space-2) * -1); }
+.c { width: calc(100% - var(--size-sidebar)); }
+.d { font-family: var(--font-sans), sans-serif; }
+.e { box-shadow: var(--shadow-sm), 0 0 0 2px red; }
+.f { box-shadow: 0 0 0 2px var(--shadow-ring); }
+.g { transition: color var(--duracion) ease; }
+.h { border-top: var(--borde-arriba); }
