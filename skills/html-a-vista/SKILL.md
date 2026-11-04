@@ -92,7 +92,9 @@ Si no encontraste intérprete, para y no guardes: explica en simple que falta Py
 
 Un repositorio de diseño creado con una versión anterior de las skills no tiene las reglas, los tokens ni el `proto.js` de hoy. La ola 1 trae por su cuenta la regla del frame, las del modal y los avisos y sus tokens cuando el mockup los tiene, pero no `proto.js`: sin la puesta al día, las vistas se arman y se revisan con el `proto.js` viejo, que `revisar.py` solo avisa, y lo que copia la ola 1 entra sin que la persona vea antes que `:where([data-frame])` cambia cómo se ven las vistas que el repositorio ya tiene. Por eso los compartidos se ponen al día antes de la ola 1, con el script de `spec-a-html`: las tres olas trabajan sobre el repositorio ya al día, y los tokens de la ola 1 y las huellas del revisor parten de los compartidos que van a quedar.
 
-Si el repositorio no tiene `design/tokens.css`, no hay compartidos que poner al día: la ola 1 los arma desde los de `spec-a-html`. Si lo tiene, compara:
+Si el repositorio no tiene `design/`, o su `design/` no tiene `tokens.css`, `components.css` ni `proto.js`, no hay compartidos que poner al día: la ola 1 los arma desde los de `spec-a-html`. Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, detente antes de la ola 1 y no escribas en el repositorio: explica en simple que el repositorio quedó a medias y deriva a `spec-a-html`, cuyo paso 4 crea `tokens.css` y pone al día lo demás; con eso, la conversión vuelve a empezar aquí. `compartidos.py` no compara un `design/` sin `tokens.css`, y la ola 1 partiría de compartidos viejos que la persona no vio.
+
+Si `design/tokens.css` existe, compara:
 
 ```
 <intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py comparar <repo-de-diseño>
@@ -110,7 +112,7 @@ Explícalo en simple: qué reglas y tokens se suman (`faltan`), cuáles quedan f
 <intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py aplicar <repo-de-diseño>
 ```
 
-Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en simple que la ola 3 revisa cada vista contra los compartidos del repositorio, y que sin ponerlos al día la revisión de la ola 3 va a bloquear las vistas que usen lo que falta, así que la conversión no puede terminar. Si el script sale con error, detente antes de la ola 1 y no escribas en el repositorio, como sin el sí: explica en simple qué dice el error y qué hay que arreglar en el repositorio (el mensaje nombra el archivo y lo que no entendió, por ejemplo una llave sin cerrar en `components.css`) para volver a convertir el mockup.
+Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en simple que sin la puesta al día queda un `proto.js` viejo y entran reglas que cambian cómo se ven las vistas que el repositorio ya tiene, como `:where([data-frame])`, sin que la persona las vea antes. Si el script sale con error, detente antes de la ola 1: explica en simple qué dice el error y propón corregirlo tú. El mensaje nombra el archivo y lo que no entendió, por ejemplo una llave sin cerrar en `components.css` o un comentario sin cerrar en `tokens.css`, con su posición: busca ahí la regla rota y propone el arreglo más chico que la cierra, sin cambiar lo que pinta. Muestra el cambio antes de escribirlo y, con el sí, corrígelo, vuelve a correr `comparar` y sigue con la puesta al día desde ahí. Sin el sí, o si el error no se puede corregir desde la sesión, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: los compartidos siguen viejos y la conversión no empezó.
 
 ### 7. Ola 1: tokens, componentes base y escenarios globales
 
