@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Prueba · tema oscuro</title>
+<style>
+:root { --fondo: #ffffff; --tinta: #222222; --borde: #dddddd; }
+[data-theme="dark"] { --fondo: #101010; --tinta: #eeeeee; --borde: #333333; }
+body { background: var(--fondo); color: var(--tinta); }
+.card { background: #f4f4f4; border: 1px solid var(--borde); border-radius: 8px; padding: 12px; }
+[data-theme="dark"] .card { background: #1c1c1c; }
+</style>
+</head>
+<body><div class="card">Tarjeta</div></body>
+</html>

@@ -16,11 +16,15 @@ consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral y
             rol (una variable, o un selector y su propiedad) que cambia de valor entre temas; lleva espacios, radios y medidas fijas a
             múltiplos de 4 px y junta tamaños de letra a 1 px o menos. Con --roles, lista además como roles a llenar
             las variables que usa ese components.css y que él no declara (el de un design/ sin tokens.css): cada una
-            con su tipo (color, medida con su categoría, u otro), las propiedades donde la usa y los valores del mockup
-            que sirven para ella, del más usado al menos: los grupos de color con un uso de la misma propiedad, las
-            medidas propuestas de su categoría, o los valores literales que el mockup da a esa propiedad. Un rol sin
-            valor en el mockup se propone con el valor por defecto del navegador, que es lo que el mockup muestra
-            (`line-height: normal`, `box-shadow: none`, `currentColor` para un borde), marcado con por_defecto.
+            con su tipo por la propiedad exacta donde la usa (color, medida con su categoría, u otro), esas
+            propiedades y los valores del mockup que sirven para ella, del más usado al menos, con las variables del
+            mockup resueltas (`border: 1px solid var(--borde)` da el color de --borde): los colores que el mockup da
+            en la misma familia de propiedades (borde, fondo, contorno, texto), las medidas propuestas de su
+            categoría, o los valores que da a esas propiedades. Con más de un tema, por_tema trae los valores de cada
+            tema que no es :root. Un rol sin valor en el mockup se propone con el valor por defecto del navegador de
+            su propiedad, que es lo que el mockup muestra (normal para line-height, none para box-shadow,
+            currentColor para un borde, transparent para un fondo, CanvasText para color, 0 para un relleno o un
+            radio, medium para font-size o border-width), marcado con por_defecto. La tabla muestra todos.
 verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
             los pares de tokens que se ven a la vez con valores distintos dentro del umbral, que se ven iguales:
             los de un mismo bloque, y los de un bloque de tema con los de :root que ese bloque no redefine.
@@ -351,14 +355,134 @@ def consolidar(fuentes):
             "conviven": conviven(colores), "por_tema": por_tema, "medidas": orden}
 
 
-# Valor por defecto del navegador de cada propiedad, para un rol que el mockup no llena (Q134).
-POR_DEFECTO = (("line-height", "normal"), ("box-shadow", "none"), ("text-shadow", "none"), ("border", "currentColor"),
-               ("outline", "currentColor"), ("background", "transparent"), ("font-weight", "normal"))
-COLOR_PROPIEDAD = re.compile(r"(color|background|border|outline|fill|stroke|text-decoration)")
+# Propiedades que llevan un color. Las de borde y contorno con su lado y las abreviadas, que mezclan ancho, estilo y color.
+COLOR_EXACTA = {"color", "background", "background-color", "border", "border-color", "border-top", "border-right",
+                "border-bottom", "border-left", "border-top-color", "border-right-color", "border-bottom-color",
+                "border-left-color", "border-block", "border-inline", "border-block-color", "border-inline-color",
+                "outline", "outline-color", "fill", "stroke", "text-decoration", "text-decoration-color", "caret-color",
+                "accent-color", "column-rule", "column-rule-color"}
+# Valor por defecto del navegador de cada propiedad, para un rol que el mockup no llena (Q134, Q136). Va por propiedad
+# exacta; las de un lado (`padding-top`, `border-top-left-radius`) toman el de su familia.
+POR_DEFECTO = {"color": "CanvasText", "background": "transparent", "background-color": "transparent",
+               "fill": "black", "stroke": "none", "line-height": "normal", "box-shadow": "none", "text-shadow": "none",
+               "font-weight": "normal", "font-size": "medium", "letter-spacing": "normal", "border-width": "medium",
+               "outline-width": "medium", "outline-offset": "0", "border-radius": "0", "width": "auto", "height": "auto",
+               "min-width": "auto", "min-height": "auto", "max-width": "none", "max-height": "none", "flex-basis": "auto",
+               "gap": "0", "row-gap": "0", "column-gap": "0", "inset": "auto", "top": "auto", "right": "auto",
+               "bottom": "auto", "left": "auto"}
+
+
+def por_defecto(prop, tipo):
+    if prop in POR_DEFECTO:
+        return POR_DEFECTO[prop]
+    if tipo == "color" and prop in COLOR_EXACTA:
+        return "currentColor"
+    if re.match(r"(padding|margin)(-|$)", prop):
+        return "0"
+    if re.match(r"border(-\w+){1,2}-radius$", prop):
+        return "0"
+    if re.match(r"border-(top|right|bottom|left|block|inline)-width$", prop):
+        return "medium"
+    return None
+
+
+def familia_de_color(prop):
+    """Las propiedades del mockup que dan el mismo color: el borde de cualquier lado, el fondo, el contorno."""
+    for raiz in ("border", "outline", "background", "text-decoration", "column-rule"):
+        if prop == raiz or (prop.startswith(raiz + "-") and prop in COLOR_EXACTA):
+            return raiz
+    return prop
+
+
+def tipo_de_rol(nombre, props):
+    categoria = next((c for c in map(categoria_de_propiedad, props) if c), None)
+    if nombre.startswith("--color-"):
+        return "color", None
+    if categoria:
+        return "medida", categoria
+    if any(x in COLOR_EXACTA for x in props):
+        return "color", None
+    return "otro", None
+
+
+def resolver(valor, variables, prof=0):
+    """El valor con cada var(--x[, respaldo]) reemplazada por su valor en `variables`."""
+    if prof > 8:
+        return valor
+
+    def una(m):
+        nombre, respaldo = m.group(1), m.group(2)
+        if nombre in variables:
+            return resolver(variables[nombre], variables, prof + 1)
+        return resolver(respaldo.strip(), variables, prof + 1) if respaldo else m.group(0)
+    return re.sub(r"var\(\s*(--[\w-]+)\s*(?:,([^()]*))?\)", una, valor)
+
+
+def declaraciones_resueltas(fuentes, temas):
+    """{tema: [(propiedad, valor resuelto)]} de las reglas del mockup que se ven en cada tema, con las variables del
+    mockup de ese tema: las de :root, con las del bloque del tema encima. Una regla del tema reemplaza a la de :root con
+    el mismo selector y la misma propiedad ([data-theme="dark"] .card sobre .card)."""
+    variables, decls = {}, []
+    for f in fuentes:
+        for contexto, selector, cuerpo in reglas(css_de(Path(f))):
+            if any(c.lstrip("@").startswith(("keyframes", "-webkit-keyframes")) for c in contexto):
+                continue
+            temas_regla = [x.strip() for x in tema_de(contexto, selector).split(",")]
+            for prop, valor in declaraciones(cuerpo):
+                if prop.startswith("--"):
+                    if es_bloque_de_variables(contexto, selector):
+                        for tema in temas_regla:
+                            variables.setdefault(tema, {})[prop] = valor
+                else:
+                    decls.append((temas_regla, sin_tema(selector), prop, valor))
+    raiz = variables.get(":root", {})
+    out = {}
+    for tema in temas:
+        vars_tema = {**raiz, **variables.get(tema, {})}
+        propias = {(base, prop) for temas_regla, base, prop, _ in decls if tema != ":root" and tema in temas_regla}
+        out[tema] = [(prop, resolver(valor, vars_tema)) for temas_regla, base, prop, valor in decls
+                     if tema in temas_regla or (":root" in temas_regla and (base, prop) not in propias)]
+    return out
+
+
+def candidatos_de_rol(tipo, categoria, props, decls, d, tema):
+    """Los valores del mockup en `tema` para un rol, del más usado al menos."""
+    cuenta = {}
+
+    def sumar(v):
+        cuenta[v] = cuenta.get(v, 0) + 1
+    if tipo == "color":
+        familias = {familia_de_color(x) for x in props}
+        # Cada color va al representante del grupo que lo tiene como miembro, el de su tema primero.
+        grupo = {}
+        for g in sorted(d["colores"], key=lambda g: g["tema"] != tema):
+            for m in g["miembros"]:
+                grupo.setdefault(m["valor"], g["representante"])
+        for prop, valor in decls:
+            if familia_de_color(prop) in familias:
+                for c in COLOR.findall(valor):
+                    if leer_color(c):
+                        v = c.lower().replace(" ", "")
+                        sumar(grupo.get(v, v))
+    elif tipo == "medida":
+        propuesta = {(g["categoria"], m["valor"]): g["propuesta"] for g in d["medidas"] for m in g["miembros"]}
+        for prop, valor in decls:
+            if categoria_de_propiedad(prop) == categoria:
+                for m in MEDIDA.finditer(valor):
+                    px = leer_medida(m.group(0))
+                    if px is not None and px > 2:
+                        sumar(propuesta.get((categoria, m.group(0).lower()), m.group(0).lower()))
+    else:
+        for prop, valor in decls:
+            if prop in props and "var(" not in valor and valor:
+                sumar(valor)
+    return sorted(cuenta, key=lambda v: -cuenta[v])
 
 
 def roles_del_components(components, fuentes, d):
-    """Los tokens que usa `components` y que no declara, como roles a llenar con valores del mockup (Q133)."""
+    """Los tokens que usa `components` y que no declara, como roles a llenar con valores del mockup (Q133): por tema si
+    el mockup tiene más de uno, y con el valor por defecto del navegador de su propiedad si el mockup no tiene uno
+    (Q134, Q136)."""
     from desarmar import sin_comentarios_css
     css = "".join(sin_comentarios_css(Path(components).read_text(errors="replace")))
     declarados = set(re.findall(r"(--[\w-]+)\s*:", css))
@@ -370,37 +494,27 @@ def roles_del_components(components, fuentes, d):
                     lista = usos.setdefault(nombre, [])
                     if prop not in lista:
                         lista.append(prop)
-    literales = {}
-    for f in fuentes:
-        for _, _, cuerpo in reglas(css_de(Path(f))):
-            for prop, valor in declaraciones(cuerpo):
-                if not prop.startswith("--") and "var(" not in valor and valor:
-                    cuenta = literales.setdefault(prop, {})
-                    cuenta[valor] = cuenta.get(valor, 0) + 1
+    temas = d["temas"] or [":root"]
+    base = ":root" if ":root" in temas else temas[0]
+    decls = declaraciones_resueltas(fuentes, temas)
     roles = []
     for nombre, props in usos.items():
-        categoria = next((c for c in map(categoria_de_propiedad, props) if c), None)
-        if nombre.startswith("--color-") or (categoria is None and any(COLOR_PROPIEDAD.match(x) for x in props)):
-            tipo, categoria = "color", None
-            raices = {x.split("-")[0] for x in props}
-            candidatos = [g["representante"] for g in d["colores"] if any(u.split("-")[0] in raices for u in g["usos"])]
-        elif categoria:
-            tipo = "medida"
-            candidatos = [g["propuesta"] for g in sorted(d["medidas"], key=lambda g: -g["ocurrencias"]) if g["categoria"] == categoria]
-        else:
-            tipo = "otro"
-            cuenta = {}
-            for x in props:
-                for valor, n in literales.get(x, {}).items():
-                    cuenta[valor] = cuenta.get(valor, 0) + n
-            candidatos = sorted(cuenta, key=lambda v: -cuenta[v])
-        candidatos = list(dict.fromkeys(candidatos))
-        por_defecto = not candidatos
-        if por_defecto:
-            candidatos = [v for x in props for prefijo, v in POR_DEFECTO if x.startswith(prefijo)][:1]
-        fila = {"token": nombre, "tipo": tipo, "propiedades": props, "candidatos": candidatos, "por_defecto": por_defecto}
+        tipo, categoria = tipo_de_rol(nombre, props)
+        candidatos = candidatos_de_rol(tipo, categoria, props, decls[base], d, base)
+        defecto = not candidatos
+        if defecto:
+            candidatos = [v for v in (por_defecto(x, tipo) for x in props) if v][:1]
+        fila = {"token": nombre, "tipo": tipo, "propiedades": props, "candidatos": candidatos, "por_defecto": defecto}
         if categoria:
             fila["categoria"] = categoria
+        por_tema = {}
+        for tema in temas:
+            if tema != base:
+                otros = candidatos_de_rol(tipo, categoria, props, decls[tema], d, tema)
+                if otros and otros != candidatos:
+                    por_tema[tema] = otros
+        if por_tema:
+            fila["por_tema"] = por_tema
         roles.append(fila)
     return roles
 
@@ -544,10 +658,12 @@ def md_consolidar(d):
 
 def valores_de_rol(r):
     if not r["candidatos"]:
-        return "el mockup no tiene uno"
-    if r["por_defecto"]:
-        return f"{r['candidatos'][0]} (por defecto del navegador)"
-    return ", ".join(r["candidatos"][:4])
+        texto = "el mockup no tiene uno"
+    elif r["por_defecto"]:
+        texto = f"{r['candidatos'][0]} (por defecto del navegador)"
+    else:
+        texto = ", ".join(r["candidatos"])
+    return texto + "".join(f"; {tema}: {', '.join(v)}" for tema, v in r.get("por_tema", {}).items())
 
 
 def md_verificar(d):

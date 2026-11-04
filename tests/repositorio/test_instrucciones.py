@@ -251,8 +251,20 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"`comparar` y sigue con la puesta al día desde ahí\.")
         self.assertRegex(self.paso, r"En la ola 1 ese `tokens.css` ya existe: los valores del mockup se llevan a sus tokens "
                                     r"con `<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py mapear`, no se consolidan otra vez\.")
-        self.assertRegex(self.paso, r"Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: "
-                                    r"falta `tokens.css`[^\n]*? y la conversión no empezó\.")
+        # Hallazgo 8 de la tercera revisión: el sí de esta detención es el de la tabla, y va junto a él.
+        self.assertRegex(self.paso, r"Con el sí a la tabla, escribe `tokens.css` en `design/` del repositorio, corre "
+                                    r"`comparar` y sigue con la puesta al día desde ahí\. Sin el sí a la tabla, queda detenida "
+                                    r"sin escribir en el repositorio y di qué quedó sin hacer: falta `tokens.css`[^\n]*? y la "
+                                    r"conversión no empezó\.")
+        # Hallazgo 7: Q136 por propiedad, todos los candidatos y un valor por tema.
+        self.assertRegex(self.paso, r"Un rol para el que el mockup no tiene valor se propone con el valor por defecto del "
+                                    r"navegador para la propiedad donde lo usa el `components.css`[^\n]*?; producto puede "
+                                    r"cambiarlo\.")
+        self.assertRegex(self.paso, r"Si el mockup tiene tema oscuro, cada rol lleva además el valor del mockup en ese tema, "
+                                    r"que va al bloque del tema en `tokens.css`\.")
+        tokens_md = (SKILLS / "html-a-vista" / "references" / "tokens.md").read_text(encoding="utf-8")
+        self.assertIn("Roles del components.css del repositorio", tokens_md)
+        self.assertIn("--roles", tokens_md)
         self.assertNotIn("deriva a `spec-a-html`", self.paso)
         # Q137: en el design/ a medias la puesta al día va con --solo-usados y agrega solo lo que usa algún compartido.
         for comando in ("comparar", "mostrar", "aplicar"):
@@ -260,7 +272,8 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                 self.assertRegex(self.paso, rf"(?m)^<intérprete> -B <ruta-de-esta-skill>/\.\./spec-a-html/scripts/"
                                             rf"compartidos\.py {comando} <repo-de-diseño> --solo-usados$")
         self.assertRegex(self.paso, r"Con `--solo-usados`, `faltan` trae solo los tokens de la plantilla que usa algún "
-                                    r"compartido, como `--color-overlay` y `--size-modal` de las reglas del modal, con los "
+                                    r"compartido \(`components.css`, `tokens.css` o `proto.js`\), como `--color-overlay` y `--size-modal` "
+                                    r"de las reglas del modal, con los "
                                     r"valores de la plantilla: nómbralos al pedir el sí\. El resto de la escala de la "
                                     r"plantilla queda en `omitidos` y no entra[^\n]*?\.")
         self.assertNotIn("Después de llenar los roles, `faltan` trae todavía", self.paso)
