@@ -18,7 +18,9 @@ consolidar  sin tokens.css: agrupa colores por su color base dentro del umbral y
             las variables que usa ese components.css y que él no declara (el de un design/ sin tokens.css): cada una
             con su tipo (color, medida con su categoría, u otro), las propiedades donde la usa y los valores del mockup
             que sirven para ella, del más usado al menos: los grupos de color con un uso de la misma propiedad, las
-            medidas propuestas de su categoría, o los valores literales que el mockup da a esa propiedad.
+            medidas propuestas de su categoría, o los valores literales que el mockup da a esa propiedad. Un rol sin
+            valor en el mockup se propone con el valor por defecto del navegador, que es lo que el mockup muestra
+            (`line-height: normal`, `box-shadow: none`, `currentColor` para un borde), marcado con por_defecto.
 verificar   con dos archivos, lista los tokens nuevos que quedan dentro del umbral de uno existente; con uno,
             los pares de tokens que se ven a la vez con valores distintos dentro del umbral, que se ven iguales:
             los de un mismo bloque, y los de un bloque de tema con los de :root que ese bloque no redefine.
@@ -349,6 +351,9 @@ def consolidar(fuentes):
             "conviven": conviven(colores), "por_tema": por_tema, "medidas": orden}
 
 
+# Valor por defecto del navegador de cada propiedad, para un rol que el mockup no llena (Q134).
+POR_DEFECTO = (("line-height", "normal"), ("box-shadow", "none"), ("text-shadow", "none"), ("border", "currentColor"),
+               ("outline", "currentColor"), ("background", "transparent"), ("font-weight", "normal"))
 COLOR_PROPIEDAD = re.compile(r"(color|background|border|outline|fill|stroke|text-decoration)")
 
 
@@ -389,7 +394,11 @@ def roles_del_components(components, fuentes, d):
                 for valor, n in literales.get(x, {}).items():
                     cuenta[valor] = cuenta.get(valor, 0) + n
             candidatos = sorted(cuenta, key=lambda v: -cuenta[v])
-        fila = {"token": nombre, "tipo": tipo, "propiedades": props, "candidatos": list(dict.fromkeys(candidatos))}
+        candidatos = list(dict.fromkeys(candidatos))
+        por_defecto = not candidatos
+        if por_defecto:
+            candidatos = [v for x in props for prefijo, v in POR_DEFECTO if x.startswith(prefijo)][:1]
+        fila = {"token": nombre, "tipo": tipo, "propiedades": props, "candidatos": candidatos, "por_defecto": por_defecto}
         if categoria:
             fila["categoria"] = categoria
         roles.append(fila)
@@ -529,8 +538,16 @@ def md_consolidar(d):
               "valor del mockup. Sin fila decidida, la puesta al día los agrega con los valores de la plantilla.", "",
               "| Token | Tipo | Propiedades | Valores del mockup |", "| :--- | :--- | :--- | :--- |"]
         l += [f"| {r['token']} | {r['tipo']}{' ' + r['categoria'] if r.get('categoria') else ''} | {', '.join(r['propiedades'])} | "
-              f"{', '.join(r['candidatos'][:4]) or 'el mockup no tiene uno'} |" for r in d["roles"]]
+              f"{valores_de_rol(r)} |" for r in d["roles"]]
     return "\n".join(l) + "\n"
+
+
+def valores_de_rol(r):
+    if not r["candidatos"]:
+        return "el mockup no tiene uno"
+    if r["por_defecto"]:
+        return f"{r['candidatos'][0]} (por defecto del navegador)"
+    return ", ".join(r["candidatos"][:4])
 
 
 def md_verificar(d):

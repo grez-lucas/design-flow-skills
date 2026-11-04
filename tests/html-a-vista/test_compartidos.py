@@ -131,13 +131,11 @@ class PuestaAlDia(unittest.TestCase):
     def tokens_desde_la_tabla(self, consolidacion):
         """El `tokens.css` que sale de la tabla de consolidación cuando producto acepta cada grupo: un token por grupo
         de color en su tema, uno por medida propuesta y, para cada rol del components.css viejo (Q133), el primer
-        candidato del mockup. Un rol sin candidato lo decide producto en la tabla; aquí, el primer valor del mockup de
-        su tipo."""
+        candidato del mockup, o el valor por defecto del navegador si el mockup no tiene uno (Q134)."""
         bloques = {}
-        respaldo = {"color": consolidacion["colores"][0]["representante"], "medida": consolidacion["medidas"][0]["propuesta"]}
         for rol in consolidacion["roles"]:
-            valor = (rol["candidatos"] or [respaldo.get(rol["tipo"], "inherit")])[0]
-            bloques.setdefault(":root", []).append(f"{rol['token']}: {valor};")
+            self.assertTrue(rol["candidatos"], rol["token"])
+            bloques.setdefault(":root", []).append(f"{rol['token']}: {rol['candidatos'][0]};")
         for n, grupo in enumerate(consolidacion["colores"], 1):
             bloques.setdefault(grupo["tema"], []).append(f"--color-mockup-{n}: {grupo['representante']};")
         for n, medida in enumerate(consolidacion["medidas"], 1):
@@ -166,7 +164,8 @@ class PuestaAlDia(unittest.TestCase):
         r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "consolidar"], *estilos,
                    "--roles", self.repo / "design" / "components.css", "--json")
         self.assertEqual(r.returncode, 0, r.stderr)
-        (self.repo / "design" / "tokens.css").write_text(self.tokens_desde_la_tabla(json.loads(r.stdout)), encoding="utf-8")
+        consolidacion = json.loads(r.stdout)
+        (self.repo / "design" / "tokens.css").write_text(self.tokens_desde_la_tabla(consolidacion), encoding="utf-8")
 
         r = correr(self.orden("comparar"), self.repo)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -175,8 +174,22 @@ class PuestaAlDia(unittest.TestCase):
         self.assertEqual(faltan & usados, set(), "la puesta al día agregaría con valores de la plantilla tokens que usa el components.css viejo")
         self.assertTrue(json_cambios(r))
         self.poner_al_dia()
+        tokens = (self.repo / "design" / "tokens.css").read_text(encoding="utf-8")
+        declarados = dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+);", tokens))
+        for rol in consolidacion["roles"]:
+            with self.subTest(rol=rol["token"]):
+                self.assertEqual(declarados.get(rol["token"]), rol["candidatos"][0], "el rol no quedó con el valor del mockup")
+        for n, grupo in enumerate(consolidacion["colores"], 1):
+            self.assertEqual(declarados.get(f"--color-mockup-{n}"), grupo["representante"])
         r = correr([sys.executable, "-B", SKILL / "scripts" / "tokens.py", "mapear", self.repo / "design" / "tokens.css"], *estilos, "--json")
         self.assertEqual(r.returncode, 0, r.stderr)
+        colores = [v for v in json.loads(r.stdout)["valores"] if v["tipo"] == "color"]
+        self.assertTrue(colores)
+        for v in colores:
+            with self.subTest(valor=v["valor"]):
+                self.assertTrue(v["dentro"], v)
+                self.assertEqual(declarados.get(v["token"]), v["valor_token"])
+                self.assertNotIn(v["token"], faltan, "un color del mockup se mapeó a un token de la plantilla")
         self.integrar()
         r = self.revisar()
         self.assertEqual(r.returncode, 0, r.stdout)
