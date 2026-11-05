@@ -625,14 +625,15 @@ class DetencionesDeSpecATickets(unittest.TestCase):
     def test_sin_spec_propone_armarlo_con_grilling_y_vuelve(self):
         paso = seccion(self.texto, "1. Conseguir el spec", 3)
         self.assertRegex(paso, r"Si no existe, detente y propón armarlo con `grilling-es` en esta sesión")
-        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje\.")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`, o con \"Skills hermanas\" si no está, y vuelve a este paso con el spec que deje\.")
         self.assertRegex(paso, r"Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket\.")
 
     def test_un_spec_blando_vuelve_a_grilling_con_el_si_y_repite_los_controles(self):
         paso = seccion(self.texto, "2. Revisar que el spec alcance", 3)
         self.assertRegex(paso, r"Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con "
                                r"`grilling-es` en esta sesión, sobre esos huecos\.")
-        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es` y, con el spec que deje, vuelve a correr los cuatro controles\.")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`, o con \"Skills hermanas\" si no está, y, con el spec que deje, vuelve "
+                               r"a correr los cuatro controles\.")
         self.assertNotIn("sugiere volver a `grilling-es`", paso)
 
     def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
@@ -703,7 +704,7 @@ class DetencionesDeSpecAHtml(unittest.TestCase):
     def test_sin_spec_propone_armarlo_con_grilling_y_vuelve(self):
         paso = seccion(self.texto, "1. Conseguir el spec", 3)
         self.assertRegex(paso, r"Si no existe, detente y propón armarlo con `grilling-es` en esta sesión")
-        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje\.")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`, o con \"Skills hermanas\" si no está, y vuelve a este paso con el spec que deje\.")
         self.assertNotIn("Sin spec no avances", paso)
 
     def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
@@ -717,7 +718,8 @@ class DetencionesDeSpecAHtml(unittest.TestCase):
         paso = seccion(self.texto, "3. Crear o editar", 3)
         self.assertRegex(paso, r"Detente antes de editar y propón seguir en esta sesión con `grilling-es` y después con "
                                r"`spec-a-tickets`")
-        self.assertRegex(paso, r"Con el sí, síguelas y vuelve a este paso cuando el spec o los tickets digan el cambio\.")
+        self.assertRegex(paso, r"Con el sí, síguelas, o sigue \"Skills hermanas\" si falta alguna, y vuelve a este paso cuando el spec o los "
+                               r"tickets digan el cambio\.")
         self.assertRegex(paso, r"Sin el sí, queda detenida y di qué quedó sin hacer: la vista no se editó\.")
 
     def test_el_criterio_de_un_ticket_se_aplica_con_el_si_antes_de_la_vista(self):
@@ -762,12 +764,7 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
     def test_si_faltan_las_hermanas_ofrece_instalar_el_plugin_completo(self):
         """Q154."""
         pasos = seccion(self.texto, "Pasos", 2).split("### 1.")[0]
-        self.assertRegex(pasos, r"Si no están, detente y propón instalar el plugin completo")
-        for orden in ("`claude plugin marketplace add grez-lucas/design-flow-skills`",
-                      "`claude plugin install flujo-diseno@design-flow-skills`",
-                      "`npx skills@latest add grez-lucas/design-flow-skills -a <agente>`"):
-            self.assertIn(orden, pasos)
-        self.assertRegex(pasos, r"pide reiniciar la sesión y, en la nueva, vuelve a probar")
+        self.assertRegex(pasos, r"Si no están, sigue \"Skills hermanas\"")
         self.assertNotIn("pide instalar el flujo completo antes de seguir", pasos)
 
     def test_sin_subagentes_explica_en_que_cliente_si_los_hay(self):
@@ -937,6 +934,47 @@ class ReadmeSinContradicciones(unittest.TestCase):
         for nombre, texto in (("Requisitos", self.requisitos), ("Acceso", self.acceso)):
             with self.subTest(seccion=nombre):
                 self.assertEqual(DetencionesConArreglo.FORMA_VIEJA.findall(texto), [])
+
+
+class SkillsHermanas(unittest.TestCase):
+    """Q154 y M5: cada skill dice, con el mismo párrafo, cómo comprueba que una hermana esté instalada y cómo la instala
+    con el sí; y cada vez que sigue con una hermana remite a ese párrafo, porque con `npx skills` se instalan de a una."""
+
+    SKILLS_DEL_FLUJO = ("checklist-diseno", "grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
+    DERIVA = re.compile(r"sigue con `(?:checklist-diseno|grilling-es|html-a-vista|spec-a-html|spec-a-tickets)`|síguelas")
+
+    def cuerpo(self, skill):
+        texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+        return seccion(texto, "Skills hermanas", 2).strip()
+
+    def test_cada_skill_lleva_el_mismo_parrafo_despues_del_interprete(self):
+        cuerpos = {skill: self.cuerpo(skill) for skill in self.SKILLS_DEL_FLUJO}
+        self.assertEqual(len(set(cuerpos.values())), 1, "el párrafo cambia entre skills")
+        for skill in self.SKILLS_DEL_FLUJO:
+            secciones = re.findall(r"^## (.+)$", (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8"), re.M)
+            self.assertEqual(secciones[:2], ["Intérprete de Python", "Skills hermanas"], skill)
+        parrafo = cuerpos["grilling-es"]
+        self.assertRegex(parrafo, r"Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de "
+                                  r"skills, o que exista `\.\./<hermana>/SKILL\.md` junto a esta skill\.")
+        for orden in ("`claude plugin marketplace add grez-lucas/design-flow-skills`",
+                      "`claude plugin install flujo-diseno@design-flow-skills`",
+                      "`npx skills@latest add grez-lucas/design-flow-skills -a <agente>`"):
+            self.assertIn(orden, parrafo)
+        self.assertRegex(parrafo, r"pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté")
+
+    def test_cada_derivacion_remite_al_parrafo(self):
+        for skill in self.SKILLS_DEL_FLUJO:
+            for ruta in [SKILLS / skill / "SKILL.md", *sorted((SKILLS / skill / "references").glob("*.md"))]:
+                for unidad in re.split(r"\n\s*\n|\n(?=- |\d+\. )", ruta.read_text(encoding="utf-8")):
+                    if self.DERIVA.search(unidad):
+                        with self.subTest(archivo=str(ruta.relative_to(RAIZ)), unidad=unidad[:60]):
+                            self.assertIn('"Skills hermanas"', unidad)
+
+    def test_html_a_vista_y_checklist_remiten_al_parrafo_por_sus_hermanas(self):
+        pasos = seccion((SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8"), "Pasos", 2).split("### 1.")[0]
+        self.assertRegex(pasos, r"Si no están, sigue \"Skills hermanas\"")
+        checklist = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("como dice el comienzo de los pasos de `html-a-vista`", checklist)
 
 
 if __name__ == "__main__":

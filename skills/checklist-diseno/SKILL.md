@@ -13,6 +13,10 @@ Quien la usa suele ser de producto. Habla en español y explica cada hallazgo po
 
 Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<intérprete> -c "import sys; assert sys.version_info >= (3, 9)"`, y usa el primero que sale sin error como `<intérprete>` en cada orden de esta skill y de sus `references/`, siempre con `-B`, para que Python no deje `__pycache__/` en la carpeta de la skill. Si ninguno pasa la prueba, no corras ninguna orden con Python y sigue lo que esta skill dice para cuando no encontraste intérprete.
 
+## Skills hermanas
+
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar. Si falta, detente y propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+
 ## Pasos
 
 ### 1. Qué revisar
@@ -98,7 +102,7 @@ La puesta al día de los compartidos:
 <intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py aplicar <repo-de-diseño>
 ```
 
-Si `../spec-a-html/` no está junto a esta skill, propón instalar el plugin completo, como dice el comienzo de los pasos de `html-a-vista`, y pide reiniciar la sesión; sin el sí, esas clases van al informe.
+Si `../spec-a-html/` no está junto a esta skill, sigue "Skills hermanas"; sin el sí, esas clases van al informe.
 
 Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el sí, escríbelo y vuelve a correr `revisar.py` sobre las vistas que tocaste; lo que siga bloqueando va al informe. Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste.
 
