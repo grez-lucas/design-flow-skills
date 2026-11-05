@@ -6,7 +6,9 @@ Qué hacer cuando `rama.py` o `git` no dejan guardar: el arreglo que propones, c
 
 - Antes de proponer
 - Error de rama.py
+- Antes de guardar
 - Otra rama o trabajo sin guardar
+- Principal adelantada
 - Sin servidor
 - Sin rama principal
 - Volver que falla
@@ -19,40 +21,89 @@ Qué hacer cuando `rama.py` o `git` no dejan guardar: el arreglo que propones, c
 
 ## Antes de proponer
 
-Quien opera la skill es de producto o de diseño y no arregla git a mano: cada caso de abajo es una detención con un arreglo que haces tú. No escribas en el repositorio hasta que `rama.py` devuelva `guardar` o `volver`. Explica en simple qué pasa, propón el arreglo y aplícalo solo con el sí; después vuelve a correr la misma orden de `rama.py` y sigue con lo que devuelva. Sin el sí, o si el arreglo no se puede hacer desde la sesión, queda detenida y di qué quedó sin hacer: qué iba a guardar la skill y dónde está ahora, en el chat, en la carpeta de trabajo o en un commit que existe solo en esta máquina.
+Quien opera la skill es de producto o de diseño y no arregla git a mano: cada caso de abajo es una detención con un arreglo que haces tú. No escribas en el repositorio hasta que `rama.py` devuelva `guardar` o `volver` y pase "Antes de guardar". Explica en simple qué pasa, propón el arreglo y aplícalo solo con el sí; después vuelve a correr la misma orden de `rama.py` y sigue con lo que devuelva. Sin el sí, o si el arreglo no se puede hacer desde la sesión, queda detenida y di qué quedó sin hacer: qué iba a guardar la skill y dónde está ahora, en el chat, en la carpeta de trabajo o en un commit que existe solo en esta máquina.
+
+Donde dice `<rutas>`, van las que existen de `design/`, `specs/`, `.gitignore` y `.claude/pm-conventions.md`, las que la skill agrega a su commit. `<tipo>` y `<nombre>` son los de la orden de `rama.py` que corriste: el `--tipo`, y la `--epica` o, con `--mockup`, el mockup.
 
 ## Error de rama.py
 
-Si `rama.py` sale con error o no devuelve un JSON, detente sin escribir en el repositorio. Si el error es del nombre (mayúsculas, espacios, `/`, o un final en guion y número como `fase-2`, que se confunde con el sufijo de la rama), propón uno que sirva, en minúsculas y con guiones, por ejemplo `fase-dos` en lugar de `fase-2`, y úsalo también en las rutas de la épica, como `specs/<épica>/`. Con el sí, vuelve a correr la orden con ese nombre. Si el error dice que no encuentra `git`, o `git --version` no responde, propón instalarlo: `winget install Git.Git` en Windows, `brew install git` en macOS (o `xcode-select --install` sin Homebrew), y el gestor del sistema en Linux, como `sudo apt install git` o `sudo dnf install git`. Con el sí, instálalo y repite `git --version`; si responde, vuelve a correr la orden de `rama.py`. En Windows la terminal ve `git` recién al reabrirla: si la prueba sigue fallando después de instalar, di que hay que reabrir la sesión. Con otro error, explica en simple qué dice; si se puede arreglar desde la sesión, propón cómo y, con el sí, arréglalo y vuelve a correr la orden. Sin el sí, o si no se puede arreglar desde la sesión, queda detenida y di qué quedó sin hacer.
+Si `rama.py` sale con error o no devuelve un JSON, no escribas en el repositorio y corre primero `git --version`: el error de un `git` que falta no siempre lo nombra, como en Windows, donde dice solo que no encontró un archivo.
+
+- Si `git --version` no responde, falta git: propón instalarlo, con `winget install Git.Git` en Windows, `brew install git` en macOS (o `xcode-select --install` sin Homebrew), y el gestor del sistema en Linux, como `sudo apt install git` o `sudo dnf install git`. Con el sí, instálalo y repite `git --version`; si responde, vuelve a correr la orden de `rama.py`. En Windows la terminal ve `git` recién al reabrirla: si la prueba sigue fallando después de instalar, di que hay que reabrir la sesión y qué quedó sin hacer.
+- Si el error es del nombre (mayúsculas, espacios, `/`, o un final en guion y número como `fase-2`, que se confunde con el sufijo de la rama), propón uno que sirva, en minúsculas y con guiones, por ejemplo `fase-dos` en lugar de `fase-2`, y úsalo también en las rutas de la épica, como `specs/<épica>/`. Con el sí, vuelve a correr la orden con ese nombre.
+- Con otro error, explica en simple qué dice. Si tiene arreglo, propón cómo y, con el sí, arréglalo y vuelve a correr la orden. Si el error no se puede arreglar desde la sesión, queda detenida, di qué quedó sin hacer y, si es del servidor, redacta el pedido al TL; cuando esté resuelto, vuelve a correr la orden.
+
+Sin el sí a cualquiera de esos arreglos, queda detenida sin escribir en el repositorio y di qué quedó sin hacer.
+
+## Antes de guardar
+
+Con `guardar`, o después de volver a la principal con `volver`, mira dos cosas antes de escribir, porque las dos entrarían en el commit de la skill con su mensaje. Primero, si hay trabajo sin guardar en lo que la skill va a agregar:
+
+```
+git status --porcelain -- <rutas>
+```
+
+Si responde algo, es trabajo de otra persona o de una sesión anterior: detente, explica qué archivos son y propón apartarlos como dice "Otra rama o trabajo sin guardar". Con el sí, apártalos y vuelve a correr la misma orden de `rama.py`. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer.
+
+Después, si la rama actual es la principal (la de `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/` del comienzo), mira si tiene commits que el servidor no tiene:
+
+```
+git rev-list --count origin/<principal>..<principal>
+```
+
+Si da más de 0, sigue "Principal adelantada". Si no responde nada y da 0, guarda.
 
 ## Otra rama o trabajo sin guardar
 
-Motivos `otra-rama`, `sin-rama`, `commits-sin-empujar` y `cambios-sin-guardar`: la copia está en una rama que no es la principal ni una de este trabajo, en ninguna rama, en una rama que ya no está en el servidor y tiene commits que el servidor no tiene, o con cambios sin guardar. Detente, explica en simple en qué rama estás y qué hay ahí que no está en el servidor, y propón apartarlo en una rama propia y guardar desde la principal. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer. No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo encuentra después.
+Motivos `otra-rama`, `sin-rama`, `commits-sin-empujar` y `cambios-sin-guardar`, y el trabajo sin guardar de "Antes de guardar": la copia está en una rama que no es la principal ni una de este trabajo, en ninguna rama, en una rama que ya no está en el servidor y tiene commits que el servidor no tiene, o con cambios sin guardar. Detente, explica en simple en qué rama estás y qué hay ahí que no está en el servidor, y propón apartarlo en una rama propia y guardar desde la rama del flujo. Con el sí, sigue los pasos de abajo y vuelve a correr la misma orden de `rama.py`. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer. No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo encuentra después.
 
 Con el sí, desde el repositorio de diseño:
 
-1. Mira los cambios con `git status --short`. Los que no empiezan con `??` son de archivos que el repositorio ya sigue; los que empiezan con `??` no se agregan, porque no son del repositorio y pueden ser la instalación de las skills (`.agents/`, `.claude/skills/`).
-2. Si hay cambios de archivos que el repositorio sigue, o el motivo es `sin-rama`, crea la rama del apartado donde estás, con `git switch -c apartado/<rama>`: `<rama>` es la rama actual con cada `/` cambiada por `-`, o `sin-rama`, y si ese nombre ya existe, usa el primer sufijo libre (`-2`, `-3`). Si hay cambios, guárdalos ahí con `git add -u` y `git commit -m "Apartado: lo que había en <rama> antes de guardar"`. Si no hay cambios y la copia está en una rama, no hace falta apartar nada: sus commits siguen en esa rama.
-3. Busca la rama principal del servidor con `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/` del comienzo; si no responde, la nombra la línea de HEAD de `git remote show origin`. Corre `git switch <principal>` y `git pull --ff-only`.
-4. Vuelve a correr la misma orden de `rama.py` y sigue con la `accion` que devuelva.
+1. Si `git status --short` muestra cambios, o el motivo es `sin-rama`, crea la rama del apartado donde estás y guarda ahí lo que había. Los cambios de archivos que el repositorio ya sigue van con `git add -u`, y los archivos nuevos (`??`) de `<rutas>` con `git add -A`; los demás `??` no se agregan, porque pueden ser la instalación de las skills (`.agents/`, `.claude/skills/`, `skills-lock.json`):
 
-Di dónde quedó lo anterior: en `apartado/<rama>` con sus archivos, o en `<rama>` si no hubo que apartar nada, y que una rama que creaste tú existe solo en esta máquina. Si un comando falla y el arreglo no se puede hacer desde la sesión, queda detenida: di en qué rama quedaste, qué quedó apartado y qué quedó sin hacer.
+   ```
+   git switch -c apartado/<rama>
+   git add -u
+   git add -A -- <rutas>
+   git commit -m "Apartado: lo que había en <rama> antes de guardar"
+   ```
+
+   `<rama>` es la rama actual con cada `/` cambiada por `-`, o `sin-rama`, y si ese nombre ya existe, usa el primer sufijo libre (`-2`, `-3`). Si no hay cambios (`git diff --cached --quiet` sale con 0 después de agregar), no hagas el commit. Si no hay cambios y la copia está en una rama, no hace falta apartar nada: sus commits siguen en esa rama.
+2. Vuelve a la rama del flujo. Si saliste de una rama donde `rama.py` había dicho `guardar`, la del flujo es esa: vuelve con `git switch <rama>`, con su nombre de antes del apartado. Si no, mira si el servidor tiene una rama del flujo de este trabajo:
+
+   ```
+   git branch -r --list "origin/<tipo>/<nombre>" "origin/<tipo>/<nombre>-[0-9]*"
+   ```
+
+   Si responde una, vuelve a ella con `git switch <tipo>/<nombre>`, sin el `origin/`: git la crea siguiendo la del servidor. Si responde más de una, muéstralas y pregunta en cuál guardar. Si no responde ninguna, la rama del flujo es la principal (la de `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/`; si no responde, la nombra la línea de HEAD de `git remote show origin`): corre `git switch <principal>` y `git pull --ff-only`.
+3. Vuelve a correr la misma orden de `rama.py`, sigue con la `accion` que devuelva y repite "Antes de guardar".
+
+Di dónde quedó lo anterior: en `apartado/<rama>` con sus archivos, o en `<rama>` si no hubo que apartar nada, y que una rama que creaste tú existe solo en esta máquina. Si un comando falla y el arreglo no se puede hacer desde la sesión, queda detenida: di en qué rama quedaste, qué quedó apartado y qué quedó sin hacer, y vuelve a correr la misma orden de `rama.py` cuando se resuelva.
+
+## Principal adelantada
+
+La principal de esta copia tiene commits que el servidor no tiene: `git push` los subiría junto con lo de la skill. Detente, muéstralos con `git log --oneline origin/<principal>..<principal>` y propón apartarlos. Con el sí, guárdalos primero en una rama propia, con el primer sufijo libre si `apartado/<principal>` ya existe, y después iguala la principal al servidor; nada se pierde, porque esos commits quedan en el apartado. Vuelve a correr `git rev-list --count origin/<principal>..<principal>`, que ahora da 0, y la misma orden de `rama.py`, y di dónde quedaron. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer.
+
+```
+git branch apartado/<principal>
+git switch -C <principal> origin/<principal>
+```
 
 ## Sin servidor
 
 Motivo `sin-servidor`. Si el `detalle` dice que el repositorio no tiene un servidor `origin` configurado, la skill no tiene adónde guardar, y dónde vive el repositorio y quién tiene acceso lo decide el TL: el arreglo no se puede hacer desde la sesión. Detente, redacta el pedido al TL (sección "Pedido al TL") y di qué quedó sin hacer. Cuando el TL configure el servidor, vuelve a correr la misma orden de `rama.py`.
 
-Si el `detalle` dice que git no pudo hablar con el servidor, explica en simple el mensaje de git: suele ser la red, la VPN o el certificado del servidor. Propón probar de nuevo, y con el sí vuelve a correr la misma orden de `rama.py`. Si sigue fallando, el arreglo no se puede hacer desde la sesión: queda detenida, redacta el pedido al TL con el mensaje de git y di qué quedó sin hacer.
+Si el `detalle` dice que git no pudo hablar con el servidor, explica en simple el mensaje de git: suele ser la red, la VPN o el certificado del servidor. Propón probar de nuevo, y con el sí vuelve a correr la misma orden de `rama.py`. Si sigue fallando, el arreglo no se puede hacer desde la sesión: queda detenida, redacta el pedido al TL con el mensaje de git y di qué quedó sin hacer; cuando el TL lo resuelva, vuelve a correr la orden.
 
 ## Sin rama principal
 
-Motivo `sin-principal`: el servidor no dice cuál es su rama principal, y eso se configura en el servidor, no desde la sesión. Detente, redacta el pedido al TL y di qué quedó sin hacer. Cuando el TL lo configure, vuelve a correr la misma orden de `rama.py`.
+Motivo `sin-principal`: el servidor no dice cuál es su rama principal. Eso se configura en el servidor y no se puede hacer desde la sesión. Detente, redacta el pedido al TL y di qué quedó sin hacer. Cuando el TL lo configure, vuelve a correr la misma orden de `rama.py`.
 
 ## Volver que falla
 
-Con `volver`, si `git switch <principal>` falla porque hay cambios sin guardar que chocan con la principal, es el caso de "Otra rama o trabajo sin guardar": detente y propón apartarlos con esos pasos, y con el sí sigue desde el paso 1. Sin el sí, queda detenida y di qué quedó sin hacer.
+Con `volver`, si `git switch <principal>` falla porque hay cambios sin guardar que chocan con la principal, detente y propón apartarlos como dice "Otra rama o trabajo sin guardar". Con el sí, apártalos con el paso 1, vuelve a la principal y vuelve a correr la misma orden de `rama.py`. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer.
 
-Si `git pull --ff-only` falla porque la principal de esta copia tiene commits que el servidor no tiene, detente y propón apartarlos. Con el sí, primero `git branch apartado/<principal>` los deja en una rama propia, con el primer sufijo libre si ya existe, y después `git switch -C <principal> origin/<principal>` la iguala al servidor; nada se pierde, porque esos commits quedaron en el apartado. Vuelves a correr la misma orden de `rama.py` y dices dónde quedaron. Sin el sí, queda detenida y di qué quedó sin hacer. Si falla por otro motivo, como la red, sigue "Sin servidor".
+Si `git pull --ff-only` falla porque la principal de esta copia tiene commits que el servidor no tiene, es "Principal adelantada": apártalos con el sí y vuelve a correr la misma orden de `rama.py`. Si falla por otro motivo, como la red, sigue "Sin servidor".
 
 ## Push sin credenciales
 
@@ -60,11 +111,15 @@ Si `git push` falla por credenciales, porque el servidor no reconoce el usuario 
 
 ## Rama nueva
 
-Con `rama-nueva`, `SKILL.md` dice qué comandos pasan el commit a la rama nueva. Antes de correrlos, explica en simple que el servidor no aceptó el cambio en esa rama y propón pasarlo a `rama_nueva`, donde el TL lo revisa en un merge request. Con el sí, córrelos y vuelve a correr `git status -sb` para confirmar que la rama nueva quedó igual que en el servidor. Sin el sí a la rama nueva, queda detenida y di qué quedó sin hacer: el commit existe solo en esta máquina, en la rama actual. Si `git switch -c <rama_nueva>` o `git push -u origin <rama_nueva>` fallan, queda detenida, di en qué rama quedó el commit y qué quedó sin hacer; si es por credenciales, sigue "Push sin credenciales", que no se arregla desde la sesión.
+Con `rama-nueva`, `SKILL.md` dice qué comandos pasan el commit a la rama nueva. Antes de correrlos, explica en simple que el servidor no aceptó el cambio en esa rama y propón pasarlo a `rama_nueva`, donde el TL lo revisa en un merge request. Con el sí, córrelos y vuelve a correr `git status -sb` para confirmar que la rama nueva quedó igual que en el servidor.
+
+Sin el sí a la rama nueva, queda detenida y di qué quedó sin hacer: el commit existe solo en esta máquina, en la rama actual.
+
+Si `git switch -c <rama_nueva>` falla porque esa rama ya existe en esta copia, propón pedir otra: con el sí, vuelve a correr la orden de `rama.py` con `rechazo`, que da el primer nombre libre. Si `git push -u origin <rama_nueva>` falla por credenciales, sigue "Push sin credenciales". Con cualquier otro fallo que no se puede arreglar desde la sesión, queda detenida, di en qué rama quedó el commit y qué quedó sin hacer, y vuelve a correr el comando que falló cuando se resuelva.
 
 ## Rama nueva rechazada
 
-`parar` después de un rechazo, con el motivo `rama-nueva-rechazada`: el servidor no aceptó tampoco la rama nueva, y crear ramas en el servidor es un permiso que da el TL, no algo que se arregla desde la sesión. Detente, di qué quedó sin hacer (el commit existe solo en esta máquina, en la rama actual) y redacta el pedido al TL. Cuando el TL dé el permiso, vuelve a correr `git push -u origin <rama_nueva>`, con la rama actual como `<rama_nueva>`.
+`parar` después de un rechazo, con el motivo `rama-nueva-rechazada`: el servidor no aceptó tampoco la rama nueva. Crear ramas en el servidor es un permiso que da el TL, y eso no se puede hacer desde la sesión. Detente, di qué quedó sin hacer (el commit existe solo en esta máquina, en la rama actual) y redacta el pedido al TL. Cuando el TL dé el permiso, vuelve a correr `git push -u origin <rama_nueva>`, con la rama actual como `<rama_nueva>`.
 
 ## Pedido al TL
 
@@ -86,3 +141,4 @@ Qué falta, según el caso:
 - Sin rama principal: que el servidor declare cuál es su rama principal.
 - Credenciales: acceso para empujar al repositorio de diseño con el usuario de esta máquina.
 - Rama nueva rechazada: permiso para crear ramas en el repositorio de diseño, o para empujar a la rama actual.
+- Una regla que ignora `.claude/pm-conventions.md` fuera del `.gitignore` de la raíz: que deje de ignorarlo, con la línea que mostró `git check-ignore -v`.
