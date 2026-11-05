@@ -349,11 +349,9 @@ class LlamadaARama(unittest.TestCase):
     PASO_DE_LA_RAMA = MensajeYRamaDelCommit.PASO_DE_LA_RAMA
     PASO_GUARDAR = MensajeYRamaDelCommit.PASO_GUARDAR
     INTERPRETE = Interprete.SIN_PYTHON_AL_GUARDAR
-    SI_FALLA = "Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes"
-    # Issue 42, Q143 y Q144: las skills ya barridas detienen, proponen el arreglo de `references/rama.md` y siguen.
-    CON_ARREGLO = {"grilling-es", "spec-a-tickets", "spec-a-html"}
-    SI_FALLA_CON_ARREGLO = ("Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin "
-                            "escribir en el repositorio")
+    # Issue 42, Q143 y Q144: se detiene, propone el arreglo de `references/rama.md` y sigue con el sí.
+    SI_FALLA = ("Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el "
+                "repositorio")
 
     def paso(self, skill, nombre):
         return MensajeYRamaDelCommit.paso(self, skill, nombre)
@@ -385,14 +383,13 @@ class LlamadaARama(unittest.TestCase):
                 rama = self.tras(skill, self.PASO_DE_LA_RAMA[skill], "revisar")
                 self.assertIn("guarda en la rama actual", self.accion(rama, "guardar"))
                 volver = self.accion(rama, "volver")
-                falla = ("Si uno falla, sigue `references/rama.md`, sección \"Volver que falla\"" if skill in self.CON_ARREGLO
-                         else "Si uno falla, para y explica")
-                for fragmento in ("`git switch <principal>`", "`git pull --ff-only`", falla):
+                for fragmento in ("`git switch <principal>`", "`git pull --ff-only`",
+                                  "Si uno falla, sigue `references/rama.md`, sección \"Volver que falla\""):
                     self.assertIn(fragmento, volver)
                 parar = self.accion(rama, "parar")
-                ayuda = "`references/rama.md`" if skill in self.CON_ARREGLO else "el TL dice cómo seguir"
-                for fragmento in ("no escribas", "`detalle`", ayuda):
+                for fragmento in ("no escribas", "`detalle`", "`references/rama.md`"):
                     self.assertIn(fragmento, parar)
+                self.assertNotIn("el TL dice cómo seguir", parar)
 
     def test_sin_python_para_y_no_guarda(self):
         """Q105: `python3`, `python` y `py -3`, en ese orden, el primero con Python 3.9 o superior; si ninguno, para."""
@@ -416,21 +413,16 @@ class LlamadaARama(unittest.TestCase):
         for skill in self.TIPOS:
             with self.subTest(skill=skill):
                 rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
-                si_falla = self.SI_FALLA_CON_ARREGLO if skill in self.CON_ARREGLO else self.SI_FALLA
-                self.assertIn(si_falla, rama)
-                self.assertLess(rama.index(si_falla), rama.index("- `guardar`: "))
+                self.assertIn(self.SI_FALLA, rama)
+                self.assertLess(rama.index(self.SI_FALLA), rama.index("- `guardar`: "))
 
     def test_si_el_nombre_termina_en_guion_y_numero_pide_otro(self):
         """Q104: `rama.py` rechaza `fase-2` y la skill pide otro nombre."""
         for skill in self.TIPOS:
             with self.subTest(skill=skill):
                 rama = self.paso(skill, self.PASO_DE_LA_RAMA[skill])
-                if skill in self.CON_ARREGLO:
-                    self.assertIn("si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar "
-                                  "de `fase-2`, y con el sí vuelve a correrlo", rama)
-                else:
-                    self.assertIn("si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo "
-                                  "`fase-dos` en lugar de `fase-2`, y vuelve a correrlo", rama)
+                self.assertIn("si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar "
+                              "de `fase-2`, y con el sí vuelve a correrlo", rama)
 
     def test_tras_un_rechazo_pide_la_rama_nueva_al_script(self):
         for skill, tipo in self.TIPOS.items():
@@ -447,9 +439,8 @@ class LlamadaARama(unittest.TestCase):
                 for fragmento in ("`git switch -c <rama_nueva>`", "`git push -u origin <rama_nueva>`",
                                   "`git branch -f <rama> origin/<rama>`", "merge request"):
                     self.assertIn(fragmento, nueva)
-                if skill in self.CON_ARREGLO:
-                    self.assertLess(nueva.index("Con el sí"), nueva.index("`git switch -c <rama_nueva>`"))
-                    self.assertIn("`references/rama.md`", nueva)
+                self.assertLess(nueva.index("Con el sí"), nueva.index("`git switch -c <rama_nueva>`"))
+                self.assertIn("`references/rama.md`", nueva)
                 parar = self.accion(guardar, "parar")
                 self.assertIn("el TL es quien da los accesos", parar)
                 self.assertIn("`detalle`", parar)
@@ -487,7 +478,9 @@ class LlamadaARama(unittest.TestCase):
         for fragmento in ("no guardes ahí", "Antes de escribir nada", "ofrece volver a la principal y guardar en `rama_nueva`",
                           "Solo con el sí de la persona", "`git switch <principal>`", "`git pull --ff-only`",
                           "`git switch -c <rama_nueva>`",
-                          "Sin el sí, o si un comando falla, para y explica en qué rama quedaste y que el TL dice cómo seguir."):
+                          "Sin el sí, queda detenida sin escribir en el repositorio y di en qué rama estás y qué quedó "
+                          "sin hacer: la conversión no empezó.",
+                          "Si un comando falla, sigue `references/rama.md`, sección \"Otra rama o trabajo sin guardar\"."):
             self.assertIn(fragmento, ofrecer)
         self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index("`git switch <principal>`"))
 
@@ -496,7 +489,7 @@ class LlamadaARama(unittest.TestCase):
         ofrecer = self.accion(self.tras("html-a-vista", "5", "revisar"), "ofrecer")
         revisa = "vuelve a correr la misma orden de `rama.py`"
         self.assertIn(revisa, ofrecer)
-        self.assertIn("si no devuelve otra vez `ofrecer`, para y explica por qué", ofrecer)
+        self.assertIn("si devuelve otra `accion`, sigue esa", ofrecer)
         self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index(revisa))
         self.assertLess(ofrecer.index(revisa), ofrecer.index("`git switch <principal>`"))
 

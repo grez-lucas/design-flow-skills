@@ -55,4 +55,4 @@ Las dos capturas van en el mismo tema. Captura primero el original y mira en qu�
 
 El original solo se captura en su estado inicial, salvo que la sesión tenga Playwright para hacer clic en el control que abre cada estado. El informe pone las capturas lado a lado (ruta del original y de la vista por escenario) y dice qué estados del original no se capturaron.
 
-Sin navegador, el inventario es la única verificación y el informe dice "la verificación se hizo sin render".
+Sin navegador, y sin el sí a instalarlo (paso 3 de `SKILL.md`), el inventario es la única verificación y el informe dice "la verificación se hizo sin render".
