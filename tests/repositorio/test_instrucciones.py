@@ -877,6 +877,34 @@ class CorreccionesDelChecklist(unittest.TestCase):
                                   r"como excepción: `Excepción: formato de ## Escenarios en pantalla en specs/<épica>/spec\.md, "
                                   r"congelado, sin cambiar lo que dice\.`")
 
+    def test_sin_repositorio_sin_vistas_o_fuera_del_repositorio_propone_el_arreglo(self):
+        """M4: Q144 y Q131 en `checklist-diseno`."""
+        que = seccion(self.texto, "1. Qué revisar", 3)
+        self.assertRegex(que, r"Si el producto no tiene repositorio de diseño, detente: no hay vistas que revisar, y "
+                              r"crearlo lo decide el TL, así que no se hace desde la sesión\.")
+        self.assertIn('`references/rama.md`, sección "Pedido al TL"', que)
+        mecanica = seccion(self.texto, "2. Revisión mecánica", 3)
+        self.assertRegex(mecanica, r"Si `revisar\.py` dice que no hay vistas en `design/vistas/<épica>/`, detente: no hay "
+                                   r"qué revisar\.")
+        self.assertRegex(mecanica, r"propón moverlos a `design/vistas/<épica>/`; con el sí, muévelos y vuelve a correr "
+                                   r"`revisar\.py`")
+        self.assertRegex(mecanica, r"propón dibujarlas con `spec-a-html`[^\n]*?o convertirlas con `html-a-vista`")
+        self.assertRegex(mecanica, r"Si `revisar\.py` lista vistas fuera del repositorio, no las revisa: propón la ruta "
+                                   r"equivalente dentro del repositorio de diseño")
+
+    def test_un_valor_que_comparten_dos_tokens_va_al_informe(self):
+        """M7: elegir entre dos tokens con el mismo valor es de producto (Q146)."""
+        valores = next(l for l in self.paso.splitlines() if l.startswith("- **Valores sueltos**"))
+        self.assertRegex(valores, r"igual al valor de un solo token de `tokens\.css`")
+        self.assertRegex(valores, r"Si dos o más tokens tienen ese valor \(`--space-4` y `--radius-lg` en `16px`\), "
+                                  r"elegir es de producto: va al informe")
+
+    def test_los_compartidos_de_varias_epicas_entran_en_el_primer_commit(self):
+        """B4."""
+        guardar = seccion(self.texto, "Guardar", 3)
+        self.assertRegex(guardar, r"Lo que trae la puesta al día de los compartidos[^\n]*?es de todas las épicas: entra en "
+                                  r"el commit de la primera, y su mensaje lo dice\.")
+
     def test_lo_que_no_es_mecanico_sigue_en_el_informe(self):
         """Q158."""
         self.assertRegex(self.paso, r"El JavaScript propio, los recursos externos y las metas de tickets y spec no son "

@@ -21,7 +21,9 @@ Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec
 
 ### 1. Qué revisar
 
-Trabaja en el repositorio de diseño (tiene `design/` en la raíz). Si la persona nombra una épica o una vista, revisa esas; si no, pregunta si revisas todo `design/vistas/` o solo lo que cambió desde la última planificación. Para lo que cambió, `git log` y `git diff` del repositorio de diseño lo muestran.
+Trabaja en el repositorio de diseño (tiene `design/` en la raíz). Si el directorio actual no lo es, pregunta dónde está. Si el producto no tiene repositorio de diseño, detente: no hay vistas que revisar, y crearlo lo decide el TL, así que no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: no se revisó nada. Cuando exista, vuelve a correr este paso.
+
+Si la persona nombra una épica o una vista, revisa esas; si no, pregunta si revisas todo `design/vistas/` o solo lo que cambió desde la última planificación. Para lo que cambió, `git log` y `git diff` del repositorio de diseño lo muestran.
 
 ### 2. Revisión mecánica
 
@@ -30,6 +32,10 @@ Corre el script incluido:
 ```
 <intérprete> -B <ruta-de-esta-skill>/scripts/revisar.py <repo-de-diseño> [vistas...]
 ```
+
+Si `revisar.py` dice que no hay vistas en `design/vistas/<épica>/`, detente: no hay qué revisar. Si hay archivos HTML sueltos en `design/` o en la raíz del repositorio, propón moverlos a `design/vistas/<épica>/`; con el sí, muévelos y vuelve a correr `revisar.py`. Si no hay ninguno, propón dibujarlas con `spec-a-html`, si la épica tiene spec, o convertirlas con `html-a-vista`, si hay un mockup; con el sí, sigue con esa skill, o con "Skills hermanas" si no está, y vuelve a este paso. Sin el sí, queda detenida y di qué quedó sin hacer: no se revisó ninguna vista.
+
+Si `revisar.py` lista vistas fuera del repositorio, no las revisa: propón la ruta equivalente dentro del repositorio de diseño, la misma `design/vistas/<épica>/<vista>.html`, o abrir el repositorio correcto. Con el sí, vuelve a correr `revisar.py` con esa ruta. Sin el sí, el informe las nombra como no revisadas.
 
 Confirma cada BLOQUEA leyendo la línea antes de pasarlo al informe: el script puede equivocarse con SVG, consultas de contenedor o comentarios. Si descartas un hallazgo, dilo en una línea con el motivo.
 
@@ -87,7 +93,7 @@ Sin Python no hay cómo guardar: las correcciones van al informe como bloqueos, 
 Los bloqueos mecánicos:
 
 - **Enlaces**: la vista no enlaza `tokens.css`, `components.css` o `proto.js`. Agrega el `<link>` o el `<script>` que falta, con la ruta relativa desde su carpeta (`../../tokens.css`). Una hoja o un script ajeno no se borra: pinta o mueve algo, y va al informe.
-- **Valores sueltos**: un color o una medida igual al valor de un token de `tokens.css` se reemplaza por su `var(--token)`. Un valor sin token igual va al informe: elegir el token más cercano o crear uno es una decisión de producto.
+- **Valores sueltos**: un color o una medida igual al valor de un solo token de `tokens.css` se reemplaza por su `var(--token)`. Si dos o más tokens tienen ese valor (`--space-4` y `--radius-lg` en `16px`), elegir es de producto: va al informe. Un valor sin token igual va al informe: elegir el token más cercano o crear uno es una decisión de producto.
 - **Animaciones**: un `@keyframes` se quita, con la propiedad `animation` que lo usa, y en su lugar queda un comentario que dice qué se mueve y cuándo, como pide la convención de vista.
 - **Clases sin regla**: si la clase es de los compartidos de `spec-a-html` (`.modal`, `.toast-region` y las demás de su `assets/components.css`), la trae la puesta al día de `spec-a-html`, con su script y como en su paso 4: compara, muestra el cambio y escribe solo con el sí. Una clase que no es de los compartidos va al informe: su regla es diseño.
 - **Tabla de escenarios del spec**: un error de formato de `## Escenarios en pantalla` (las columnas, el separador, una fila sin tres columnas) se corrige en el formato, sin cambiar ningún slug, nombre ni alcance. Si el spec está congelado (abre con su línea `Congelado`), es la única edición que se le hace, como excepción, y el mensaje del commit la dice (paso 5). Un slug inválido o repetido, o un nombre que no es el de un `### Escenario` del spec, cambia lo que dice el spec: va al informe.
@@ -110,7 +116,7 @@ Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el 
 
 Si corregiste algo, haz commit y push a la rama actual del repositorio de diseño después de mostrar el resumen y pedir la confirmación, con el mensaje `diseno(<épica>): <resumen>`, por ejemplo `diseno(alertas): enlaces y valores sueltos del listado`. El mensaje dice qué vistas cambiaron y qué se corrigió en cada una. Si corregiste el formato de la tabla de un spec congelado, el cuerpo del mensaje lo dice como excepción: `Excepción: formato de ## Escenarios en pantalla en specs/<épica>/spec.md, congelado, sin cambiar lo que dice.` Si no corregiste nada, no hay commit.
 
-Si corregiste vistas de más de una épica, guarda una épica por commit: decide la rama del paso 4 para cada una antes de escribir sus correcciones, y guárdala antes de pasar a la siguiente, para que el merge request de cada épica revise solo lo suyo.
+Si corregiste vistas de más de una épica, guarda una épica por commit: decide la rama del paso 4 para cada una antes de escribir sus correcciones, y guárdala antes de pasar a la siguiente, para que el merge request de cada épica revise solo lo suyo. Lo que trae la puesta al día de los compartidos (`tokens.css`, `components.css`, `proto.js`) es de todas las épicas: entra en el commit de la primera, y su mensaje lo dice.
 
 Agrega solo lo que corregiste: `git add design/`, y `git add specs/<épica>/` si corregiste la tabla de un spec; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit.
 
