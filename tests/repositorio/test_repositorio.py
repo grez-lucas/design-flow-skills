@@ -306,9 +306,10 @@ class MensajeYRamaDelCommit(unittest.TestCase):
     def test_el_readme_explica_la_rama_de_una_sola_de_varias_epicas(self):
         """Q97 en el README: no guarda, para, ofrece la principal y cambia solo con el sí y el árbol sin cambios."""
         readme = self.readme()
-        self.assertIn("no guarda ahí: para, lo explica y ofrece volver a la principal y guardar en `diseno/<mockup>`",
+        self.assertIn("no guarda ahí: se detiene, lo explica y ofrece volver a la principal y guardar en `diseno/<mockup>`",
                       readme)
-        self.assertIn("cambia de rama solo con el sí de la persona y sin cambios sin guardar", readme)
+        # Q143: los cambios sin guardar ya no impiden cambiar de rama, se apartan.
+        self.assertIn("cambia de rama solo con el sí de la persona, y si hay cambios sin guardar los aparta antes", readme)
 
     def test_ningun_ejemplo_usa_otro_tipo_de_commit(self):
         """Q86: un ejemplo `feat: ...` o `docs(x): ...` contradice el tipo fijo de cada skill, con o sin paréntesis."""

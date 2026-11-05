@@ -860,5 +860,42 @@ class CorreccionesDelChecklist(unittest.TestCase):
         self.assertIn("`diseno(<épica>): <resumen>`", guardar)
 
 
+class ReadmeSinContradicciones(unittest.TestCase):
+    """Issue 42: el README describe las detenciones como las dicen las skills (Q131, Q143, Q144, Q148, Q153, Q158)."""
+
+    def setUp(self):
+        self.readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.requisitos = seccion(self.readme, "Requisitos", 2)
+        self.acceso = seccion(self.readme, "Acceso de escritura al repositorio de diseño", 3)
+
+    def fila(self, comienzo):
+        filas = [l for l in self.requisitos.splitlines() if l.startswith(comienzo)]
+        self.assertEqual(len(filas), 1, comienzo)
+        return filas[0]
+
+    def test_otra_rama_se_aparta_y_sin_servidor_va_al_pedido_al_tl(self):
+        self.assertNotIn("En cualquier otra rama, para y lo explica.", self.acceso)
+        self.assertRegex(self.acceso, r"En cualquier otra rama, o con trabajo sin guardar, se detiene y propone apartar lo que "
+                                      r"había en una rama propia, `apartado/<rama>`, sin `git stash`")
+        self.assertRegex(self.acceso, r"redacta el pedido al TL, listo para copiar")
+
+    def test_la_rama_nueva_va_con_el_si(self):
+        self.assertRegex(self.acceso, r"la skill propone pasar el commit a una rama nueva[^\n]*?y, con el sí de la persona, la empuja")
+        self.assertNotIn("la skill para y explica que el TL da los accesos", self.acceso)
+
+    def test_subagentes_navegador_y_node_dicen_el_arreglo(self):
+        """Q148 y Q153."""
+        self.assertRegex(self.fila("| Herramienta de subagentes"), r"explica en qué cliente sí los hay")
+        navegador = self.fila("| Chrome, Chromium o Playwright")
+        self.assertRegex(navegador, r"propone instalar Playwright, lo instala con el sí y repite la prueba")
+        self.assertRegex(navegador, r"con framework por CDN, sin el sí se detiene")
+        self.assertRegex(self.fila("| Node.js 22 o superior"), r"`spec-a-html` propone instalar Node\.js")
+
+    def test_ninguna_detencion_del_readme_esta_escrita_de_otra_forma(self):
+        for nombre, texto in (("Requisitos", self.requisitos), ("Acceso", self.acceso)):
+            with self.subTest(seccion=nombre):
+                self.assertEqual(DetencionesConArreglo.FORMA_VIEJA.findall(texto), [])
+
+
 if __name__ == "__main__":
     unittest.main()
