@@ -78,8 +78,8 @@ class CapturasEnSpecAHtml(unittest.TestCase):
         self.assertIn("full_page=True", self.capturas)
 
     def test_dice_como_saber_si_hay_navegador(self):
-        self.assertIn("command -v google-chrome chromium chromium-browser", self.capturas)
-        self.assertRegex(self.capturas, r"`<intérprete> -B -c \"import playwright\"`")
+        """M6: la prueba sigue `references/navegador.md`, que abre el navegador de verdad."""
+        self.assertRegex(self.capturas, r"Para saber si hay navegador, sigue `references/navegador\.md`, sección \"Probar\"")
 
     def test_las_capturas_quedan_en_la_carpeta_de_trabajo_fuera_del_repositorio(self):
         destinos = re.findall(r"--screenshot=(\S+)", self.capturas)
@@ -100,9 +100,8 @@ class CapturasEnSpecAHtml(unittest.TestCase):
 
     def test_sin_navegador_propone_instalarlo_y_repite_la_prueba(self):
         """Q153: propone instalar lo que falta, lo instala con el sí y repite la prueba; sin el sí, sigue como antes."""
-        self.assertRegex(self.capturas, r"Sin navegador en la sesión, propón instalar Playwright: con el sí, corre "
-                                        r"`pip install playwright` y `playwright install chromium`, y repite la prueba de "
-                                        r"`<intérprete> -B -c \"import playwright\"`\.")
+        self.assertRegex(self.capturas, r"Sin navegador en la sesión, propón instalarlo como dice `references/navegador\.md`, "
+                                        r"sección \"Instalar\": con el sí, instálalo y repite la prueba\.")
         self.assertRegex(self.capturas, r"Sin el sí, o si la prueba sigue fallando, dilo en una línea[^.]*y sigue\.")
 
     def test_si_la_captura_falla_prueba_con_otro_navegador(self):
@@ -793,9 +792,9 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
     def test_sin_navegador_propone_instalarlo_y_con_framework_sin_el_si_se_detiene(self):
         """Q153."""
         paso = seccion(self.texto, "3. Framework por CDN", 3)
-        self.assertRegex(paso, r"Sin navegador en la sesión \(Chrome, Chromium o Playwright\), detente antes de lanzar "
-                               r"subagentes: este mockup no se convierte sin render\. Propón instalar Playwright: con el "
-                               r"sí, corre `pip install playwright` y `playwright install chromium`, y repite la prueba")
+        self.assertRegex(paso, r"Sin navegador en la sesión, detente antes de lanzar subagentes: este mockup no se "
+                               r"convierte sin render\. Propón instalarlo como dice `references/navegador\.md`, sección "
+                               r"\"Instalar\": con el sí, instálalo y repite la prueba")
         self.assertRegex(paso, r"Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y "
                                r"di qué quedó sin hacer")
         self.assertRegex(paso, r"Sin framework por CDN, el navegador sirve para las capturas de la ola 3: si no hay, "
@@ -954,7 +953,7 @@ class ReadmeSinContradicciones(unittest.TestCase):
         """Q148 y Q153."""
         self.assertRegex(self.fila("| Herramienta de subagentes"), r"explica en qué cliente sí los hay")
         navegador = self.fila("| Chrome, Chromium o Playwright")
-        self.assertRegex(navegador, r"propone instalar Playwright, lo instala con el sí y repite la prueba")
+        self.assertRegex(navegador, r"propone instalar Chromium o Google Chrome con el gestor del sistema[^|]*lo instala con el sí y repite la prueba")
         self.assertRegex(navegador, r"con framework por CDN, sin el sí se detiene")
         self.assertRegex(self.fila("| Node.js 22 o superior"), r"`spec-a-html` propone instalar Node\.js")
 
@@ -1003,6 +1002,43 @@ class SkillsHermanas(unittest.TestCase):
         self.assertRegex(pasos, r"Si no están, sigue \"Skills hermanas\"")
         checklist = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("como dice el comienzo de los pasos de `html-a-vista`", checklist)
+
+
+class Navegador(unittest.TestCase):
+    """Q153 y M6: `spec-a-html` y `html-a-vista` llevan la misma `references/navegador.md`. La prueba abre el navegador
+    de verdad, y la instalación usa el gestor del sistema, no pip, que PEP 668 rechaza en Debian, Ubuntu y el Python de
+    Homebrew. El camino de Debian se probó en un contenedor `debian:13`: `apt install chromium`, y la captura de prueba
+    sale, como usuario sin privilegios."""
+
+    CON_NAVEGADOR = ("spec-a-html", "html-a-vista")
+
+    def setUp(self):
+        self.texto = (SKILLS / "spec-a-html" / "references" / "navegador.md").read_text(encoding="utf-8")
+
+    def test_las_copias_son_iguales(self):
+        for skill in self.CON_NAVEGADOR:
+            with self.subTest(skill=skill):
+                self.assertEqual((SKILLS / skill / "references" / "navegador.md").read_text(encoding="utf-8"), self.texto)
+
+    def test_la_prueba_abre_el_navegador_y_saca_una_captura(self):
+        probar = seccion(self.texto, "Probar", 2)
+        self.assertIn("command -v google-chrome chromium chromium-browser", probar)
+        self.assertIn('<navegador> --headless=new --disable-gpu --window-size=390,900 --screenshot=<trabajo>/prueba.png "about:blank"', probar)
+        self.assertRegex(probar, r"Hay navegador si `<trabajo>/prueba\.png` existe y no está vacío\.")
+        self.assertIn("p.chromium.launch().close()", probar)
+        self.assertNotRegex(probar, r"`<intérprete> -B -c \"import playwright\"`[^.]*(?:basta|alcanza)")
+
+    def test_instala_con_el_gestor_del_sistema_en_cada_plataforma(self):
+        instalar = seccion(self.texto, "Instalar", 2)
+        for orden in ("`sudo apt install chromium`", "`sudo snap install chromium`", "`brew install --cask google-chrome`",
+                      "`winget install Google.Chrome`"):
+            self.assertIn(orden, instalar)
+        self.assertRegex(instalar, r"Con el sí, instálalo y repite la prueba")
+
+    def test_ninguna_skill_instala_playwright_con_pip(self):
+        for ruta in [RAIZ / "README.md", *SKILLS.rglob("*.md")]:
+            with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
+                self.assertNotRegex(ruta.read_text(encoding="utf-8"), r"pip install")
 
 
 if __name__ == "__main__":
