@@ -607,6 +607,33 @@ class DescripcionDeLasSkills(unittest.TestCase):
                 descripcion = re.search(r"^description: (.+)$", frente, flags=re.M).group(1).strip()
                 self.assertLessEqual(len(descripcion), 1024, f"{skill.name}: {len(descripcion)} caracteres")
 
+class InstalacionConSkillsLatest(unittest.TestCase):
+    """Q142: el README instala con `npx skills@latest` y explica que con Node anterior a 22.20 aparece `EBADENGINE`,
+    esperable, y la instalación funciona igual. Sin `@latest`, npm corre la última versión que acepta el Node local."""
+
+    def seccion(self, nombre):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        return re.search(rf"^## {nombre}\n.*?(?=^## )", readme, re.S | re.M).group(0)
+
+    def test_cada_orden_de_npx_skills_fija_latest(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertIn("npx skills@latest add grez-lucas/design-flow-skills -a <agente>", self.seccion("Instalación"))
+        self.assertEqual(re.findall(r"npx skills (?:add|--help|-\S)", readme), [])
+
+    def test_la_instalacion_explica_ebadengine_con_node_anterior_a_22_20(self):
+        instalacion = self.seccion("Instalación")
+        self.assertIn("Node.js anterior a 22.20", instalacion)
+        self.assertIn("`EBADENGINE`", instalacion)
+        self.assertIn("esperable", instalacion)
+        self.assertIn("la instalación funciona igual", instalacion)
+
+    def test_los_requisitos_no_contradicen_la_instalacion(self):
+        requisitos = self.seccion("Requisitos")
+        self.assertNotIn("`npx skills` pide Node.js 22.20 o superior", requisitos)
+        self.assertIn("`npx skills@latest`", requisitos)
+        self.assertIn("`EBADENGINE`", requisitos)
+
+
 class VersionDelPlugin(unittest.TestCase):
     def test_plugin_y_marketplace_declaran_la_misma_version_semver(self):
         manifiestos = RAIZ / ".claude-plugin"
