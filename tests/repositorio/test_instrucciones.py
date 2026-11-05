@@ -656,24 +656,34 @@ class DetencionesDeSpecATickets(unittest.TestCase):
                                  r"Publica los tickets como archivos markdown \(sección \"Sin tracker\"\) y deja la orden "
                                  r"lista para que el TL los suba \(sección \"Para que el TL los suba\"\): la persona no queda bloqueada\.")
         subir = seccion(self.trackers, "Para que el TL los suba", 3)
-        self.assertIn('`gh issue create --title "<título>" --body-file specs/<épica>/tickets/<archivo> --label "<label>"`', subir)
+        self.assertIn('| gh issue create --title "<título>" --body-file - --label "<label>"`', subir)
         self.assertRegex(subir, r"en el orden de la tabla")
         cierre = seccion(self.texto, "10. Cerrar", 3)
         self.assertRegex(cierre, r"Si los tickets quedaron como archivos porque la sesión no llega al tracker, entrega la orden "
                                  r"para el TL y di que en el tracker todavía no hay tickets\.")
 
     def test_si_el_gitignore_ignora_el_puntero_propone_la_excepcion(self):
-        """Q157."""
+        """Q157 y M3; la conducta la prueba tests/rama/test_gitignore.py."""
         guardar = seccion(self.texto, "9. Guardar", 3)
-        self.assertRegex(guardar, r"Si git responde que la ruta está ignorada por el `\.gitignore`, no la fuerces con `-f`: "
-                                  r"propón agregar la excepción al `\.gitignore` de la raíz\.")
-        self.assertIn("`git check-ignore -v .claude/pm-conventions.md`", guardar)
-        self.assertIn("`!.claude/pm-conventions.md`", guardar)
+        self.assertRegex(guardar, r"Si git responde que `\.claude/pm-conventions\.md` está ignorada, no la fuerces con `-f`: "
+                                  r"propón agregar la excepción al final del `\.gitignore` de la raíz\.")
         self.assertRegex(guardar, r"Muestra el cambio y, con el sí, escríbelo, vuelve a correr `git check-ignore "
                                   r"\.claude/pm-conventions\.md`")
         self.assertRegex(guardar, r"El cuerpo del mensaje del commit lo dice: `Excepción en \.gitignore para "
                                   r"\.claude/pm-conventions\.md\.`")
+        self.assertRegex(guardar, r"redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
+        self.assertNotIn("git add -f", self.texto)
         self.assertNotIn("el TL decide si cambia el `.gitignore`", guardar)
+
+    def test_las_ordenes_para_el_tl_funcionan_en_cmd_y_sin_titulo_repetido(self):
+        """B1: `$(cat ...)` no existe en CMD, y `--body-file` con el archivo entero repite el título en el cuerpo."""
+        subir = seccion(self.trackers, "Para que el TL los suba", 3)
+        self.assertIn('`more +1 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - '
+                      '--label "<label>"`', subir)
+        self.assertIn('`tail -n +2 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - '
+                      '--label "<label>"`', subir)
+        self.assertNotIn("--body-file specs/<épica>/tickets/<archivo>", subir)
+        self.assertRegex(subir, r"En CMD, `glab` no tiene cómo leer el cuerpo de un archivo")
 
     def test_un_label_que_no_existe_en_linear_se_ofrece_crear(self):
         """Q150."""

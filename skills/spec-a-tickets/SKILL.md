@@ -131,8 +131,20 @@ Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la líne
 Agrega solo lo que escribiste:
 
 - Los tickets sin tracker y el spec congelado: `git add specs/<épica>/`.
-- El puntero a las convenciones, si lo escribiste en esta sesión: `git add .claude/pm-conventions.md`. Si git responde que la ruta está ignorada por el `.gitignore`, no la fuerces con `-f`: propón agregar la excepción al `.gitignore` de la raíz. `git check-ignore -v .claude/pm-conventions.md` dice qué línea la ignora. Si esa línea ignora la carpeta entera (`.claude/` o `.claude`), git no vuelve a incluir un archivo de adentro: la excepción cambia esa línea por `.claude/*` y agrega debajo `!.claude/pm-conventions.md`. Si ignora archivos, basta agregar `!.claude/pm-conventions.md` después de esa línea. Muestra el cambio y, con el sí, escríbelo, vuelve a correr `git check-ignore .claude/pm-conventions.md`, sin `-v`, que ya no debe responder nada, y agrégalo con `git add .claude/pm-conventions.md` y `git add .gitignore`. El cuerpo del mensaje del commit lo dice: `Excepción en .gitignore para .claude/pm-conventions.md.` Sin el sí, el puntero queda solo en esta máquina: dilo.
+- El puntero a las convenciones, si lo escribiste en esta sesión: `git add .claude/pm-conventions.md`. Si git responde que la ruta está ignorada, sigue el párrafo de abajo.
 - El `.gitignore`, si le agregaste `.lavish/`: `git add .gitignore`.
+
+Si git responde que `.claude/pm-conventions.md` está ignorada, no la fuerces con `-f`: propón agregar la excepción al final del `.gitignore` de la raíz. Al final vale sobre cualquier regla anterior de ese archivo, del excludes global y de `.git/info/exclude`, sea `.claude/`, `.*`, `**/.claude/` o un `*.md`, y el resto de `.claude/`, como `.claude/skills/`, sigue ignorado:
+
+```
+!.claude/
+.claude/*
+!.claude/pm-conventions.md
+```
+
+Muestra el cambio y, con el sí, escríbelo, vuelve a correr `git check-ignore .claude/pm-conventions.md`, sin `-v`, que ya no debe responder nada, y agrégalo con `git add .claude/pm-conventions.md` y `git add .gitignore`. El cuerpo del mensaje del commit lo dice: `Excepción en .gitignore para .claude/pm-conventions.md.` Sin el sí, el puntero queda solo en esta máquina: dilo en el resumen.
+
+Si `git check-ignore .claude/pm-conventions.md` sigue respondiendo, la regla está fuera del `.gitignore` de la raíz: detente, muestra la línea que da `git check-ignore -v .claude/pm-conventions.md`, y como eso no se arregla desde la sesión, redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: el puntero queda solo en esta máquina y lo demás se guarda. Cuando el TL cambie la regla, vuelve a correr `git check-ignore`.
 
 Nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
