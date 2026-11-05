@@ -127,7 +127,7 @@ Sigue `references/vista-html.md`, que trae la plantilla y las reglas. Lo esencia
 
 ### 7. Capturas
 
-`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona. Para saber si hay navegador: `command -v google-chrome chromium chromium-browser`, o `<intérprete> -B -c "import playwright"` para Playwright.
+`revisar.py` de `checklist-diseno` no ve lo que se ve mal: un modal que no se achica en móvil, un texto que contradice a otro en el mismo escenario. Una captura sí. Con navegador en la sesión (Google Chrome o Chromium, o Playwright), las capturas son obligatorias antes de mostrarle la vista a la persona. Para saber si hay navegador, sigue `references/navegador.md`, sección "Probar": cuenta solo un navegador que abre y saca una captura, y ahí está también el binario que va en lugar de `google-chrome` en macOS y Windows.
 
 Saca una por escenario y por ancho de referencia (los del comentario de `tokens.css`, por defecto 390, 1280 y 1440) en una carpeta de trabajo fuera del repositorio, por ejemplo la que da `mktemp -d`, para que no entren al commit:
 
@@ -143,7 +143,7 @@ Mira cada captura y revísala contra el spec: que cada escenario muestre lo que 
 
 Si la captura falla o sale vacía, prueba con el otro binario o con Playwright, y mira que el `.png` exista y no esté vacío.
 
-Sin navegador en la sesión, propón instalar Playwright: con el sí, corre `pip install playwright` y `playwright install chromium`, y repite la prueba de `<intérprete> -B -c "import playwright"`. Si pasa, saca las capturas. Sin el sí, o si la prueba sigue fallando, dilo en una línea, que la revisión visual queda en manos de la persona en el paso siguiente, y sigue.
+Sin navegador en la sesión, propón instalarlo como dice `references/navegador.md`, sección "Instalar": con el sí, instálalo y repite la prueba. Si pasa, saca las capturas. Sin el sí, o si la prueba sigue fallando, dilo en una línea, que la revisión visual queda en manos de la persona en el paso siguiente, y sigue.
 
 ### 8. Revisión con la persona
 

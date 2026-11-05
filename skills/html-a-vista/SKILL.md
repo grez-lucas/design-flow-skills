@@ -63,10 +63,10 @@ Si el script sale con error, detente: un mockup que no se puede desarmar no se p
 
 Si `resumen.md` dice "requiere render: sí" (React, Vue, Babel o Tailwind por CDN), el fuente no tiene la pantalla: su `<body>` es un `<div id="root">` y los colores viven en clases utilitarias.
 
-- Sin navegador en la sesión (Chrome, Chromium o Playwright), detente antes de lanzar subagentes: este mockup no se convierte sin render. Propón instalar Playwright: con el sí, corre `pip install playwright` y `playwright install chromium`, y repite la prueba de `<intérprete> -B -c "import playwright"`; el render necesita red para bajar el framework. Si pasa, sigue con el render. Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: no se convirtió nada.
+- Sin navegador en la sesión, detente antes de lanzar subagentes: este mockup no se convierte sin render. Propón instalarlo como dice `references/navegador.md`, sección "Instalar": con el sí, instálalo y repite la prueba de su sección "Probar"; el render necesita además red para bajar el framework. Si pasa, sigue con el render. Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: no se convirtió nada.
 - Con navegador, renderiza el estado inicial y convierte desde el DOM, con `references/escenarios.md`, sección "Render". Los estados que solo se alcanzan interactuando con el framework quedan fuera, salvo los que el código deja leer; dilo en el informe.
 
-Sin framework por CDN, el navegador sirve para las capturas de la ola 3: si no hay, propón instalarlo igual, con la misma prueba. Sin el sí, sigue: la verificación queda en el inventario y el informe lo dice.
+Sin framework por CDN, el navegador sirve para las capturas de la ola 3: si no hay, propón instalarlo igual, como dice `references/navegador.md`. Para saber si hay navegador, en los dos casos, sigue su sección "Probar". Sin el sí, sigue: la verificación queda en el inventario y el informe lo dice.
 
 ### 4. Spec y tickets
 

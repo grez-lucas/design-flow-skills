@@ -32,7 +32,7 @@ Si el mockup ya usa `data-state` con otro significado (el estado de un chip, "fu
 
 ## Render
 
-Con navegador, para un framework por CDN o para el inventario contra el DOM:
+Con navegador, para un framework por CDN o para el inventario contra el DOM. Con otro binario, el `<navegador>` de `navegador.md` va en lugar de `google-chrome`, aquí y en "Capturas":
 
 ```
 google-chrome --headless=new --disable-gpu --virtual-time-budget=10000 --dump-dom "file://<trabajo>/partes/<parte>.html" > <trabajo>/render/<parte>.html
