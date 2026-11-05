@@ -117,7 +117,7 @@ Con otro agente, la alternativa es `npx skills@latest`:
 npx skills@latest add grez-lucas/design-flow-skills -a <agente>
 ```
 
-El paquete `skills` declara Node.js 22.20 o superior. `@latest` hace que siempre corra la versión actual del CLI: sin él, con Node.js anterior a 22.20, npm corre sin avisar la última versión que acepta ese Node, una más vieja. Con `@latest` y Node.js anterior a 22.20, npm muestra una advertencia `EBADENGINE` como esta, que es esperable, y la instalación funciona igual:
+El paquete `skills` declara Node.js 22.20 o superior. `@latest` hace que siempre corra la versión actual del CLI: sin él, con Node.js anterior a 22.20, npm corre sin avisar la última versión que acepta ese Node, una más vieja. Con `@latest` y Node.js anterior a 22.20, npm muestra una advertencia `EBADENGINE`, que es esperable, y la instalación funciona igual. Por ejemplo, con `skills@1.7.4` y Node.js 22.14, la salida fue esta; la versión del CLI y la de Node cambian con cada caso:
 
 ```
 npm warn EBADENGINE   package: 'skills@1.7.4',

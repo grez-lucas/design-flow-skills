@@ -615,10 +615,30 @@ class InstalacionConSkillsLatest(unittest.TestCase):
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         return re.search(rf"^## {nombre}\n.*?(?=^## )", readme, re.S | re.M).group(0)
 
+    @staticmethod
+    def ordenes_sin_latest(texto):
+        """Las órdenes de `npx` que corren `skills` sin `@latest`: `npx`, sus opciones, `skills` con o sin versión y
+        al menos un argumento. `npx skills` sin argumentos, entre comillas, nombra el método de instalación."""
+        orden = re.compile(r"\bnpx(?:[ \t]+-[\w-]+)*[ \t]+(skills(?:@[\w.-]+)?)[ \t]+\S")
+        return [m.group(0) for m in orden.finditer(texto) if m.group(1) != "skills@latest"]
+
+    def test_reconoce_cualquier_orden_de_npx_con_skills(self):
+        for orden in ("npx skills add a/b", "npx skills list", "npx skills --help", "npx -y skills add a/b",
+                      "npx --yes skills@1.7.4 add a/b", "npx skills@1.7.4 add a/b"):
+            with self.subTest(orden=orden):
+                self.assertTrue(self.ordenes_sin_latest(orden), orden)
+        for texto in ("npx skills@latest add a/b", "npx -y skills@latest list", "agente compatible con `npx skills`.",
+                      "| Con `npx skills` |", "npx -y lavish-axi --help"):
+            with self.subTest(texto=texto):
+                self.assertEqual(self.ordenes_sin_latest(texto), [], texto)
+
     def test_cada_orden_de_npx_skills_fija_latest(self):
-        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         self.assertIn("npx skills@latest add grez-lucas/design-flow-skills -a <agente>", self.seccion("Instalación"))
-        self.assertEqual(re.findall(r"npx skills (?:add|--help|-\S)", readme), [])
+        textos = {"README.md": (RAIZ / "README.md").read_text(encoding="utf-8")}
+        textos.update({str(r.relative_to(RAIZ)): r.read_text(encoding="utf-8") for r in sorted(SKILLS.rglob("*.md"))})
+        for nombre, texto in textos.items():
+            with self.subTest(archivo=nombre):
+                self.assertEqual(self.ordenes_sin_latest(texto), [])
 
     def test_la_instalacion_explica_ebadengine_con_node_anterior_a_22_20(self):
         instalacion = self.seccion("Instalación")
