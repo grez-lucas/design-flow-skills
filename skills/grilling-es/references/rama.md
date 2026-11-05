@@ -32,7 +32,7 @@ Motivos `otra-rama`, `sin-rama`, `commits-sin-empujar` y `cambios-sin-guardar`: 
 Con el sí, desde el repositorio de diseño:
 
 1. Mira los cambios con `git status --short`. Los que no empiezan con `??` son de archivos que el repositorio ya sigue; los que empiezan con `??` no se agregan, porque no son del repositorio y pueden ser la instalación de las skills (`.agents/`, `.claude/skills/`).
-2. Si hay cambios de archivos que el repositorio sigue, o el motivo es `sin-rama`, crea la rama del apartado donde estás, con `git switch -c apartado/<rama>`: `<rama>` es la rama actual con cada `/` cambiada por `-`, o `sin-rama`, y si ese nombre ya existe, agrega `-2`, `-3`. Si hay cambios, guárdalos ahí con `git add -u` y `git commit -m "Apartado: lo que había en <rama> antes de guardar"`. Si no hay cambios y la copia está en una rama, no hace falta apartar nada: sus commits siguen en esa rama.
+2. Si hay cambios de archivos que el repositorio sigue, o el motivo es `sin-rama`, crea la rama del apartado donde estás, con `git switch -c apartado/<rama>`: `<rama>` es la rama actual con cada `/` cambiada por `-`, o `sin-rama`, y si ese nombre ya existe, usa el primer sufijo libre (`-2`, `-3`). Si hay cambios, guárdalos ahí con `git add -u` y `git commit -m "Apartado: lo que había en <rama> antes de guardar"`. Si no hay cambios y la copia está en una rama, no hace falta apartar nada: sus commits siguen en esa rama.
 3. Busca la rama principal del servidor con `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/` del comienzo; si no responde, la nombra la línea de HEAD de `git remote show origin`. Corre `git switch <principal>` y `git pull --ff-only`.
 4. Vuelve a correr la misma orden de `rama.py` y sigue con la `accion` que devuelva.
 
@@ -52,7 +52,7 @@ Motivo `sin-principal`: el servidor no dice cuál es su rama principal, y eso se
 
 Con `volver`, si `git switch <principal>` falla porque hay cambios sin guardar que chocan con la principal, es el caso de "Otra rama o trabajo sin guardar": detente y propón apartarlos con esos pasos, y con el sí sigue desde el paso 1. Sin el sí, queda detenida y di qué quedó sin hacer.
 
-Si `git pull --ff-only` falla porque la principal de esta copia tiene commits que el servidor no tiene, detente y propón apartarlos. Con el sí, `git branch apartado/<principal>` los deja en una rama propia, `git switch -C <principal> origin/<principal>` deja la principal como está en el servidor, y vuelves a correr la misma orden de `rama.py`. Sin el sí, queda detenida y di qué quedó sin hacer. Si falla por otro motivo, como la red, sigue "Sin servidor".
+Si `git pull --ff-only` falla porque la principal de esta copia tiene commits que el servidor no tiene, detente y propón apartarlos. Con el sí, primero `git branch apartado/<principal>` los deja en una rama propia, con el primer sufijo libre si ya existe, y después `git switch -C <principal> origin/<principal>` la iguala al servidor; nada se pierde, porque esos commits quedaron en el apartado. Vuelves a correr la misma orden de `rama.py` y dices dónde quedaron. Sin el sí, queda detenida y di qué quedó sin hacer. Si falla por otro motivo, como la red, sigue "Sin servidor".
 
 ## Push sin credenciales
 
