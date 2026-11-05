@@ -483,12 +483,13 @@ class LlamadaARama(unittest.TestCase):
     def test_html_a_vista_cambia_de_rama_con_ofrecer_solo_con_el_si(self):
         """Q97: antes de escribir nada explica y ofrece; sin el sí o con un fallo, para y dice dónde quedó."""
         ofrecer = self.accion(self.tras("html-a-vista", "5", "revisar"), "ofrecer")
-        for fragmento in ("no guardes ahí", "Antes de escribir nada", "ofrece volver a la principal y guardar en `rama_nueva`",
+        for fragmento in ("guardar ahí no sirve", "Antes de escribir nada", "ofrece volver a la principal y guardar en `rama_nueva`",
                           "Solo con el sí de la persona", "`git switch <principal>`", "`git pull --ff-only`",
                           "`git switch -c <rama_nueva>`",
                           "Sin el sí, queda detenida sin escribir en el repositorio y di en qué rama estás y qué quedó "
                           "sin hacer: la conversión no empezó.",
-                          "Si un comando falla, sigue `references/rama.md`, sección \"Otra rama o trabajo sin guardar\"."):
+                          "Si `git switch <principal>` falla por cambios sin guardar, sigue `references/rama.md`, sección "
+                          "\"Otra rama o trabajo sin guardar\""):
             self.assertIn(fragmento, ofrecer)
         self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index("`git switch <principal>`"))
 
