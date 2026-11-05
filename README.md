@@ -111,19 +111,29 @@ Con Claude Code, el camino principal es el plugin. Desde una sesión:
 
 El plugin queda instalado a nivel de usuario y no escribe archivos en el repositorio de diseño.
 
-Con otro agente, la alternativa es `npx skills` (Node.js 22.20 o superior):
+Con otro agente, la alternativa es `npx skills@latest`:
 
 ```
-npx skills add grez-lucas/design-flow-skills -a <agente>
+npx skills@latest add grez-lucas/design-flow-skills -a <agente>
 ```
 
-`npx skills add` instala las skills por proyecto, en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills --help` lista las opciones. Con `-g, --global` instala a nivel de usuario, sin dejar archivos en el repositorio de diseño. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`, y `spec-a-tickets` además `.claude/pm-conventions.md` cuando guarda dónde están las convenciones de gestión del proyecto.
+El paquete `skills` declara Node.js 22.20 o superior. `@latest` hace que siempre corra la versión actual del CLI: sin él, con Node.js anterior a 22.20, npm corre sin avisar la última versión que acepta ese Node, una más vieja. Con `@latest` y Node.js anterior a 22.20, npm muestra una advertencia `EBADENGINE` como esta, que es esperable, y la instalación funciona igual:
+
+```
+npm warn EBADENGINE   package: 'skills@1.7.4',
+npm warn EBADENGINE   required: { node: '>=22.20.0' },
+npm warn EBADENGINE   current: { node: 'v22.14.0', npm: '10.9.2' }
+```
+
+No hace falta hacer nada; para que no aparezca, actualiza Node.js a 22.20 o superior.
+
+`npx skills@latest add` instala las skills por proyecto, en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills@latest --help` lista las opciones. Con `-g, --global` instala a nivel de usuario, sin dejar archivos en el repositorio de diseño. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`, y `spec-a-tickets` además `.claude/pm-conventions.md` cuando guarda dónde están las convenciones de gestión del proyecto.
 
 ---
 
 ## Requisitos
 
-Para instalar, el plugin pide solo Claude Code; `npx skills` pide Node.js 22.20 o superior.
+Para instalar, el plugin pide solo Claude Code; `npx skills@latest` declara Node.js 22.20 o superior, y con un Node.js anterior instala igual, con la advertencia `EBADENGINE` que explica "Instalación".
 
 Al usarse, las skills corren herramientas en la máquina de quien las usa, también cuando se instalaron como plugin:
 
