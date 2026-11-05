@@ -369,7 +369,7 @@ class DetencionesConArreglo(unittest.TestCase):
     La excepción es Python ausente, que resuelve el issue 45: esas oraciones quedan como están, cada una sola en su
     párrafo, y el test las nombra una por una."""
 
-    BARRIDAS = ("grilling-es", "spec-a-tickets", "spec-a-html")
+    BARRIDAS = ("grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
     DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
     FORMA_VIEJA = re.compile(r"\b(?:para y|para aquí|para:|no sigas|no avances|no conviertas)", re.I)
     SIN_HACER = re.compile(r"\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b[^.]{0,20}?\bsin\b", re.I)
@@ -472,7 +472,7 @@ class ReferenciaDeRama(unittest.TestCase):
     """Q143 y Q144: lo que hace una skill cuando `rama.py` o `git` no la dejan guardar vive en `references/rama.md`,
     igual en cada skill que guarda, porque `npx skills` instala cada una por separado (como `rama.py`, Q99)."""
 
-    CON_REFERENCIA = ("grilling-es", "spec-a-tickets", "spec-a-html")
+    CON_REFERENCIA = ("grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
     ORIGINAL = SKILLS / "grilling-es" / "references" / "rama.md"
 
     def setUp(self):
@@ -669,6 +669,91 @@ class DetencionesDeSpecAHtml(unittest.TestCase):
         self.assertRegex(paso, r"Con terminal pero sin `npx`, propón instalar Node\.js, que trae `npx`")
         self.assertIn("`winget install OpenJS.NodeJS.LTS`", paso)
         self.assertRegex(paso, r"Con el sí, instálalo y vuelve a probar `npx --version`")
+
+
+class DetencionesDeHtmlAVista(unittest.TestCase):
+    """Issue 42 en `html-a-vista`: hermanas que faltan (Q154), sin subagentes (Q148), sin repositorio (Q144), mockup que
+    no se desarma (Q150), sin navegador (Q153), sin spec, vista sin aprobar tras la segunda revisión (Q149) y las
+    comprobaciones antes del commit."""
+
+    def setUp(self):
+        self.texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
+        self.requisitos = seccion(self.texto, "1. Requisitos antes de abrir nada", 3)
+        self.olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
+
+    def test_si_faltan_las_hermanas_ofrece_instalar_el_plugin_completo(self):
+        """Q154."""
+        pasos = seccion(self.texto, "Pasos", 2).split("### 1.")[0]
+        self.assertRegex(pasos, r"Si no están, detente y propón instalar el plugin completo")
+        for orden in ("`claude plugin marketplace add grez-lucas/design-flow-skills`",
+                      "`claude plugin install flujo-diseno@design-flow-skills`",
+                      "`npx skills@latest add grez-lucas/design-flow-skills -a <agente>`"):
+            self.assertIn(orden, pasos)
+        self.assertRegex(pasos, r"pide reiniciar la sesión y, en la nueva, vuelve a probar")
+        self.assertNotIn("pide instalar el flujo completo antes de seguir", pasos)
+
+    def test_sin_subagentes_explica_en_que_cliente_si_los_hay(self):
+        """Q148: no deriva a `spec-a-html`."""
+        self.assertRegex(self.requisitos, r"detente antes de leer el mockup: la herramienta de subagentes es del cliente, así "
+                                          r"que no se arregla desde la sesión\.")
+        self.assertRegex(self.requisitos, r"Claude Code, en la terminal o en la app de escritorio, lanza subagentes")
+        self.assertRegex(self.requisitos, r"No derives a `spec-a-html`")
+
+    def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
+        """Q144."""
+        self.assertRegex(self.requisitos, r"Si el producto no tiene repositorio de diseño, detente: no lo crees tú, porque el "
+                                          r"TL decide el host y los accesos, y eso no se hace desde la sesión\.")
+        self.assertIn("`references/rama.md`, sección \"Pedido al TL\"", self.requisitos)
+
+    def test_un_script_sin_cierre_se_repara_en_una_copia_con_el_si(self):
+        """Q150."""
+        paso = seccion(self.texto, "2. Desarmar", 3)
+        self.assertRegex(paso, r"propón reparar una copia en la carpeta de trabajo: el original no se toca\.")
+        self.assertRegex(paso, r"Con el sí, copia el mockup a `<trabajo>/reparado/`[^\n]*?muéstrale a la persona qué "
+                               r"cerraste y dónde, y vuelve a correr `desarmar\.py` sobre la copia")
+        self.assertRegex(paso, r"Una carpeta de trabajo con un manifiesto previo no se pregunta: vuelve a correr con una "
+                               r"carpeta nueva")
+        self.assertNotIn("no sigas", paso)
+
+    def test_sin_navegador_propone_instalarlo_y_con_framework_sin_el_si_se_detiene(self):
+        """Q153."""
+        paso = seccion(self.texto, "3. Framework por CDN", 3)
+        self.assertRegex(paso, r"Sin navegador en la sesión \(Chrome, Chromium o Playwright\), detente antes de lanzar "
+                               r"subagentes: este mockup no se convierte sin render\. Propón instalar Playwright: con el "
+                               r"sí, corre `pip install playwright` y `playwright install chromium`, y repite la prueba")
+        self.assertRegex(paso, r"Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y "
+                               r"di qué quedó sin hacer")
+        self.assertRegex(paso, r"Sin framework por CDN, el navegador sirve para las capturas de la ola 3: si no hay, "
+                               r"propón instalarlo igual")
+        escenarios = (SKILLS / "html-a-vista" / "references" / "escenarios.md").read_text(encoding="utf-8")
+        self.assertRegex(seccion(escenarios, "Capturas", 2), r"Sin navegador, y sin el sí a instalarlo \(paso 3 de "
+                                                             r"`SKILL\.md`\), el inventario es la única verificación")
+
+    def test_sin_spec_propone_cerrarlo_con_grilling_desde_el_borrador(self):
+        paso = seccion(self.texto, "4. Spec y tickets", 3)
+        self.assertRegex(paso, r"\*\*Sin spec\*\*: detente antes de convertir\.")
+        self.assertRegex(paso, r"propón cerrarlo con `grilling-es` en esta sesión, con el borrador como punto de partida\.")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`[^.]*? y, cuando exista `specs/<épica>/spec\.md`, vuelve a este paso\.")
+        self.assertNotIn("no conviertas", paso)
+
+    def test_una_vista_sin_aprobar_tras_la_segunda_revision_queda_pendiente_con_como_retomarla(self):
+        """Q149: no hay tercera vuelta."""
+        paso = seccion(self.texto, "9. Ola 3", 3)
+        self.assertRegex(paso, r"Si en esa segunda revisión sigue sin aprobarse, no hay tercera vuelta: queda pendiente")
+        self.assertRegex(paso, r"va al informe con lo que falta y cómo retomarla en otra corrida")
+        self.assertRegex(self.olas, r"Una vuelta por vista, sin tercera: si sigue sin aprobarse, queda pendiente")
+        plan = (SKILLS / "html-a-vista" / "references" / "plan.md").read_text(encoding="utf-8")
+        pendientes = next((l for l in plan.splitlines() if "**Pendientes**" in l), "")
+        self.assertRegex(pendientes, r"cómo retomarla en otra corrida: correr `html-a-vista` de nuevo con el mismo mockup y "
+                                     r"pedir solo esa pantalla")
+
+    def test_las_comprobaciones_antes_del_commit_dicen_que_hacer_si_fallan(self):
+        paso = seccion(self.texto, "10. Guardar", 3)
+        self.assertRegex(paso, r"Si `revisar\.py` bloquea en una vista de esta conversión, esa vista vuelve a su subagente "
+                               r"de la ola 2 y al revisor, como una no aprobada")
+        self.assertRegex(paso, r"Si falta una pantalla, propón agregarla al plan: con el sí, abre una fila nueva y repite "
+                               r"las olas 2 y 3 solo para esa pantalla")
+        self.assertIn("`git restore --staged <archivo>`", paso)
 
 
 if __name__ == "__main__":
