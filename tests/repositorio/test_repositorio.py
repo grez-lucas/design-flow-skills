@@ -148,7 +148,8 @@ class Interprete(unittest.TestCase):
 
 
 class CommitSoloDeDesignYSpecs(unittest.TestCase):
-    SKILLS_CON_COMMIT = ("grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
+    # Q155: `checklist-diseno` guarda lo que corrige por Q146 y Q154.
+    SKILLS_CON_COMMIT = ("checklist-diseno", "grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
     # Q87: el puntero a las convenciones de gestión entra en el commit de los tickets, y solo ese archivo de .claude/.
     FUERA_DE_DESIGN_Y_SPECS = {"spec-a-tickets": {".claude/pm-conventions.md"}}
     PROHIBIDOS = {"-A", "."}
@@ -197,8 +198,11 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
 class LavishFueraDelCommit(unittest.TestCase):
     """Las skills que hacen commit dejan `.lavish/` en el `.gitignore` del repositorio de diseño y lo suben."""
 
+    # `checklist-diseno` guarda (Q155) pero no abre Lavish: no escribe en `.lavish/`.
+    SIN_LAVISH = {"checklist-diseno"}
+
     def test_agregan_lavish_al_gitignore_y_lo_suben_en_el_commit(self):
-        for skill in CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT:
+        for skill in set(CommitSoloDeDesignYSpecs.SKILLS_CON_COMMIT) - self.SIN_LAVISH:
             texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(skill=skill):
                 self.assertRegex(texto, r"`\.lavish/`[^\n]*`\.gitignore`|`\.gitignore`[^\n]*`\.lavish/`")
@@ -222,7 +226,8 @@ class OlaUnoConModalYAvisos(unittest.TestCase):
 class MensajeYRamaDelCommit(unittest.TestCase):
     """Q86: mensaje `<tipo>(<épica>): <resumen>`, push a la rama actual y `<tipo>/<épica>` si la protección rechaza."""
 
-    TIPOS = {"grilling-es": "spec", "spec-a-tickets": "tickets", "spec-a-html": "diseno", "html-a-vista": "diseno"}
+    TIPOS = {"grilling-es": "spec", "spec-a-tickets": "tickets", "spec-a-html": "diseno", "html-a-vista": "diseno",
+             "checklist-diseno": "diseno"}
     ENCABEZADO = re.compile(r"(?<![\w/-])([a-z]+)\((<?[\w.,é-]+>?)\): \S")
 
     def textos(self, skill):
@@ -269,8 +274,10 @@ class MensajeYRamaDelCommit(unittest.TestCase):
                     self.assertIn(llamada, pushes)
 
     # Paso donde la skill ubica el repositorio de diseño, antes de cualquier escritura, y paso donde guarda.
-    PASO_DE_LA_RAMA = {"grilling-es": "Guardar", "spec-a-tickets": "3", "spec-a-html": "2", "html-a-vista": "5"}
-    PASO_GUARDAR = {"grilling-es": "Guardar", "spec-a-tickets": "9", "spec-a-html": "9", "html-a-vista": "10"}
+    PASO_DE_LA_RAMA = {"grilling-es": "Guardar", "spec-a-tickets": "3", "spec-a-html": "2", "html-a-vista": "5",
+                       "checklist-diseno": "4"}
+    PASO_GUARDAR = {"grilling-es": "Guardar", "spec-a-tickets": "9", "spec-a-html": "9", "html-a-vista": "10",
+                    "checklist-diseno": "5"}
 
     def paso(self, skill, nombre):
         texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")

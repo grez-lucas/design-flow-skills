@@ -475,7 +475,7 @@ class ReferenciaDeRama(unittest.TestCase):
     """Q143 y Q144: lo que hace una skill cuando `rama.py` o `git` no la dejan guardar vive en `references/rama.md`,
     igual en cada skill que guarda, porque `npx skills` instala cada una por separado (como `rama.py`, Q99)."""
 
-    CON_REFERENCIA = ("grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
+    CON_REFERENCIA = ("checklist-diseno", "grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
     ORIGINAL = SKILLS / "grilling-es" / "references" / "rama.md"
 
     def setUp(self):
@@ -775,9 +775,11 @@ class CorreccionesDelChecklist(unittest.TestCase):
     def test_los_pasos_estan_numerados_en_orden(self):
         self.assertEqual([int(n) for n, _ in self.pasos], list(range(1, len(self.pasos) + 1)))
 
-    def test_corrige_despues_de_revisar_y_antes_del_informe(self):
+    def test_corrige_despues_de_revisar_guarda_y_despues_informa(self):
+        """Q155: guarda lo que corrigió antes del informe, que nombra el commit."""
         self.assertEqual(self.numero("Corregir lo mecánico"), self.numero("Revisión de criterio") + 1)
-        self.assertEqual(self.numero("Informe"), self.numero("Corregir lo mecánico") + 1)
+        self.assertEqual(self.numero("Guardar"), self.numero("Corregir lo mecánico") + 1)
+        self.assertEqual(self.numero("Informe"), self.numero("Guardar") + 1)
 
     def test_nombra_los_cuatro_bloqueos_mecanicos(self):
         for titulo in ("Enlaces", "Valores sueltos", "Animaciones", "Clases sin regla"):
@@ -796,19 +798,30 @@ class CorreccionesDelChecklist(unittest.TestCase):
     def test_la_tabla_de_un_spec_congelado_se_corrige_solo_en_el_formato(self):
         """Q154."""
         self.assertRegex(self.paso, r"se corrige en el formato, sin cambiar ningún slug, nombre ni alcance\.")
-        self.assertRegex(self.paso, r"Si el spec está congelado[^.]*, es la única edición que se le hace, como excepción: "
-                                    r"el informe la nombra para que el commit que la guarde lo diga\.")
+        self.assertRegex(self.paso, r"Si el spec está congelado[^.]*, es la única edición que se le hace, como excepción, "
+                                    r"y el mensaje del commit la dice \(paso 5\)\.")
+        guardar = seccion(self.texto, "Guardar", 3)
+        self.assertRegex(guardar, r"Si corregiste el formato de la tabla de un spec congelado, el cuerpo del mensaje lo dice "
+                                  r"como excepción: `Excepción: formato de ## Escenarios en pantalla en specs/<épica>/spec\.md, "
+                                  r"congelado, sin cambiar lo que dice\.`")
 
     def test_lo_que_no_es_mecanico_sigue_en_el_informe(self):
         self.assertNotIn("No corrijas las vistas: el informe es para decidir en la planificación.", self.texto)
         self.assertRegex(self.texto, r"Lo que no es mecánico no lo corrijas: el informe es para decidir en la planificación\.")
 
-    def test_el_informe_lista_lo_corregido_sin_commit(self):
+    def test_el_informe_lista_lo_corregido_y_el_commit(self):
         # La plantilla del informe trae encabezados `##` dentro de su bloque, que cortan `seccion`.
-        informe = self.texto.split("### 5. Informe")[1]
+        informe = self.texto.split("### 6. Informe")[1]
         self.assertLess(informe.index("## Escenarios del spec"), informe.index("## Corregido"))
         self.assertLess(informe.index("## Corregido"), informe.index("## Siguiente paso"))
-        self.assertRegex(self.paso, r"Los cambios quedan escritos en el repositorio de diseño, sin commit")
+        self.assertNotIn("sin commit", self.texto)
+        self.assertNotIn("esta skill no guarda", self.texto)
+
+    def test_guarda_una_epica_por_commit_en_la_rama_del_flujo(self):
+        """Q155."""
+        guardar = seccion(self.texto, "Guardar", 3)
+        self.assertRegex(guardar, r"Si corregiste vistas de más de una épica, guarda una épica por commit")
+        self.assertIn("`diseno(<épica>): <resumen>`", guardar)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ description: Revisa las vistas HTML del repositorio de diseño contra la definic
 
 # Checklist de diseño
 
-Revisa si las vistas de `design/vistas/` están listas para construir. El resultado es un informe en el chat que producto lleva a la planificación del sprint, donde TL y producto dan el diseño por listo. La skill no aprueba ni bloquea nada por su cuenta: dice qué falta y por qué importa. Los bloqueos que tienen un solo arreglo correcto los corrige ella misma con el sí de la persona, para que no lleguen a la planificación; lo demás va al informe.
+Revisa si las vistas de `design/vistas/` están listas para construir. El resultado es un informe en el chat que producto lleva a la planificación del sprint, donde TL y producto dan el diseño por listo. La skill no aprueba ni bloquea nada por su cuenta: dice qué falta y por qué importa. Los bloqueos que tienen un solo arreglo correcto los corrige ella misma con el sí de la persona y los guarda en el repositorio de diseño, para que no lleguen a la planificación; lo demás va al informe.
 
 Quien la usa suele ser de producto. Habla en español y explica cada hallazgo por lo que DEV no podría construir o construiría mal, no por la regla que incumple.
 
@@ -60,13 +60,33 @@ Lo que el script no puede ver, lo revisas tú, vista por vista:
 
 ### 4. Corregir lo mecánico
 
-Algunos bloqueos tienen un solo arreglo correcto, que no decide nada de producto. Esos los corriges tú con el sí de la persona, en vez de dejarlos para la planificación, porque quien usa la skill no arregla archivos a mano:
+Algunos bloqueos tienen un solo arreglo correcto, que no decide nada de producto. Esos los corriges tú con el sí de la persona, en vez de dejarlos para la planificación, porque quien usa la skill no arregla archivos a mano.
+
+Antes de escribir la primera corrección, decide la rama: el paso 5 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar. La épica es la de las vistas que vas a corregir; si son de más de una, una épica a la vez (paso 5). Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
+
+```
+<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo diseno --epica <épica>
+```
+
+Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
+
+Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
+
+El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
+
+- `guardar`: guarda en la rama actual.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
+- `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
+
+Sin Python no hay cómo guardar: las correcciones van al informe como bloqueos, cada una con el arreglo que propones.
+
+Los bloqueos mecánicos:
 
 - **Enlaces**: la vista no enlaza `tokens.css`, `components.css` o `proto.js`. Agrega el `<link>` o el `<script>` que falta, con la ruta relativa desde su carpeta (`../../tokens.css`). Una hoja o un script ajeno no se borra: pinta o mueve algo, y va al informe.
 - **Valores sueltos**: un color o una medida igual al valor de un token de `tokens.css` se reemplaza por su `var(--token)`. Un valor sin token igual va al informe: elegir el token más cercano o crear uno es una decisión de producto.
 - **Animaciones**: un `@keyframes` se quita, con la propiedad `animation` que lo usa, y en su lugar queda un comentario que dice qué se mueve y cuándo, como pide la convención de vista.
 - **Clases sin regla**: si la clase es de los compartidos de `spec-a-html` (`.modal`, `.toast-region` y las demás de su `assets/components.css`), la trae la puesta al día de `spec-a-html`, con su script y como en su paso 4: compara, muestra el cambio y escribe solo con el sí. Una clase que no es de los compartidos va al informe: su regla es diseño.
-- **Tabla de escenarios del spec**: un error de formato de `## Escenarios en pantalla` (las columnas, el separador, una fila sin tres columnas) se corrige en el formato, sin cambiar ningún slug, nombre ni alcance. Si el spec está congelado (abre con su línea `Congelado`), es la única edición que se le hace, como excepción: el informe la nombra para que el commit que la guarde lo diga. Un slug inválido o repetido, o un nombre que no es el de un `### Escenario` del spec, cambia lo que dice el spec: va al informe.
+- **Tabla de escenarios del spec**: un error de formato de `## Escenarios en pantalla` (las columnas, el separador, una fila sin tres columnas) se corrige en el formato, sin cambiar ningún slug, nombre ni alcance. Si el spec está congelado (abre con su línea `Congelado`), es la única edición que se le hace, como excepción, y el mensaje del commit la dice (paso 5). Un slug inválido o repetido, o un nombre que no es el de un `### Escenario` del spec, cambia lo que dice el spec: va al informe.
 
 La puesta al día de los compartidos:
 
@@ -78,11 +98,22 @@ La puesta al día de los compartidos:
 
 Si `../spec-a-html/` no está junto a esta skill, propón instalar el plugin completo, como dice el comienzo de los pasos de `html-a-vista`, y pide reiniciar la sesión; sin el sí, esas clases van al informe.
 
-Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el sí, escríbelo y vuelve a correr `revisar.py` sobre las vistas que tocaste; lo que siga bloqueando va al informe. Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste. Sin Python, corrige igual y revisa a mano lo que tocaste.
+Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el sí, escríbelo y vuelve a correr `revisar.py` sobre las vistas que tocaste; lo que siga bloqueando va al informe. Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste.
 
-Los cambios quedan escritos en el repositorio de diseño, sin commit: esta skill no guarda. Dilo en el informe, archivo por archivo, y que la próxima skill que guarde con `git add design/` los va a sumar a su commit.
+### 5. Guardar
 
-### 5. Informe
+Si corregiste algo, haz commit y push a la rama actual del repositorio de diseño después de mostrar el resumen y pedir la confirmación, con el mensaje `diseno(<épica>): <resumen>`, por ejemplo `diseno(alertas): enlaces y valores sueltos del listado`. El mensaje dice qué vistas cambiaron y qué se corrigió en cada una. Si corregiste el formato de la tabla de un spec congelado, el cuerpo del mensaje lo dice como excepción: `Excepción: formato de ## Escenarios en pantalla en specs/<épica>/spec.md, congelado, sin cambiar lo que dice.` Si no corregiste nada, no hay commit.
+
+Si corregiste vistas de más de una épica, guarda una épica por commit: decide la rama del paso 4 para cada una antes de escribir sus correcciones, y guárdala antes de pasar a la siguiente, para que el merge request de cada épica revise solo lo suyo.
+
+Agrega solo lo que corregiste: `git add design/`, y `git add specs/<épica>/` si corregiste la tabla de un spec; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit.
+
+La rama quedó revisada en el paso 4. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, sigue `references/rama.md`, sección "Push sin credenciales": el TL es quien da los accesos, y el commit queda solo en esta máquina. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo diseno --epica <épica>`.
+
+- `rama-nueva`: explica en simple que el servidor no aceptó el cambio en esa rama y propón pasarlo a la rama nueva. Con el sí, pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica que las correcciones quedaron en la rama nueva y que el TL revisa y hace el merge request. Sin el sí, o si un comando falla, sigue `references/rama.md`, sección "Rama nueva".
+- `parar`: explica en simple el `detalle` y que el TL es quien da los accesos, y sigue `references/rama.md`, sección "Rama nueva rechazada".
+
+### 6. Informe
 
 Entrega el informe en el chat, en este orden:
 
@@ -117,8 +148,10 @@ Sin hallazgos.   (cuando no tiene)
 
 ## Corregido
 
-- <archivo> - <qué se corrigió>, sin commit
-- <spec congelado> - formato de `## Escenarios en pantalla`, como excepción: el commit que lo guarde lo dice
+- <archivo> - <qué se corrigió>
+- <spec congelado> - formato de `## Escenarios en pantalla`, como excepción dicha en el commit
+
+Commit: <hash corto> en <rama>
 
 ## Siguiente paso
 
