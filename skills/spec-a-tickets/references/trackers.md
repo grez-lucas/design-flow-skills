@@ -19,14 +19,14 @@ Antes de escribir, averigua con qué herramienta llegas al tracker y dilo:
 
 1. Un servidor MCP del tracker. Carga su esquema antes de llamarlo: los nombres y los parámetros cambian entre versiones y no se adivinan.
 2. Una CLI autenticada (`gh`, `glab`). Verifica con una lectura.
-3. Nada de lo anterior: no pidas credenciales ni las escribas en archivos. Ofrece publicar como archivos markdown (sección "Sin tracker") y que alguien con acceso los suba.
+3. Nada de lo anterior, o la lectura falla: no pidas credenciales ni las escribas en archivos. Publica los tickets como archivos markdown (sección "Sin tracker") y deja la orden lista para que el TL los suba (sección "Para que el TL los suba"): la persona no queda bloqueada. Los títulos llevan el identificador del spec hasta que el tracker asigne el suyo.
 
 Una lectura antes de la primera escritura confirma el acceso, el espacio de trabajo correcto y los identificadores que vas a necesitar.
 
 ## Linear
 
 1. Ubica el equipo y el proyecto o épica donde van los tickets. Si el proyecto no existe, pregunta antes de crearlo.
-2. Lee los labels y los estados del equipo. Un label de las convenciones que no existe en Linear es una diferencia que se reporta, no un label que se inventa.
+2. Lee los labels y los estados del equipo. Un label de las convenciones que no existe en Linear se ofrece crear: muéstralo y créalo solo con el sí, como en GitHub. Sin el sí, el ticket va sin ese label y la diferencia se reporta al cerrar.
 3. Busca tickets existentes en el proyecto con el título o el identificador de cada historia.
 4. Crea cada ticket con la descripción en markdown con saltos de línea reales, no `\n` escapados.
 5. Las dependencias van con la relación nativa de bloqueo si la herramienta la tiene; si no, como "Dependencies" en el cuerpo, y avisa cuáles hay que enlazar a mano.
@@ -65,3 +65,13 @@ Agrega o actualiza `specs/<épica>/tickets/README.md` con la tabla:
 ```
 
 Los archivos quedan listos para pasar a un tracker más adelante, uno a uno. El commit va al final, junto con el spec congelado, como dice el paso 9 de `SKILL.md`.
+
+### Para que el TL los suba
+
+Si los tickets van como archivos porque hay tracker pero la sesión no llega a él, entrega al cerrar una orden por archivo, en el orden de la tabla, para que el TL los suba sin rearmarlos. El título es el encabezado del archivo, sin `# `, y los labels son los de las convenciones:
+
+- GitHub: `gh issue create --title "<título>" --body-file specs/<épica>/tickets/<archivo> --label "<label>"`.
+- GitLab: `glab issue create --title "<título>" --description "$(cat specs/<épica>/tickets/<archivo>)" --label "<label>"`.
+- Linear u otro: la lista de archivos con título, labels, dependencias y estado inicial, para crearlos con la herramienta que tenga el TL.
+
+Di que, al subirlos, el TL reemplaza el identificador del spec por el que asigne el tracker si las convenciones lo piden, y que las dependencias citan los identificadores nuevos.
