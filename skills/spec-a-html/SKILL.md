@@ -39,13 +39,13 @@ El spec es la entrada obligatoria. Llega de una de dos formas:
 - Un enlace al tracker (Linear, GitHub, GitLab u otro). Léelo con la herramienta que tenga la sesión para ese tracker.
 - Un archivo adjunto o pegado en el chat, o `specs/<épica>/spec.md` en el repositorio.
 
-Si la sesión no tiene herramienta para leer el enlace, pide que peguen o adjunten el spec. Sin spec no avances: un HTML sin spec es exactamente el boceto incompleto que este flujo quiere evitar. Pide el spec en vez de inventar el requerimiento.
+Si la sesión no tiene herramienta para leer el enlace, pide que peguen o adjunten el spec. Un HTML sin spec es exactamente el boceto incompleto que este flujo quiere evitar, y el requerimiento no se inventa: si no llega, búscalo en `specs/*/spec.md` del repositorio de diseño y en el tracker. Si no existe, detente y propón armarlo con `grilling-es` en esta sesión (`flujo-diseno:grilling-es` si está instalada como plugin de Claude Code). Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje. Sin el sí, queda detenida y di qué quedó sin hacer: no se dibujó ninguna vista.
 
 El spec sigue una plantilla con contexto, historias "Como, quiero, para" con criterios "Dado, cuando, entonces", estados por vista, reglas, decisiones, fuera de alcance y enlaces a los tickets. Si falta la sección de estados por vista, dedúcelos de las historias y los criterios, y muéstraselos a la persona para que confirme antes de dibujar. Anota los identificadores de los tickets: cada vista los cita.
 
 ### 2. Ubicar el repositorio de diseño
 
-Trabaja en el repositorio de diseño, que tiene `design/` o `specs/` en la raíz. Si el directorio actual no lo es, pregunta dónde está. Si el producto todavía no tiene repositorio de diseño, para y pide que el TL lo cree: no lo crees tú, porque el TL decide el host y los accesos.
+Trabaja en el repositorio de diseño, que tiene `design/` o `specs/` en la raíz. Si el directorio actual no lo es, pregunta dónde está. Si el producto todavía no tiene repositorio de diseño, detente: no lo crees tú, porque el TL decide el host y los accesos, y eso no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: no se dibujó ninguna vista. Cuando el TL lo cree, vuelve a correr este paso.
 
 Con el repositorio ubicado, antes de escribir en él, decide la rama: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
 
@@ -53,18 +53,22 @@ Con el repositorio ubicado, antes de escribir en él, decide la rama: el paso 9 
 <intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo diseno --epica <épica>
 ```
 
-Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes: explica el error en simple; si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo `fase-dos` en lugar de `fase-2`, y vuelve a correrlo. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
+Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
+
+Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
+
+El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: guarda en la rama actual.
-- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
-- `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
+- `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
 
 ### 3. Crear o editar
 
 Si la vista ya existe en `design/vistas/<épica>/`, es una edición. Antes de tocarla pregunta qué cambia y por qué:
 
-- Si cambia comportamiento, estados, flujo o alcance, el cambio necesita grilling y tickets actualizados antes que el HTML. Dilo, sugiere `grilling-es` y `spec-a-tickets`, y no edites hasta que el spec o los tickets reflejen el cambio. Un HTML que se adelanta a sus tickets vuelve a abrir la brecha entre lo que se aceptó y lo que se dibujó.
-- Si es cosmético (color, texto, espaciado, orden visual sin cambio de comportamiento), sigue, y guarda el por qué para el mensaje del commit. Si el texto o el valor que cambia figura en un criterio de aceptación de un ticket, el ticket manda: se actualiza primero, y recién después la vista.
+- Si cambia comportamiento, estados, flujo o alcance, el cambio necesita grilling y tickets actualizados antes que el HTML: un HTML que se adelanta a sus tickets vuelve a abrir la brecha entre lo que se aceptó y lo que se dibujó. Detente antes de editar y propón seguir en esta sesión con `grilling-es` y después con `spec-a-tickets` (`flujo-diseno:grilling-es` y `flujo-diseno:spec-a-tickets` si están instaladas como plugin de Claude Code). Con el sí, síguelas y vuelve a este paso cuando el spec o los tickets digan el cambio. Sin el sí, queda detenida y di qué quedó sin hacer: la vista no se editó.
+- Si es cosmético (color, texto, espaciado, orden visual sin cambio de comportamiento), sigue, y guarda el por qué para el mensaje del commit. Si el texto o el valor que cambia figura en un criterio de aceptación de un ticket, el ticket manda: muestra cómo queda el criterio y propón aplicarlo tú antes de la vista. Con el sí, aplícalo en el tracker con la herramienta de la sesión, o en `specs/<épica>/tickets/` si no hay tracker, vuelve a leer el ticket para confirmar que dice lo nuevo y sigue con la vista. Si la sesión no llega al tracker, eso no se arregla desde la sesión: detente, entrega el texto nuevo del criterio para que alguien con acceso lo aplique y di qué quedó sin hacer: el ticket y la vista siguen como estaban. Sin el sí, queda detenida y di qué quedó sin hacer.
 
 ### 4. Design system
 
@@ -85,7 +89,9 @@ Si `design/` ya existía, compara sus compartidos con los de esta skill: un repo
 <intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py comparar <repo-de-diseño>
 ```
 
-Si el JSON trae `"cambios": true`, muestra el cambio antes de escribirlo, con `<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py mostrar <repo-de-diseño>`, y explícalo en simple: qué reglas y tokens se suman (`faltan`), cuáles quedan fuera y por qué (`omitidos`) y, si `proto.js` difiere, que se reemplaza por el de la skill. Nombra una por una las reglas de `cambian_lo_propio`: no tienen clase, pintan elementos que ya existen y cambian cómo se ven las vistas que el repositorio ya tiene. El resto solo pinta las clases nuevas. Escribe solo con el sí de la persona, con `<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py aplicar <repo-de-diseño>`. Sin el sí, sigue con lo que hay y avisa que las vistas que usen lo que falta se verán sin estilo y `checklist-diseno` las bloqueará. Si el script sale con error, explícalo en simple y sigue sin tocar los compartidos.
+Si el JSON trae `"cambios": true`, muestra el cambio antes de escribirlo, con `<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py mostrar <repo-de-diseño>`, y explícalo en simple: qué reglas y tokens se suman (`faltan`), cuáles quedan fuera y por qué (`omitidos`) y, si `proto.js` difiere, que se reemplaza por el de la skill. Nombra una por una las reglas de `cambian_lo_propio`: no tienen clase, pintan elementos que ya existen y cambian cómo se ven las vistas que el repositorio ya tiene. El resto solo pinta las clases nuevas. Escribe solo con el sí de la persona, con `<intérprete> -B <ruta-de-esta-skill>/scripts/compartidos.py aplicar <repo-de-diseño>`. Sin el sí, detente antes del plan de vistas y no escribas vistas: explica en simple que las vistas que usen lo que falta se verían sin estilo y `checklist-diseno` las bloquearía. Di qué quedó sin hacer: nombra los compartidos que siguen viejos, los de `faltan` y `proto.js` si difiere, y que no se escribió ninguna vista. Si en este paso ya escribiste `tokens.css`, `components.css` o `proto.js`, di también que quedaron escritos en `design/` del repositorio, sin commit.
+
+Si el script sale con error, detente: explica en simple qué dice el error y propón corregirlo tú. El mensaje nombra el archivo y lo que no entendió, por ejemplo una llave sin cerrar en `components.css` o un comentario sin cerrar en `tokens.css`, con su posición: busca ahí la regla rota y propón el arreglo más chico que la cierra, sin cambiar lo que pinta. Muestra el cambio antes de escribirlo y, con el sí, corrígelo, vuelve a correr `comparar` y sigue con la puesta al día desde ahí. Sin el sí, o si el error no se puede corregir desde la sesión, queda detenida sin escribir vistas y di qué quedó sin hacer: los compartidos siguen como estaban y no se escribió ninguna vista.
 
 Revisa también que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`; si no la tiene, agrégala, y crea el archivo si falta. Lavish guarda ahí los archivos de cada revisión, que no son diseño: sin esa línea, producto los ve como cambios sin guardar después de cada commit.
 
@@ -131,7 +137,9 @@ Si `tokens.css` define `[data-theme="dark"]`, repite cada escenario en un ancho 
 
 Mira cada captura y revísala contra el spec: que cada escenario muestre lo que piden "Estados por vista" y los criterios, que nada se corte, se superponga ni se salga de la pantalla en 390, que los textos de un mismo escenario no se contradigan, y que no aparezcan datos o textos que el spec no menciona. Corrige y vuelve a capturar lo que cambió. Si corregiste `components.css` o `tokens.css`, vuelve a capturar todas las vistas del pedido, porque el cambio las toca a todas. Al pasar a la revisión, dile a la persona cuántas capturas revisaste y qué corregiste.
 
-Sin navegador en la sesión, dilo en una línea, que la revisión visual queda en manos de la persona en el paso siguiente, y sigue.
+Si la captura falla o sale vacía, prueba con el otro binario o con Playwright, y mira que el `.png` exista y no esté vacío.
+
+Sin navegador en la sesión, propón instalar Playwright: con el sí, corre `pip install playwright` y `playwright install chromium`, y repite la prueba de `<intérprete> -B -c "import playwright"`. Si pasa, saca las capturas. Sin el sí, o si la prueba sigue fallando, dilo en una línea, que la revisión visual queda en manos de la persona en el paso siguiente, y sigue.
 
 ### 8. Revisión con la persona
 
@@ -144,7 +152,7 @@ npx -y lavish-axi poll design/vistas/<épica>/<vista>.html
 
 Aplica cada anotación y vuelve a esperar con `poll --agent-reply "<qué cambiaste>"` hasta que la persona cierre la revisión. Recuérdale que el panel de escenarios permite ver cada estado y cada ancho.
 
-Sin terminal, indica la ruta del archivo para abrirlo en el navegador, y cómo ver un escenario: `listado.html?escenario=vacio`.
+Con terminal pero sin `npx`, propón instalar Node.js, que trae `npx`: `winget install OpenJS.NodeJS.LTS` en Windows, `brew install node` en macOS, o el instalador LTS de https://nodejs.org. Con el sí, instálalo y vuelve a probar `npx --version`; en Windows la terminal ve `npx` recién al reabrirla, así que si la prueba falla, di que hay que reabrir la sesión. Sin terminal, o sin el sí, indica la ruta del archivo para abrirlo en el navegador, y cómo ver un escenario: `listado.html?escenario=vacio`.
 
 ### 9. Guardar
 
@@ -160,10 +168,10 @@ Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add 
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
 
-La rama quedó revisada en el paso 2. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo diseno --epica <épica>`.
+La rama quedó revisada en el paso 2. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, sigue `references/rama.md`, sección "Push sin credenciales": el TL es quien da los accesos, y el commit queda solo en esta máquina. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo diseno --epica <épica>`.
 
-- `rama-nueva`: pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica en simple que el servidor no aceptó el cambio en esa rama, que las vistas quedaron en la rama nueva y que el TL revisa y hace el merge request.
-- `parar`: explica en simple el `detalle` y que el TL es quien da los accesos.
+- `rama-nueva`: explica en simple que el servidor no aceptó el cambio en esa rama y propón pasarlo a la rama nueva. Con el sí, pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica que las vistas quedaron en la rama nueva y que el TL revisa y hace el merge request. Sin el sí, o si un comando falla, sigue `references/rama.md`, sección "Rama nueva".
+- `parar`: explica en simple el `detalle` y que el TL es quien da los accesos, y sigue `references/rama.md`, sección "Rama nueva rechazada".
 
 ### 10. Siguiente paso
 

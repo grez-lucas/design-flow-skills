@@ -351,7 +351,7 @@ class LlamadaARama(unittest.TestCase):
     INTERPRETE = Interprete.SIN_PYTHON_AL_GUARDAR
     SI_FALLA = "Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes"
     # Issue 42, Q143 y Q144: las skills ya barridas detienen, proponen el arreglo de `references/rama.md` y siguen.
-    CON_ARREGLO = {"grilling-es", "spec-a-tickets"}
+    CON_ARREGLO = {"grilling-es", "spec-a-tickets", "spec-a-html"}
     SI_FALLA_CON_ARREGLO = ("Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin "
                             "escribir en el repositorio")
 

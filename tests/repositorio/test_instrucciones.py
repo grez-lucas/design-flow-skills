@@ -98,8 +98,15 @@ class CapturasEnSpecAHtml(unittest.TestCase):
     def test_el_tema_oscuro_se_captura_solo_si_hay_bloque_oscuro(self):
         self.assertRegex(self.capturas, r'Si `tokens\.css` define `\[data-theme="dark"\]`, repite cada escenario en un ancho con `&tema=oscuro`')
 
-    def test_sin_navegador_lo_dice_y_sigue(self):
-        self.assertRegex(self.capturas, r"Sin navegador en la sesión, dilo en una línea[^.]*y sigue\.")
+    def test_sin_navegador_propone_instalarlo_y_repite_la_prueba(self):
+        """Q153: propone instalar lo que falta, lo instala con el sí y repite la prueba; sin el sí, sigue como antes."""
+        self.assertRegex(self.capturas, r"Sin navegador en la sesión, propón instalar Playwright: con el sí, corre "
+                                        r"`pip install playwright` y `playwright install chromium`, y repite la prueba de "
+                                        r"`<intérprete> -B -c \"import playwright\"`\.")
+        self.assertRegex(self.capturas, r"Sin el sí, o si la prueba sigue fallando, dilo en una línea[^.]*y sigue\.")
+
+    def test_si_la_captura_falla_prueba_con_otro_navegador(self):
+        self.assertRegex(self.capturas, r"Si la captura falla o sale vacía, prueba con el otro binario o con Playwright")
 
 
 class DatosFueraDelSpecEnElChecklist(unittest.TestCase):
@@ -362,7 +369,7 @@ class DetencionesConArreglo(unittest.TestCase):
     La excepción es Python ausente, que resuelve el issue 45: esas oraciones quedan como están, cada una sola en su
     párrafo, y el test las nombra una por una."""
 
-    BARRIDAS = ("grilling-es", "spec-a-tickets")
+    BARRIDAS = ("grilling-es", "spec-a-tickets", "spec-a-html")
     DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
     FORMA_VIEJA = re.compile(r"\b(?:para y|para aquí|para:|no sigas|no avances|no conviertas)", re.I)
     SIN_HACER = re.compile(r"\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b[^.]{0,20}?\bsin\b", re.I)
@@ -465,7 +472,7 @@ class ReferenciaDeRama(unittest.TestCase):
     """Q143 y Q144: lo que hace una skill cuando `rama.py` o `git` no la dejan guardar vive en `references/rama.md`,
     igual en cada skill que guarda, porque `npx skills` instala cada una por separado (como `rama.py`, Q99)."""
 
-    CON_REFERENCIA = ("grilling-es", "spec-a-tickets")
+    CON_REFERENCIA = ("grilling-es", "spec-a-tickets", "spec-a-html")
     ORIGINAL = SKILLS / "grilling-es" / "references" / "rama.md"
 
     def setUp(self):
@@ -606,6 +613,62 @@ class DetencionesDeSpecATickets(unittest.TestCase):
         self.assertRegex(linear, r"Un label de las convenciones que no existe en Linear se ofrece crear: muéstralo y créalo "
                                  r"solo con el sí, como en GitHub\.")
         self.assertNotIn("no un label que se inventa", linear)
+
+
+class DetencionesDeSpecAHtml(unittest.TestCase):
+    """Issue 42 en `spec-a-html`: sin spec, sin repositorio (Q144), cambio de comportamiento, criterio de un ticket,
+    puesta al día rechazada (Q147), `compartidos.py` con error y Node ausente (Q153)."""
+
+    def setUp(self):
+        self.texto = (SKILLS / "spec-a-html" / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_sin_spec_propone_armarlo_con_grilling_y_vuelve(self):
+        paso = seccion(self.texto, "1. Conseguir el spec", 3)
+        self.assertRegex(paso, r"Si no existe, detente y propón armarlo con `grilling-es` en esta sesión")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje\.")
+        self.assertNotIn("Sin spec no avances", paso)
+
+    def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
+        """Q144."""
+        paso = seccion(self.texto, "2. Ubicar el repositorio de diseño", 3)
+        self.assertRegex(paso, r"Si el producto todavía no tiene repositorio de diseño, detente: no lo crees tú, porque el "
+                               r"TL decide el host y los accesos, y eso no se hace desde la sesión\.")
+        self.assertRegex(paso, r"Redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
+
+    def test_un_cambio_de_comportamiento_sigue_con_grilling_y_tickets_con_el_si(self):
+        paso = seccion(self.texto, "3. Crear o editar", 3)
+        self.assertRegex(paso, r"Detente antes de editar y propón seguir en esta sesión con `grilling-es` y después con "
+                               r"`spec-a-tickets`")
+        self.assertRegex(paso, r"Con el sí, síguelas y vuelve a este paso cuando el spec o los tickets digan el cambio\.")
+        self.assertRegex(paso, r"Sin el sí, queda detenida y di qué quedó sin hacer: la vista no se editó\.")
+
+    def test_el_criterio_de_un_ticket_se_aplica_con_el_si_antes_de_la_vista(self):
+        paso = seccion(self.texto, "3. Crear o editar", 3)
+        self.assertRegex(paso, r"el ticket manda: muestra cómo queda el criterio y propón aplicarlo tú antes de la vista\.")
+        self.assertRegex(paso, r"vuelve a leer el ticket para confirmar que dice lo nuevo")
+
+    def test_sin_el_si_a_la_puesta_al_dia_queda_detenida(self):
+        """Q147, como `html-a-vista` por Q128."""
+        paso = seccion(self.texto, "4. Design system", 3)
+        self.assertRegex(paso, r"Sin el sí, detente antes del plan de vistas y no escribas vistas: explica en simple que "
+                               r"las vistas que usen lo que falta se verían sin estilo y `checklist-diseno` las bloquearía\.")
+        self.assertRegex(paso, r"Di qué quedó sin hacer: nombra los compartidos que siguen viejos[^\n]*? y que no se "
+                               r"escribió ninguna vista\.")
+        self.assertNotIn("Sin el sí, sigue con lo que hay", paso)
+
+    def test_si_el_script_sale_con_error_propone_el_arreglo_y_vuelve_a_comparar(self):
+        paso = seccion(self.texto, "4. Design system", 3)
+        self.assertRegex(paso, r"Si el script sale con error, detente: explica en simple qué dice el error y propón corregirlo tú\.")
+        self.assertRegex(paso, r"Muestra el cambio antes de escribirlo y, con el sí, corrígelo, vuelve a correr `comparar` "
+                               r"y sigue con la puesta al día desde ahí\.")
+        self.assertNotIn("sigue sin tocar los compartidos", paso)
+
+    def test_sin_npx_propone_instalar_node_y_repite_la_prueba(self):
+        """Q153."""
+        paso = seccion(self.texto, "8. Revisión con la persona", 3)
+        self.assertRegex(paso, r"Con terminal pero sin `npx`, propón instalar Node\.js, que trae `npx`")
+        self.assertIn("`winget install OpenJS.NodeJS.LTS`", paso)
+        self.assertRegex(paso, r"Con el sí, instálalo y vuelve a probar `npx --version`")
 
 
 if __name__ == "__main__":
