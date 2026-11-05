@@ -369,7 +369,7 @@ class DetencionesConArreglo(unittest.TestCase):
     La excepción es Python ausente, que resuelve el issue 45: esas oraciones quedan como están, cada una sola en su
     párrafo, y el test las nombra una por una."""
 
-    BARRIDAS = ("grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
+    BARRIDAS = ("checklist-diseno", "grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
     DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
     FORMA_VIEJA = re.compile(r"\b(?:para y|para aquí|para:|no sigas|no avances|no conviertas)", re.I)
     SIN_HACER = re.compile(r"\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b[^.]{0,20}?\bsin\b", re.I)
@@ -460,6 +460,9 @@ class DetencionesConArreglo(unittest.TestCase):
 
     def test_el_chequeo_no_cuenta_los_bloques_de_codigo(self):
         self.assertEqual(self.hallazgos("```\ndetente\n```"), [])
+
+    def test_el_barrido_cubre_todas_las_skills(self):
+        self.assertEqual(set(self.BARRIDAS), {p.name for p in SKILLS.iterdir() if (p / "SKILL.md").is_file()})
 
     def test_cada_detencion_de_las_skills_barridas_trae_su_arreglo(self):
         for skill in self.BARRIDAS:
@@ -754,6 +757,58 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
         self.assertRegex(paso, r"Si falta una pantalla, propón agregarla al plan: con el sí, abre una fila nueva y repite "
                                r"las olas 2 y 3 solo para esa pantalla")
         self.assertIn("`git restore --staged <archivo>`", paso)
+
+
+class CorreccionesDelChecklist(unittest.TestCase):
+    """Q146: `checklist-diseno` corrige con el sí sus bloqueos mecánicos (enlaces, valores sueltos, `@keyframes`, clases
+    sin regla) y vuelve a correr `revisar.py`; lo que no es mecánico sigue en el informe. Q154: el formato de la tabla
+    de escenarios de un spec congelado se corrige sin cambiar lo que dice, como excepción."""
+
+    def setUp(self):
+        self.texto = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
+        self.pasos = re.findall(r"^### (\d+)\. (.+)$", self.texto, flags=re.M)
+        self.paso = seccion(self.texto, "Corregir lo mecánico", 3)
+
+    def numero(self, titulo):
+        return next(int(n) for n, t in self.pasos if titulo in t)
+
+    def test_los_pasos_estan_numerados_en_orden(self):
+        self.assertEqual([int(n) for n, _ in self.pasos], list(range(1, len(self.pasos) + 1)))
+
+    def test_corrige_despues_de_revisar_y_antes_del_informe(self):
+        self.assertEqual(self.numero("Corregir lo mecánico"), self.numero("Revisión de criterio") + 1)
+        self.assertEqual(self.numero("Informe"), self.numero("Corregir lo mecánico") + 1)
+
+    def test_nombra_los_cuatro_bloqueos_mecanicos(self):
+        for titulo in ("Enlaces", "Valores sueltos", "Animaciones", "Clases sin regla"):
+            with self.subTest(titulo=titulo):
+                self.assertRegex(self.paso, rf"(?m)^- \*\*{titulo}\*\*: ")
+        self.assertRegex(self.paso, r"Un valor sin token igual va al informe: elegir el token más cercano o crear uno es "
+                                    r"una decisión de producto\.")
+        self.assertRegex(self.paso, r"(?m)^<intérprete> -B <ruta-de-esta-skill>/\.\./spec-a-html/scripts/compartidos\.py "
+                                    r"aplicar <repo-de-diseño>$")
+
+    def test_corrige_con_el_si_y_vuelve_a_correr_revisar(self):
+        self.assertRegex(self.paso, r"Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí\. Con el sí, "
+                                    r"escríbelo y vuelve a correr `revisar\.py` sobre las vistas que tocaste")
+        self.assertRegex(self.paso, r"Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste\.")
+
+    def test_la_tabla_de_un_spec_congelado_se_corrige_solo_en_el_formato(self):
+        """Q154."""
+        self.assertRegex(self.paso, r"se corrige en el formato, sin cambiar ningún slug, nombre ni alcance\.")
+        self.assertRegex(self.paso, r"Si el spec está congelado[^.]*, es la única edición que se le hace, como excepción: "
+                                    r"el informe la nombra para que el commit que la guarde lo diga\.")
+
+    def test_lo_que_no_es_mecanico_sigue_en_el_informe(self):
+        self.assertNotIn("No corrijas las vistas: el informe es para decidir en la planificación.", self.texto)
+        self.assertRegex(self.texto, r"Lo que no es mecánico no lo corrijas: el informe es para decidir en la planificación\.")
+
+    def test_el_informe_lista_lo_corregido_sin_commit(self):
+        # La plantilla del informe trae encabezados `##` dentro de su bloque, que cortan `seccion`.
+        informe = self.texto.split("### 5. Informe")[1]
+        self.assertLess(informe.index("## Escenarios del spec"), informe.index("## Corregido"))
+        self.assertLess(informe.index("## Corregido"), informe.index("## Siguiente paso"))
+        self.assertRegex(self.paso, r"Los cambios quedan escritos en el repositorio de diseño, sin commit")
 
 
 if __name__ == "__main__":
