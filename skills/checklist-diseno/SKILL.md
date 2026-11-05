@@ -1,11 +1,11 @@
 ---
 name: checklist-diseno
-description: Revisa las vistas HTML del repositorio de diseño contra la definición de listo antes de la planificación del sprint - escenarios completos (vacío, cargando, error, sin permiso, muchos datos y los del spec), controles de prototipo fuera de la pantalla, valores visuales solo desde tokens.css, datos ficticios, tickets o spec citados - y cruza cada vista con los criterios de aceptación de sus tickets, o con su spec si no tiene tickets. Entrega un informe en el chat con lo que bloquea y lo que conviene mirar. Úsala siempre que producto o diseño quiera saber si un diseño está listo para construir, aunque no diga "checklist" - "revisa si las vistas están listas", "¿esto pasa la definición de listo?", "chequea el diseño antes de la planning", "revisa el HTML de alertas", "¿le falta algo a esta vista?". No la uses para crear o editar vistas (spec-a-html) ni para escribir tickets (spec-a-tickets).
+description: Revisa las vistas HTML del repositorio de diseño contra la definición de listo antes de la planificación del sprint - escenarios completos (vacío, cargando, error, sin permiso, muchos datos y los del spec), controles de prototipo fuera de la pantalla, valores visuales solo desde tokens.css, datos ficticios, tickets o spec citados - y cruza cada vista con los criterios de aceptación de sus tickets, o con su spec si no tiene tickets. Corrige con el sí los bloqueos mecánicos (enlaces, valores sueltos, animaciones, clases sin regla) y entrega un informe en el chat con lo que bloquea y lo que conviene mirar. Úsala siempre que producto o diseño quiera saber si un diseño está listo para construir, aunque no diga "checklist" - "revisa si las vistas están listas", "¿esto pasa la definición de listo?", "chequea el diseño antes de la planning", "revisa el HTML de alertas", "¿le falta algo a esta vista?". No la uses para crear o editar vistas (spec-a-html) ni para escribir tickets (spec-a-tickets).
 ---
 
 # Checklist de diseño
 
-Revisa si las vistas de `design/vistas/` están listas para construir. El resultado es un informe en el chat que producto lleva a la planificación del sprint, donde TL y producto dan el diseño por listo. La skill no aprueba ni bloquea nada por su cuenta: dice qué falta y por qué importa.
+Revisa si las vistas de `design/vistas/` están listas para construir. El resultado es un informe en el chat que producto lleva a la planificación del sprint, donde TL y producto dan el diseño por listo. La skill no aprueba ni bloquea nada por su cuenta: dice qué falta y por qué importa. Los bloqueos que tienen un solo arreglo correcto los corrige ella misma con el sí de la persona, para que no lleguen a la planificación; lo demás va al informe.
 
 Quien la usa suele ser de producto. Habla en español y explica cada hallazgo por lo que DEV no podría construir o construiría mal, no por la regla que incumple.
 
@@ -58,7 +58,31 @@ Lo que el script no puede ver, lo revisas tú, vista por vista:
 - **Interacciones**: lo que pasa al hacer clic, validar o esperar, como comentario junto al elemento cuando no es obvio.
 - **Datos ficticios**: verosímiles y de volumen real en muchos datos (nombres largos, montos grandes, decenas de filas).
 
-### 4. Informe
+### 4. Corregir lo mecánico
+
+Algunos bloqueos tienen un solo arreglo correcto, que no decide nada de producto. Esos los corriges tú con el sí de la persona, en vez de dejarlos para la planificación, porque quien usa la skill no arregla archivos a mano:
+
+- **Enlaces**: la vista no enlaza `tokens.css`, `components.css` o `proto.js`. Agrega el `<link>` o el `<script>` que falta, con la ruta relativa desde su carpeta (`../../tokens.css`). Una hoja o un script ajeno no se borra: pinta o mueve algo, y va al informe.
+- **Valores sueltos**: un color o una medida igual al valor de un token de `tokens.css` se reemplaza por su `var(--token)`. Un valor sin token igual va al informe: elegir el token más cercano o crear uno es una decisión de producto.
+- **Animaciones**: un `@keyframes` se quita, con la propiedad `animation` que lo usa, y en su lugar queda un comentario que dice qué se mueve y cuándo, como pide la convención de vista.
+- **Clases sin regla**: si la clase es de los compartidos de `spec-a-html` (`.modal`, `.toast-region` y las demás de su `assets/components.css`), la trae la puesta al día de `spec-a-html`, con su script y como en su paso 4: compara, muestra el cambio y escribe solo con el sí. Una clase que no es de los compartidos va al informe: su regla es diseño.
+- **Tabla de escenarios del spec**: un error de formato de `## Escenarios en pantalla` (las columnas, el separador, una fila sin tres columnas) se corrige en el formato, sin cambiar ningún slug, nombre ni alcance. Si el spec está congelado (abre con su línea `Congelado`), es la única edición que se le hace, como excepción: el informe la nombra para que el commit que la guarde lo diga. Un slug inválido o repetido, o un nombre que no es el de un `### Escenario` del spec, cambia lo que dice el spec: va al informe.
+
+La puesta al día de los compartidos:
+
+```
+<intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py comparar <repo-de-diseño>
+<intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py mostrar <repo-de-diseño>
+<intérprete> -B <ruta-de-esta-skill>/../spec-a-html/scripts/compartidos.py aplicar <repo-de-diseño>
+```
+
+Si `../spec-a-html/` no está junto a esta skill, propón instalar el plugin completo, como dice el comienzo de los pasos de `html-a-vista`, y pide reiniciar la sesión; sin el sí, esas clases van al informe.
+
+Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el sí, escríbelo y vuelve a correr `revisar.py` sobre las vistas que tocaste; lo que siga bloqueando va al informe. Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste. Sin Python, corrige igual y revisa a mano lo que tocaste.
+
+Los cambios quedan escritos en el repositorio de diseño, sin commit: esta skill no guarda. Dilo en el informe, archivo por archivo, y que la próxima skill que guarde con `git add design/` los va a sumar a su commit.
+
+### 5. Informe
 
 Entrega el informe en el chat, en este orden:
 
@@ -91,6 +115,11 @@ Conviene mirar:
 
 Sin hallazgos.   (cuando no tiene)
 
+## Corregido
+
+- <archivo> - <qué se corrigió>, sin commit
+- <spec congelado> - formato de `## Escenarios en pantalla`, como excepción: el commit que lo guarde lo dice
+
 ## Siguiente paso
 
 <qué corregir con spec-a-html antes de la planificación, o "listo para llevar a la planificación">
@@ -98,4 +127,4 @@ Sin hallazgos.   (cuando no tiene)
 
 Bloquea lo que impide construir sin preguntar: un escenario del spec o un criterio de un ticket que no se ve, valores visuales sueltos, variables sin definir o clases sin regla en `components.css` ni en el `<style>` de la vista, un escenario de la vista que no es base ni está en `## Escenarios en pantalla` del spec, una fila de esa tabla que no nombra un `### Escenario` del spec, controles de prototipo dentro de la pantalla, JavaScript propio, hojas de estilo que no son las del repositorio o animaciones con `@keyframes`, una vista que no cita tickets ni spec o declara un spec que no existe o está fuera del repositorio, aunque cite tickets, recursos externos, texto de relleno, y dominios o marcas que confirmaste que son reales (el script los marca como aviso porque no puede saberlo; tú sí, mirando si el nombre existe fuera del ejemplo). Lo demás va en "Conviene mirar".
 
-No corrijas las vistas: el informe es para decidir en la planificación. Si la persona quiere corregir, el siguiente paso es `spec-a-html` en modo edición, con la lista de hallazgos. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
+Lo que no es mecánico no lo corrijas: el informe es para decidir en la planificación. Si la persona quiere corregirlo, el siguiente paso es `spec-a-html` en modo edición, con la lista de hallazgos. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
