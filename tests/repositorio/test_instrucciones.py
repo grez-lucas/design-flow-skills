@@ -532,6 +532,18 @@ class ReferenciaDeRama(unittest.TestCase):
         self.assertRegex(push, r"el commit existe solo en esta máquina")
         self.assertRegex(push, r"Cuando el TL dé el acceso, vuelve a correr `git push`")
 
+    def test_sin_git_propone_instalarlo_y_repite_la_prueba(self):
+        """Q156, como Q153."""
+        error = seccion(self.texto, "Error de rama.py", 2)
+        self.assertRegex(error, r"Si el error dice que no encuentra `git`, o `git --version` no responde, propón instalarlo:")
+        for orden in ("`winget install Git.Git`", "`brew install git`", "`sudo apt install git`", "`sudo dnf install git`"):
+            self.assertIn(orden, error)
+        self.assertRegex(error, r"Con el sí, instálalo y repite `git --version`; si responde, vuelve a correr la orden de `rama\.py`\.")
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        fila = next(l for l in readme.splitlines() if l.startswith("| `git` |"))
+        self.assertIn("La skill propone instalarlo", fila)
+        self.assertNotIn("No hay commit ni push: los archivos quedan solo en la máquina.", fila)
+
     def test_la_rama_nueva_va_con_el_si(self):
         nueva = seccion(self.texto, "Rama nueva", 2)
         self.assertRegex(nueva, r"Sin el sí a la rama nueva, queda detenida y di qué quedó sin hacer")
