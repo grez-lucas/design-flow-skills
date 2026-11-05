@@ -355,26 +355,31 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
 
 
 class DetencionesConArreglo(unittest.TestCase):
-    """Issue 42, criterio 4, con Q131: cada detención que escribe un `SKILL.md` o un `references/*.md` trae su arreglo.
+    """Issue 42, criterio 4, con Q131: cada detención que escribe el README o un `.md` bajo `skills/` trae su arreglo.
 
-    Cómo se verifica, sobre el texto y sin interpretarlo:
-    - Una detención se escribe con "detente", "queda detenida" o "se detiene". Las formas viejas ("para y", "para:",
-      "para aquí", "no sigas", "no avances", "no conviertas") no pasan, para que una detención nueva no quede fuera del
-      chequeo por estar escrita de otra forma.
-    - Cada párrafo, viñeta o paso numerado con una detención dice qué quedó sin hacer, y dice también qué pasa con el
-      sí o sin el sí de la persona, o que el arreglo no se puede hacer desde la sesión.
-    - Si la detención depende del sí, la sección donde está (hasta el siguiente encabezado) propone el arreglo.
-    - Toda sección con una detención vuelve a correr o a probar el chequeo que la detuvo.
-    La excepción es Python ausente, que resuelve el issue 45: esas oraciones quedan como están, cada una sola en su
-    párrafo, y el test las nombra una por una."""
+    Cómo se verifica, sobre el texto y unidad por unidad (un párrafo, una viñeta, un paso numerado o una fila de tabla,
+    fuera de los bloques de código):
+    - Una detención se escribe con "detente", "queda detenida" o "se detiene". Las otras formas ("para y", "no guardes",
+      "termina aquí", "debe detenerse", "te detienes", "no continúes" y las demás de `FORMA_VIEJA`) no pasan, para que
+      una detención nueva no quede fuera del chequeo por estar escrita de otra forma.
+    - La unidad con una detención dice qué quedó sin hacer ("di qué quedó sin hacer", no "no digas qué quedó...").
+    - Y, en la misma unidad, una de tres: propone un arreglo, dice qué pasa con el sí y vuelve a correr el chequeo; o
+      dice que el arreglo no se puede hacer desde la sesión y cuándo vuelve a correr el chequeo; o es la rama del "sin
+      el sí" de la unidad que la precede, que propone el arreglo.
+    Que otra unidad de la misma sección cumpla no alcanza. La excepción es Python ausente, que resuelve el issue 45: esas
+    oraciones y filas quedan como están, y el test las nombra una por una."""
 
-    BARRIDAS = ("checklist-diseno", "grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
     DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
-    FORMA_VIEJA = re.compile(r"\b(?:para y|para aquí|para:|no sigas|no avances|no conviertas)", re.I)
-    SIN_HACER = re.compile(r"\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b[^.]{0,20}?\bsin\b", re.I)
-    SI_O_NO = re.compile(r"\b(?:con|sin) el sí\b|desde la sesión", re.I)
+    FORMA_VIEJA = re.compile(r"\by para\.|\b(?:para y|para aquí|para:|paran? antes de|no sigas|no sigue|no avances|"
+                             r"no avanza|no conviertas|no guardes|no contin[uú]es?|termina aquí|debe detenerse|"
+                             r"detenerse|deténgase|te detienes|se para|abort[a-z]*)\b", re.I)
+    SIN_HACER = re.compile(r"\b(?:di|dice|dicen|dices|decir|dilo)\b[^.]{0,80}?\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b"
+                           r"[^.]{0,20}?\bsin\b", re.I)
+    CON_SI = re.compile(r"\bcon el sí\b", re.I)
+    SIN_SI = re.compile(r"\bsin el sí\b", re.I)
+    DESDE_LA_SESION = re.compile(r"\bno se (?:puede (?:hacer|arreglar|corregir)|arregla|hace|corrige) desde la sesión", re.I)
     PROPONE = re.compile(r"\b(?:propón|propone|proponle|ofrece|ofrécele)\b", re.I)
-    REPITE = re.compile(r"\bvuelve a (?:correr|probar|leer|mirar|este paso)|\bvuelves a correr|\brepite\b", re.I)
+    REPITE = re.compile(r"\bvuelven? a (?:correr|probar|leer|mirar|este paso)|\bvuelves a correr|\brepiten?\b", re.I)
     # Issue 45: sin Python, cada skill sigue como hoy hasta que los scripts pasen a Go (Q151, Q152).
     SIN_PYTHON = {
         "Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se "
@@ -382,16 +387,16 @@ class DetencionesConArreglo(unittest.TestCase):
         "Si no encontraste intérprete, para aquí y no escribas en el repositorio: explica en simple que falta Python "
         "3.9 o superior y que se instala desde https://www.python.org/downloads/.",
     }
+    SIN_PYTHON_EN_EL_README = ("| Python 3.9 o superior (", "5. Para guardar en el repositorio de diseño, convertir mockups")
 
     @staticmethod
     def unidades(texto):
-        """[(sección, unidad)]: cada párrafo y cada viñeta o paso numerado fuera de los bloques de código. La sección es
-        el número del encabezado bajo el que está, para no juntar dos secciones con el mismo título."""
-        unidades, actual, seccion, bloque = [], [], 0, False
+        """Cada párrafo, viñeta, paso numerado o fila de tabla fuera de los bloques de código, en orden."""
+        unidades, actual, bloque = [], [], False
 
         def cerrar():
             if actual:
-                unidades.append((seccion, " ".join(actual)))
+                unidades.append(" ".join(actual))
                 actual.clear()
 
         for linea in texto.splitlines():
@@ -401,12 +406,9 @@ class DetencionesConArreglo(unittest.TestCase):
                 bloque = not bloque
             elif bloque:
                 continue
-            elif re.match(r"#{1,6} ", limpia):
+            elif not limpia or limpia == "---" or re.match(r"#{1,6} ", limpia):
                 cerrar()
-                seccion += 1
-            elif not limpia or limpia == "---":
-                cerrar()
-            elif re.match(r"(?:- |\d+\. )", limpia):
+            elif re.match(r"(?:- |\d+\. |\|)", limpia):
                 cerrar()
                 actual.append(limpia)
             else:
@@ -415,61 +417,85 @@ class DetencionesConArreglo(unittest.TestCase):
         return unidades
 
     @classmethod
+    def propone(cls, unidad):
+        return bool(cls.CON_SI.search(unidad) and cls.PROPONE.search(unidad) and cls.REPITE.search(unidad))
+
+    @classmethod
+    def exenta(cls, unidad):
+        return unidad in cls.SIN_PYTHON or unidad.startswith(cls.SIN_PYTHON_EN_EL_README)
+
+    @classmethod
     def hallazgos(cls, texto):
-        unidades = cls.unidades(texto)
-        secciones = {}
-        for seccion, unidad in unidades:
-            secciones[seccion] = secciones.get(seccion, "") + " " + unidad
-        hallazgos = []
-        for seccion, unidad in unidades:
-            if unidad in cls.SIN_PYTHON:
-                continue
+        hallazgos, anterior = [], ""
+        for unidad in cls.unidades(texto):
             corta = unidad[:90]
+            if cls.exenta(unidad):
+                anterior = unidad
+                continue
             if cls.FORMA_VIEJA.search(unidad):
                 hallazgos.append(f"detención escrita de otra forma, usa detente o queda detenida: {corta}")
-            if not cls.DETENCION.search(unidad):
-                continue
-            if not cls.SIN_HACER.search(unidad):
-                hallazgos.append(f"no dice qué quedó sin hacer: {corta}")
-            if not cls.SI_O_NO.search(unidad):
-                hallazgos.append(f"no dice qué pasa con o sin el sí, ni que no se arregla desde la sesión: {corta}")
-            elif re.search(r"\b(?:con|sin) el sí\b", unidad, re.I) and not cls.PROPONE.search(secciones[seccion]):
-                hallazgos.append(f"su sección no propone el arreglo: {corta}")
-            if not cls.REPITE.search(secciones[seccion]):
-                hallazgos.append(f"su sección no vuelve a correr el chequeo: {corta}")
+            if cls.DETENCION.search(unidad):
+                if not cls.SIN_HACER.search(unidad):
+                    hallazgos.append(f"no dice qué quedó sin hacer: {corta}")
+                sin_arreglo_posible = cls.DESDE_LA_SESION.search(unidad) and cls.REPITE.search(unidad)
+                rama_del_no = cls.SIN_SI.search(unidad) and cls.propone(anterior)
+                if not (cls.propone(unidad) or sin_arreglo_posible or rama_del_no):
+                    hallazgos.append("no propone un arreglo con el sí que vuelva a correr el chequeo, ni dice que no se "
+                                     f"arregla desde la sesión, ni es el sin el sí de la unidad anterior: {corta}")
+            anterior = unidad
         return hallazgos
 
-    def archivos(self, skill):
-        return [SKILLS / skill / "SKILL.md", *sorted((SKILLS / skill / "references").glob("*.md"))]
+    @staticmethod
+    def archivos():
+        return [RAIZ / "README.md", *sorted(SKILLS.rglob("*.md"))]
 
     def test_el_chequeo_encuentra_una_detencion_sin_arreglo(self):
-        self.assertTrue(self.hallazgos("Si falta el archivo, detente y explica qué falta."))
-        self.assertTrue(self.hallazgos("Si falta el archivo, para y explica qué falta."))
-        self.assertTrue(self.hallazgos("Si falta, no sigas: di qué quedó sin hacer."))
-        self.assertTrue(self.hallazgos("Si falta el archivo, detente y propón crearlo. Con el sí, créalo y sigue. "
-                                       "Sin el sí, queda detenida y di qué quedó sin hacer."), "no repite el chequeo")
+        malas = {
+            "sin arreglo": "Si falta el archivo, detente y explica qué falta.",
+            "forma vieja": "Si falta el archivo, para y explica qué falta.",
+            "no sigas": "Si falta, no sigas: di qué quedó sin hacer.",
+            "no repite": "Si falta, detente y propón crearlo. Con el sí, créalo y sigue. Sin el sí, di qué quedó sin hacer.",
+            "negada": "Si falta, detente y no digas qué quedó sin hacer ni si se arregla desde la sesión.",
+            "con el sí vacío": "Si falta, detente. Con el sí, sigue igual y di qué quedó sin hacer.",
+            "otras formas": "Si falta, no guardes nada y explica. Termina aquí. Te detienes. No continúes. Debe detenerse.",
+            "y para": "Si falta, explica que falta y para.",
+            "sin arreglo junto a una que sí": ("Si falta, detente y propón crearlo. Con el sí, créalo y vuelve a correr "
+                                               "el chequeo; sin el sí, di qué quedó sin hacer.\n\nSi sobra, detente y di "
+                                               "qué quedó sin hacer."),
+            "en una fila de tabla": "| Algo | Para qué | La skill se detiene. |",
+        }
+        for nombre, texto in malas.items():
+            with self.subTest(caso=nombre):
+                self.assertTrue(self.hallazgos(texto))
 
     def test_el_chequeo_acepta_una_detencion_con_arreglo(self):
-        self.assertEqual(self.hallazgos("Si falta el archivo, detente y propón crearlo. Con el sí, créalo, vuelve a "
-                                        "correr el chequeo y sigue. Sin el sí, queda detenida y di qué quedó sin hacer."), [])
-        self.assertEqual(self.hallazgos("Si el servidor no responde, el arreglo no se puede hacer desde la sesión: "
-                                        "detente y di qué quedó sin hacer. Cuando vuelva, vuelve a correr la orden."), [])
-        self.assertEqual(self.hallazgos("## A\n\nSi falta, propón crearlo. Con el sí, créalo y vuelve a correr "
-                                        "el chequeo.\n\n- Sin el sí, queda detenida y di qué vistas quedaron sin integrar."), [])
+        buenas = {
+            "propone": ("Si falta el archivo, detente y propón crearlo. Con el sí, créalo, vuelve a correr el chequeo y "
+                        "sigue. Sin el sí, queda detenida y di qué quedó sin hacer."),
+            "no se arregla desde la sesión": ("Si el servidor no responde, el arreglo no se puede hacer desde la sesión: "
+                                              "detente y di qué quedó sin hacer. Cuando vuelva, vuelve a correr la orden."),
+            "rama del no": ("Si falta, propón crearlo. Con el sí, créalo y vuelve a correr el chequeo.\n\n- Sin el sí, "
+                            "queda detenida y di qué vistas quedaron sin integrar."),
+        }
+        for nombre, texto in buenas.items():
+            with self.subTest(caso=nombre):
+                self.assertEqual(self.hallazgos(texto), [])
 
     def test_el_chequeo_no_cuenta_los_bloques_de_codigo(self):
         self.assertEqual(self.hallazgos("```\ndetente\n```"), [])
 
-    def test_el_barrido_cubre_todas_las_skills(self):
-        self.assertEqual(set(self.BARRIDAS), {p.name for p in SKILLS.iterdir() if (p / "SKILL.md").is_file()})
+    def test_el_barrido_cubre_el_readme_y_todo_md_de_las_skills(self):
+        archivos = {str(r.relative_to(RAIZ)) for r in self.archivos()}
+        self.assertIn("README.md", archivos)
+        for skill in (p for p in SKILLS.iterdir() if (p / "SKILL.md").is_file()):
+            self.assertIn(f"skills/{skill.name}/SKILL.md", archivos)
+        self.assertEqual({r for r in archivos if r != "README.md"},
+                         {str(r.relative_to(RAIZ)) for r in SKILLS.rglob("*.md")})
 
-    def test_cada_detencion_de_las_skills_barridas_trae_su_arreglo(self):
-        for skill in self.BARRIDAS:
-            for ruta in self.archivos(skill):
-                with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
-                    self.assertEqual(self.hallazgos(ruta.read_text(encoding="utf-8")), [])
-
-
+    def test_cada_detencion_trae_su_arreglo(self):
+        for ruta in self.archivos():
+            with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
+                self.assertEqual(self.hallazgos(ruta.read_text(encoding="utf-8")), [])
 
 
 class ReferenciaDeRama(unittest.TestCase):
@@ -941,8 +967,12 @@ class ReadmeSinContradicciones(unittest.TestCase):
 
     def test_otra_rama_se_aparta_y_sin_servidor_va_al_pedido_al_tl(self):
         self.assertNotIn("En cualquier otra rama, para y lo explica.", self.acceso)
-        self.assertRegex(self.acceso, r"En cualquier otra rama, o con trabajo sin guardar, se detiene y propone apartar lo que "
-                                      r"había en una rama propia, `apartado/<rama>`, sin `git stash`")
+        self.assertRegex(self.acceso, r"En cualquier otra rama, o con trabajo sin guardar en lo que la skill va a agregar, se "
+                                      r"detiene y propone apartar lo que había en una rama propia, `apartado/<rama>`, sin `git stash`")
+        # M2 y M1 en el README.
+        self.assertRegex(self.acceso, r"vuelve a la rama del flujo \(la de antes, una viva del servidor para el mismo trabajo "
+                                      r"o la principal\)")
+        self.assertRegex(self.acceso, r"los aparta igual en `apartado/<principal>` antes de guardar, para que el push no los suba")
         self.assertRegex(self.acceso, r"redacta el pedido al TL, listo para copiar")
 
     def test_la_rama_nueva_va_con_el_si(self):
@@ -956,11 +986,6 @@ class ReadmeSinContradicciones(unittest.TestCase):
         self.assertRegex(navegador, r"propone instalar Chromium o Google Chrome con el gestor del sistema[^|]*lo instala con el sí y repite la prueba")
         self.assertRegex(navegador, r"con framework por CDN, sin el sí se detiene")
         self.assertRegex(self.fila("| Node.js 22 o superior"), r"`spec-a-html` propone instalar Node\.js")
-
-    def test_ninguna_detencion_del_readme_esta_escrita_de_otra_forma(self):
-        for nombre, texto in (("Requisitos", self.requisitos), ("Acceso", self.acceso)):
-            with self.subTest(seccion=nombre):
-                self.assertEqual(DetencionesConArreglo.FORMA_VIEJA.findall(texto), [])
 
 
 class SkillsHermanas(unittest.TestCase):
