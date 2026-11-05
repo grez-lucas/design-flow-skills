@@ -622,6 +622,19 @@ class DetencionesDeSpecATickets(unittest.TestCase):
         self.assertRegex(cierre, r"Si los tickets quedaron como archivos porque la sesión no llega al tracker, entrega la orden "
                                  r"para el TL y di que en el tracker todavía no hay tickets\.")
 
+    def test_si_el_gitignore_ignora_el_puntero_propone_la_excepcion(self):
+        """Q157."""
+        guardar = seccion(self.texto, "9. Guardar", 3)
+        self.assertRegex(guardar, r"Si git responde que la ruta está ignorada por el `\.gitignore`, no la fuerces con `-f`: "
+                                  r"propón agregar la excepción al `\.gitignore` de la raíz\.")
+        self.assertIn("`git check-ignore -v .claude/pm-conventions.md`", guardar)
+        self.assertIn("`!.claude/pm-conventions.md`", guardar)
+        self.assertRegex(guardar, r"Muestra el cambio y, con el sí, escríbelo, vuelve a correr `git check-ignore "
+                                  r"\.claude/pm-conventions\.md`")
+        self.assertRegex(guardar, r"El cuerpo del mensaje del commit lo dice: `Excepción en \.gitignore para "
+                                  r"\.claude/pm-conventions\.md\.`")
+        self.assertNotIn("el TL decide si cambia el `.gitignore`", guardar)
+
     def test_un_label_que_no_existe_en_linear_se_ofrece_crear(self):
         """Q150."""
         linear = seccion(self.trackers, "Linear", 2)
