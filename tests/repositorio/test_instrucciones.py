@@ -348,5 +348,209 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"que entraron con la puesta al día\.")
 
 
+class DetencionesConArreglo(unittest.TestCase):
+    """Issue 42, criterio 4, con Q131: cada detención que escribe un `SKILL.md` o un `references/*.md` trae su arreglo.
+
+    Cómo se verifica, sobre el texto y sin interpretarlo:
+    - Una detención se escribe con "detente", "queda detenida" o "se detiene". Las formas viejas ("para y", "para:",
+      "para aquí", "no sigas", "no avances", "no conviertas") no pasan, para que una detención nueva no quede fuera del
+      chequeo por estar escrita de otra forma.
+    - Cada párrafo, viñeta o paso numerado con una detención dice qué quedó sin hacer, y dice también qué pasa con el
+      sí o sin el sí de la persona, o que el arreglo no se puede hacer desde la sesión.
+    - Si la detención depende del sí, la sección donde está (hasta el siguiente encabezado) propone el arreglo.
+    - Toda sección con una detención vuelve a correr o a probar el chequeo que la detuvo.
+    La excepción es Python ausente, que resuelve el issue 45: esas oraciones quedan como están, cada una sola en su
+    párrafo, y el test las nombra una por una."""
+
+    BARRIDAS = ("grilling-es",)
+    DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
+    FORMA_VIEJA = re.compile(r"\b(?:para y|para aquí|para:|no sigas|no avances|no conviertas)", re.I)
+    SIN_HACER = re.compile(r"\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b[^.]{0,20}?\bsin\b", re.I)
+    SI_O_NO = re.compile(r"\b(?:con|sin) el sí\b|desde la sesión", re.I)
+    PROPONE = re.compile(r"\b(?:propón|propone|proponle|ofrece|ofrécele)\b", re.I)
+    REPITE = re.compile(r"\bvuelve a (?:correr|probar|leer|mirar)|\bvuelves a correr|\brepite\b", re.I)
+    # Issue 45: sin Python, cada skill sigue como hoy hasta que los scripts pasen a Go (Q151, Q152).
+    SIN_PYTHON = {
+        "Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se "
+        "instala desde https://www.python.org/downloads/.",
+        "Si no encontraste intérprete, para aquí y no escribas en el repositorio: explica en simple que falta Python "
+        "3.9 o superior y que se instala desde https://www.python.org/downloads/.",
+    }
+
+    @staticmethod
+    def unidades(texto):
+        """[(sección, unidad)]: cada párrafo y cada viñeta o paso numerado fuera de los bloques de código. La sección es
+        el número del encabezado bajo el que está, para no juntar dos secciones con el mismo título."""
+        unidades, actual, seccion, bloque = [], [], 0, False
+
+        def cerrar():
+            if actual:
+                unidades.append((seccion, " ".join(actual)))
+                actual.clear()
+
+        for linea in texto.splitlines():
+            limpia = linea.strip()
+            if limpia.startswith("```"):
+                cerrar()
+                bloque = not bloque
+            elif bloque:
+                continue
+            elif re.match(r"#{1,6} ", limpia):
+                cerrar()
+                seccion += 1
+            elif not limpia or limpia == "---":
+                cerrar()
+            elif re.match(r"(?:- |\d+\. )", limpia):
+                cerrar()
+                actual.append(limpia)
+            else:
+                actual.append(limpia)
+        cerrar()
+        return unidades
+
+    @classmethod
+    def hallazgos(cls, texto):
+        unidades = cls.unidades(texto)
+        secciones = {}
+        for seccion, unidad in unidades:
+            secciones[seccion] = secciones.get(seccion, "") + " " + unidad
+        hallazgos = []
+        for seccion, unidad in unidades:
+            if unidad in cls.SIN_PYTHON:
+                continue
+            corta = unidad[:90]
+            if cls.FORMA_VIEJA.search(unidad):
+                hallazgos.append(f"detención escrita de otra forma, usa detente o queda detenida: {corta}")
+            if not cls.DETENCION.search(unidad):
+                continue
+            if not cls.SIN_HACER.search(unidad):
+                hallazgos.append(f"no dice qué quedó sin hacer: {corta}")
+            if not cls.SI_O_NO.search(unidad):
+                hallazgos.append(f"no dice qué pasa con o sin el sí, ni que no se arregla desde la sesión: {corta}")
+            elif re.search(r"\b(?:con|sin) el sí\b", unidad, re.I) and not cls.PROPONE.search(secciones[seccion]):
+                hallazgos.append(f"su sección no propone el arreglo: {corta}")
+            if not cls.REPITE.search(secciones[seccion]):
+                hallazgos.append(f"su sección no vuelve a correr el chequeo: {corta}")
+        return hallazgos
+
+    def archivos(self, skill):
+        return [SKILLS / skill / "SKILL.md", *sorted((SKILLS / skill / "references").glob("*.md"))]
+
+    def test_el_chequeo_encuentra_una_detencion_sin_arreglo(self):
+        self.assertTrue(self.hallazgos("Si falta el archivo, detente y explica qué falta."))
+        self.assertTrue(self.hallazgos("Si falta el archivo, para y explica qué falta."))
+        self.assertTrue(self.hallazgos("Si falta, no sigas: di qué quedó sin hacer."))
+        self.assertTrue(self.hallazgos("Si falta el archivo, detente y propón crearlo. Con el sí, créalo y sigue. "
+                                       "Sin el sí, queda detenida y di qué quedó sin hacer."), "no repite el chequeo")
+
+    def test_el_chequeo_acepta_una_detencion_con_arreglo(self):
+        self.assertEqual(self.hallazgos("Si falta el archivo, detente y propón crearlo. Con el sí, créalo, vuelve a "
+                                        "correr el chequeo y sigue. Sin el sí, queda detenida y di qué quedó sin hacer."), [])
+        self.assertEqual(self.hallazgos("Si el servidor no responde, el arreglo no se puede hacer desde la sesión: "
+                                        "detente y di qué quedó sin hacer. Cuando vuelva, vuelve a correr la orden."), [])
+        self.assertEqual(self.hallazgos("## A\n\nSi falta, propón crearlo. Con el sí, créalo y vuelve a correr "
+                                        "el chequeo.\n\n- Sin el sí, queda detenida y di qué vistas quedaron sin integrar."), [])
+
+    def test_el_chequeo_no_cuenta_los_bloques_de_codigo(self):
+        self.assertEqual(self.hallazgos("```\ndetente\n```"), [])
+
+    def test_cada_detencion_de_las_skills_barridas_trae_su_arreglo(self):
+        for skill in self.BARRIDAS:
+            for ruta in self.archivos(skill):
+                with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
+                    self.assertEqual(self.hallazgos(ruta.read_text(encoding="utf-8")), [])
+
+
+class ReferenciaDeRama(unittest.TestCase):
+    """Q143 y Q144: lo que hace una skill cuando `rama.py` o `git` no la dejan guardar vive en `references/rama.md`,
+    igual en cada skill que guarda, porque `npx skills` instala cada una por separado (como `rama.py`, Q99)."""
+
+    CON_REFERENCIA = ("grilling-es",)
+    ORIGINAL = SKILLS / "grilling-es" / "references" / "rama.md"
+
+    def setUp(self):
+        self.texto = self.ORIGINAL.read_text(encoding="utf-8")
+
+    def test_las_copias_son_iguales_a_la_de_grilling_es(self):
+        for skill in self.CON_REFERENCIA:
+            with self.subTest(skill=skill):
+                ruta = SKILLS / skill / "references" / "rama.md"
+                self.assertTrue(ruta.is_file(), "falta la copia")
+                self.assertEqual(ruta.read_bytes(), self.ORIGINAL.read_bytes(), "cópiala de skills/grilling-es/references/rama.md")
+
+    def test_cada_skill_lee_la_referencia_al_parar(self):
+        for skill in self.CON_REFERENCIA:
+            with self.subTest(skill=skill):
+                skill_md = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                parar = [l for l in skill_md.splitlines() if l.startswith("- `parar`: ")]
+                self.assertEqual(len(parar), 2, "una viñeta de `parar` tras revisar y otra tras rechazo")
+                for linea in parar:
+                    self.assertIn("`references/rama.md`", linea)
+                self.assertNotIn("el TL dice cómo seguir", skill_md)
+
+    def test_otra_rama_o_trabajo_sin_guardar_se_aparta_en_una_rama_propia_sin_stash(self):
+        """Q143."""
+        seccion_ = seccion(self.texto, "Otra rama o trabajo sin guardar", 2)
+        for motivo in ("otra-rama", "sin-rama", "commits-sin-empujar", "cambios-sin-guardar"):
+            self.assertIn(f"`{motivo}`", seccion_)
+        self.assertRegex(seccion_, r"propón apartarlo en una rama propia y guardar desde la principal\.")
+        self.assertRegex(seccion_, r"No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo "
+                                   r"encuentra después\.")
+        self.assertIn("`git switch -c apartado/<rama>`", seccion_)
+        self.assertIn("`git add -u`", seccion_)
+        self.assertIn("`git switch <principal>`", seccion_)
+        self.assertIn("`git pull --ff-only`", seccion_)
+        self.assertRegex(seccion_, r"Vuelve a correr la misma orden de `rama\.py` y sigue con la `accion` que devuelva\.")
+        self.assertRegex(seccion_, r"Di dónde quedó lo anterior:")
+        self.assertNotRegex(seccion_, r"`git stash (?:push|pop|apply)")
+
+    def test_sin_servidor_ni_principal_redacta_el_pedido_al_tl(self):
+        """Q144."""
+        sin_servidor = seccion(self.texto, "Sin servidor", 2)
+        self.assertRegex(sin_servidor, r"Detente, redacta el pedido al TL \(sección \"Pedido al TL\"\) y di qué quedó sin hacer\.")
+        self.assertRegex(sin_servidor, r"Propón probar de nuevo, y con el sí vuelve a correr la misma orden de `rama\.py`\.")
+        self.assertIn("redacta el pedido al TL", seccion(self.texto, "Sin rama principal", 2))
+        pedido = seccion(self.texto, "Pedido al TL", 2)
+        self.assertRegex(pedido, r"Redáctalo listo para copiar")
+        self.assertRegex(pedido, r"No propongas host ni permisos: los decide el TL\.")
+        for caso in ("Sin repositorio de diseño", "Sin `origin`", "Sin rama principal", "Credenciales", "Rama nueva rechazada"):
+            self.assertIn(f"- {caso}:", pedido)
+
+    def test_las_credenciales_dicen_que_el_commit_quedo_solo_en_esta_maquina(self):
+        push = seccion(self.texto, "Push sin credenciales", 2)
+        self.assertRegex(push, r"el arreglo no se puede hacer desde la sesión: los accesos los da el TL\.")
+        self.assertRegex(push, r"el commit existe solo en esta máquina")
+        self.assertRegex(push, r"Cuando el TL dé el acceso, vuelve a correr `git push`")
+
+    def test_la_rama_nueva_va_con_el_si(self):
+        nueva = seccion(self.texto, "Rama nueva", 2)
+        self.assertRegex(nueva, r"Sin el sí a la rama nueva, queda detenida y di qué quedó sin hacer")
+
+
+class DetencionesDeGrilling(unittest.TestCase):
+    """Issue 42 en `grilling-es`: sin acceso al tracker, sin repositorio de diseño y el criterio de un ticket."""
+
+    def setUp(self):
+        self.texto = (SKILLS / "grilling-es" / "SKILL.md").read_text(encoding="utf-8")
+        self.guardar = seccion(self.texto, "Guardar", 3)
+
+    def test_sin_acceso_al_tracker_propone_guardar_el_spec_en_el_repositorio(self):
+        self.assertRegex(self.guardar, r"Si la lectura falla, detente: explica en simple que la sesión no llega al tracker "
+                                       r"y propón guardar el spec en `specs/<épica>/spec\.md` del repositorio de diseño")
+        self.assertRegex(self.guardar, r"Sin el sí, queda detenida y di qué quedó sin hacer: el spec aprobado está solo en el chat")
+
+    def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
+        """Q144."""
+        self.assertRegex(self.guardar, r"Si el producto no tiene repositorio de diseño, detente: no lo crees tú, porque el TL "
+                                       r"decide el host y los accesos, y eso no se hace desde la sesión\.")
+        self.assertRegex(self.guardar, r"Redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
+
+    def test_el_criterio_de_un_ticket_lo_aplica_con_el_si(self):
+        cambio = seccion(self.texto, "Cambio a algo que ya existe", 2)
+        self.assertRegex(cambio, r"muestra cómo queda el criterio y propón aplicarlo tú\. Con el sí, aplícalo")
+        self.assertRegex(cambio, r"vuelve a leer el ticket para confirmar que dice lo nuevo")
+        self.assertNotIn("pide que se aplique en el tracker", cambio)
+
+
 if __name__ == "__main__":
     unittest.main()
