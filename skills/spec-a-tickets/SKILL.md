@@ -15,11 +15,15 @@ La skill redacta. La persona de producto es dueña de los criterios de aceptaci�
 
 Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py -3`, en ese orden, con `<intérprete> -c "import sys; assert sys.version_info >= (3, 9)"`, y usa el primero que sale sin error como `<intérprete>` en cada orden de esta skill y de sus `references/`, siempre con `-B`, para que Python no deje `__pycache__/` en la carpeta de la skill. Si ninguno pasa la prueba, no corras ninguna orden con Python y sigue lo que esta skill dice para cuando no encontraste intérprete.
 
+## Skills hermanas
+
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar. Si falta, detente y propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+
 ## Pasos
 
 ### 1. Conseguir el spec
 
-El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets, y no se reconstruye el requerimiento de memoria: búscalo antes en `specs/*/spec.md` del repositorio de diseño y en el tracker. Si no existe, detente y propón armarlo con `grilling-es` en esta sesión (`flujo-diseno:grilling-es` si está instalada como plugin de Claude Code). Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket.
+El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets, y no se reconstruye el requerimiento de memoria: búscalo antes en `specs/*/spec.md` del repositorio de diseño y en el tracker. Si no existe, detente y propón armarlo con `grilling-es` en esta sesión (`flujo-diseno:grilling-es` si está instalada como plugin de Claude Code). Con el sí, sigue con `grilling-es`, o con "Skills hermanas" si no está, y vuelve a este paso con el spec que deje. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket.
 
 El spec sigue una plantilla con contexto, historias COMO, QUIERO, PARA con sus escenarios `### Escenario N: <nombre>` en un bloque `gherkin`, estados por vista, reglas, decisiones, fuera de alcance, enlaces y la tabla `## Escenarios en pantalla`. La tabla es para las vistas: no pasa a los tickets, que ya llevan cada escenario con su nombre.
 
@@ -32,7 +36,7 @@ Un spec blando produce tickets prolijos y equivocados, y publicados se ven ofici
 - Las reglas que cambian el comportamiento tienen respuesta, o están marcadas como pendientes con quién decide.
 - Está claro qué queda fuera de alcance.
 
-Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda. Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con `grilling-es` en esta sesión, sobre esos huecos. Con el sí, sigue con `grilling-es` y, con el spec que deje, vuelve a correr los cuatro controles. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket. No rellenes un criterio con una suposición: una suposición publicada como criterio de aceptación es exactamente la falla que este paso evita.
+Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda. Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con `grilling-es` en esta sesión, sobre esos huecos. Con el sí, sigue con `grilling-es`, o con "Skills hermanas" si no está, y, con el spec que deje, vuelve a correr los cuatro controles. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket. No rellenes un criterio con una suposición: una suposición publicada como criterio de aceptación es exactamente la falla que este paso evita.
 
 ### 3. Leer las convenciones del proyecto
 
