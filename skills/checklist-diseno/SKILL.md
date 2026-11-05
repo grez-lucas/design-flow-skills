@@ -88,6 +88,8 @@ Los bloqueos mecánicos:
 - **Clases sin regla**: si la clase es de los compartidos de `spec-a-html` (`.modal`, `.toast-region` y las demás de su `assets/components.css`), la trae la puesta al día de `spec-a-html`, con su script y como en su paso 4: compara, muestra el cambio y escribe solo con el sí. Una clase que no es de los compartidos va al informe: su regla es diseño.
 - **Tabla de escenarios del spec**: un error de formato de `## Escenarios en pantalla` (las columnas, el separador, una fila sin tres columnas) se corrige en el formato, sin cambiar ningún slug, nombre ni alcance. Si el spec está congelado (abre con su línea `Congelado`), es la única edición que se le hace, como excepción, y el mensaje del commit la dice (paso 5). Un slug inválido o repetido, o un nombre que no es el de un `### Escenario` del spec, cambia lo que dice el spec: va al informe.
 
+El JavaScript propio, los recursos externos y las metas de tickets y spec no son mecánicos: siguen en el informe. Quitar un script o un recurso cambia lo que la vista hace o muestra, y los tickets o el spec que cita una vista los sabe producto.
+
 La puesta al día de los compartidos:
 
 ```

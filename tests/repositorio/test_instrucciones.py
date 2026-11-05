@@ -507,6 +507,11 @@ class ReferenciaDeRama(unittest.TestCase):
         self.assertRegex(seccion_, r"No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo "
                                    r"encuentra después\.")
         self.assertIn("`git switch -c apartado/<rama>`", seccion_)
+        # Q158: con el primer sufijo libre.
+        self.assertRegex(seccion_, r"si ese nombre ya existe, usa el primer sufijo libre \(`-2`, `-3`\)")
+        volver = seccion(self.texto, "Volver que falla", 2)
+        self.assertRegex(volver, r"`git branch apartado/<principal>` los deja en una rama propia, con el primer sufijo libre "
+                                 r"si ya existe, y después `git switch -C <principal> origin/<principal>` la iguala al servidor")
         self.assertIn("`git add -u`", seccion_)
         self.assertIn("`git switch <principal>`", seccion_)
         self.assertIn("`git pull --ff-only`", seccion_)
@@ -556,10 +561,13 @@ class DetencionesDeGrilling(unittest.TestCase):
         self.texto = (SKILLS / "grilling-es" / "SKILL.md").read_text(encoding="utf-8")
         self.guardar = seccion(self.texto, "Guardar", 3)
 
-    def test_sin_acceso_al_tracker_propone_guardar_el_spec_en_el_repositorio(self):
-        self.assertRegex(self.guardar, r"Si la lectura falla, detente: explica en simple que la sesión no llega al tracker "
-                                       r"y propón guardar el spec en `specs/<épica>/spec\.md` del repositorio de diseño")
-        self.assertRegex(self.guardar, r"Sin el sí, queda detenida y di qué quedó sin hacer: el spec aprobado está solo en el chat")
+    def test_sin_acceso_al_tracker_guarda_el_spec_en_el_repositorio(self):
+        """Q158, como Q145: la persona no queda bloqueada."""
+        self.assertRegex(self.guardar, r"Si la lectura falla, la sesión no llega al tracker, y eso no detiene el guardado: "
+                                       r"guarda el spec en `specs/<épica>/spec\.md` del repositorio de diseño por el camino "
+                                       r"sin tracker de la viñeta siguiente")
+        self.assertRegex(self.guardar, r"entrega su texto para que el TL lo suba al tracker, y di al cerrar que el documento "
+                                       r"del tracker quedó sin crear\.")
 
     def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
         """Q144."""
@@ -831,6 +839,9 @@ class CorreccionesDelChecklist(unittest.TestCase):
                                   r"congelado, sin cambiar lo que dice\.`")
 
     def test_lo_que_no_es_mecanico_sigue_en_el_informe(self):
+        """Q158."""
+        self.assertRegex(self.paso, r"El JavaScript propio, los recursos externos y las metas de tickets y spec no son "
+                                    r"mecánicos: siguen en el informe\.")
         self.assertNotIn("No corrijas las vistas: el informe es para decidir en la planificación.", self.texto)
         self.assertRegex(self.texto, r"Lo que no es mecánico no lo corrijas: el informe es para decidir en la planificación\.")
 
