@@ -19,7 +19,7 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ### 1. Conseguir el spec
 
-El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets: pide el spec en vez de reconstruir el requerimiento de memoria.
+El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets, y no se reconstruye el requerimiento de memoria: búscalo antes en `specs/*/spec.md` del repositorio de diseño y en el tracker. Si no existe, detente y propón armarlo con `grilling-es` en esta sesión (`flujo-diseno:grilling-es` si está instalada como plugin de Claude Code). Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket.
 
 El spec sigue una plantilla con contexto, historias COMO, QUIERO, PARA con sus escenarios `### Escenario N: <nombre>` en un bloque `gherkin`, estados por vista, reglas, decisiones, fuera de alcance, enlaces y la tabla `## Escenarios en pantalla`. La tabla es para las vistas: no pasa a los tickets, que ya llevan cada escenario con su nombre.
 
@@ -32,7 +32,7 @@ Un spec blando produce tickets prolijos y equivocados, y publicados se ven ofici
 - Las reglas que cambian el comportamiento tienen respuesta, o están marcadas como pendientes con quién decide.
 - Está claro qué queda fuera de alcance.
 
-Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda. Si fallan dos o más, para: di qué falta y por qué importa, y sugiere volver a `grilling-es`. No rellenes un criterio con una suposición: una suposición publicada como criterio de aceptación es exactamente la falla que este paso evita.
+Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda. Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con `grilling-es` en esta sesión, sobre esos huecos. Con el sí, sigue con `grilling-es` y, con el spec que deje, vuelve a correr los cuatro controles. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket. No rellenes un criterio con una suposición: una suposición publicada como criterio de aceptación es exactamente la falla que este paso evita.
 
 ### 3. Leer las convenciones del proyecto
 
@@ -50,17 +50,21 @@ Una ruta local solo existe en las máquinas que la tienen: si las convenciones e
 
 Si la persona dice que no hay convenciones, no escribas el puntero: usa la plantilla de `references/plantilla-story.md` y pregunta solo lo que no puedes ver: si hay tracker y cuál. Sin tracker, los tickets van como archivos markdown.
 
-Si la sesión va a escribir en el repositorio de diseño (el puntero de este paso, los tickets como archivos del paso 7 o el spec congelado del paso 8), antes del primer archivo decide la rama: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
+Si la sesión va a escribir en el repositorio de diseño (el puntero de este paso, los tickets como archivos del paso 7 o el spec congelado del paso 8), antes del primer archivo decide la rama: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar. Si la sesión tiene que escribir en el repositorio de diseño y el producto no tiene uno, detente: no lo crees tú, porque el TL decide el host y los accesos, y eso no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: lo que iba al repositorio (el puntero, los tickets como archivos o el spec congelado) no se escribió. Cuando el TL lo cree, vuelve a correr este paso. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
 
 ```
 <intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo tickets --epica <épica>
 ```
 
-Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, para y no guardes: explica el error en simple; si dice que el nombre termina en guion y número, pide a la persona otro, por ejemplo `fase-dos` en lugar de `fase-2`, y vuelve a correrlo. El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
+Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
+
+Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
+
+El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: guarda en la rama actual.
-- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, para y explica en qué rama quedaste.
-- `parar`: no escribas en el repositorio. Explica en simple el `detalle`, en qué rama estás y que el TL dice cómo seguir.
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí. Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
+- `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
 
 ### 4. Cortar
 
@@ -106,7 +110,7 @@ Sigue `references/trackers.md` según dónde van los tickets. En todos los casos
 1. Verifica el acceso con una lectura antes de escribir.
 2. Busca tickets que ya cubran estas historias. Si el spec reemplaza a uno anterior (lo dice su sección "Enlaces"), los tickets que llevan el mismo identificador del spec, en el título o en el cuerpo, son de este spec: muestra qué cambia en cada uno y actualízalos con aprobación explícita; las historias que el spec retira se informan, no se cierran. Cualquier otro ticket que encuentres es ajeno: muéstralo y pregunta si se extiende, se reemplaza o se omite, y nunca lo edites ni lo cierres.
 3. Crea los tickets en orden de dependencias, para que cada uno cite identificadores reales.
-4. Si algo falla a mitad de camino, para y di qué quedó creado y qué no.
+4. Si la creación de un ticket falla a mitad de camino, detente y di qué quedó creado y qué no. Busca el que falló por su identificador, para no duplicarlo, y propón reintentarlo. Con el sí, reintenta, vuelve a leerlo para confirmar que quedó y sigue con los demás. Si falla de nuevo o la sesión perdió el acceso al tracker, eso no se arregla desde la sesión: deja los que faltan como archivos, como dice `references/trackers.md`, sección "Acceso", y di qué quedó sin hacer. Sin el sí, queda detenida y di qué quedó sin hacer.
 
 ### 8. Congelar el spec
 
@@ -132,11 +136,11 @@ Agrega solo lo que escribiste:
 
 Nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
-La rama quedó revisada en el paso 3. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, explica el error en simple y que el TL es quien da los accesos. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo tickets --epica <épica>`.
+La rama quedó revisada en el paso 3. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, sigue `references/rama.md`, sección "Push sin credenciales": el TL es quien da los accesos, y el commit queda solo en esta máquina. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo tickets --epica <épica>`.
 
-- `rama-nueva`: pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica en simple que el servidor no aceptó el cambio en esa rama, que los tickets quedaron en la rama nueva y que el TL revisa y hace el merge request.
-- `parar`: explica en simple el `detalle` y que el TL es quien da los accesos.
+- `rama-nueva`: explica en simple que el servidor no aceptó el cambio en esa rama y propón pasarlo a la rama nueva. Con el sí, pasa el commit con `git switch -c <rama_nueva>` y empújalo con `git push -u origin <rama_nueva>`; deja la `rama` de la que saliste como está en el servidor con `git branch -f <rama> origin/<rama>`. Explica que los tickets quedaron en la rama nueva y que el TL revisa y hace el merge request. Sin el sí, o si un comando falla, sigue `references/rama.md`, sección "Rama nueva".
+- `parar`: explica en simple el `detalle` y que el TL es quien da los accesos, y sigue `references/rama.md`, sección "Rama nueva rechazada".
 
 ### 10. Cerrar
 
-Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso: en una sesión nueva, `spec-a-html` con el mismo spec para dibujar las vistas. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
+Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso. Si los tickets quedaron como archivos porque la sesión no llega al tracker, entrega la orden para el TL y di que en el tracker todavía no hay tickets. El siguiente paso es `spec-a-html` con el mismo spec, en una sesión nueva, para dibujar las vistas. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.

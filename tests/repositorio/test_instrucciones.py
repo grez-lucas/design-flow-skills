@@ -362,13 +362,13 @@ class DetencionesConArreglo(unittest.TestCase):
     La excepción es Python ausente, que resuelve el issue 45: esas oraciones quedan como están, cada una sola en su
     párrafo, y el test las nombra una por una."""
 
-    BARRIDAS = ("grilling-es",)
+    BARRIDAS = ("grilling-es", "spec-a-tickets")
     DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
     FORMA_VIEJA = re.compile(r"\b(?:para y|para aquí|para:|no sigas|no avances|no conviertas)", re.I)
     SIN_HACER = re.compile(r"\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b[^.]{0,20}?\bsin\b", re.I)
     SI_O_NO = re.compile(r"\b(?:con|sin) el sí\b|desde la sesión", re.I)
     PROPONE = re.compile(r"\b(?:propón|propone|proponle|ofrece|ofrécele)\b", re.I)
-    REPITE = re.compile(r"\bvuelve a (?:correr|probar|leer|mirar)|\bvuelves a correr|\brepite\b", re.I)
+    REPITE = re.compile(r"\bvuelve a (?:correr|probar|leer|mirar|este paso)|\bvuelves a correr|\brepite\b", re.I)
     # Issue 45: sin Python, cada skill sigue como hoy hasta que los scripts pasen a Go (Q151, Q152).
     SIN_PYTHON = {
         "Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se "
@@ -465,7 +465,7 @@ class ReferenciaDeRama(unittest.TestCase):
     """Q143 y Q144: lo que hace una skill cuando `rama.py` o `git` no la dejan guardar vive en `references/rama.md`,
     igual en cada skill que guarda, porque `npx skills` instala cada una por separado (como `rama.py`, Q99)."""
 
-    CON_REFERENCIA = ("grilling-es",)
+    CON_REFERENCIA = ("grilling-es", "spec-a-tickets")
     ORIGINAL = SKILLS / "grilling-es" / "references" / "rama.md"
 
     def setUp(self):
@@ -550,6 +550,62 @@ class DetencionesDeGrilling(unittest.TestCase):
         self.assertRegex(cambio, r"muestra cómo queda el criterio y propón aplicarlo tú\. Con el sí, aplícalo")
         self.assertRegex(cambio, r"vuelve a leer el ticket para confirmar que dice lo nuevo")
         self.assertNotIn("pide que se aplique en el tracker", cambio)
+
+
+class DetencionesDeSpecATickets(unittest.TestCase):
+    """Issue 42 en `spec-a-tickets`: sin spec, spec blando, publicación a medias, tracker sin acceso (Q145) y label que
+    no existe en Linear (Q150)."""
+
+    def setUp(self):
+        self.texto = (SKILLS / "spec-a-tickets" / "SKILL.md").read_text(encoding="utf-8")
+        self.trackers = (SKILLS / "spec-a-tickets" / "references" / "trackers.md").read_text(encoding="utf-8")
+
+    def test_sin_spec_propone_armarlo_con_grilling_y_vuelve(self):
+        paso = seccion(self.texto, "1. Conseguir el spec", 3)
+        self.assertRegex(paso, r"Si no existe, detente y propón armarlo con `grilling-es` en esta sesión")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es` y vuelve a este paso con el spec que deje\.")
+        self.assertRegex(paso, r"Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket\.")
+
+    def test_un_spec_blando_vuelve_a_grilling_con_el_si_y_repite_los_controles(self):
+        paso = seccion(self.texto, "2. Revisar que el spec alcance", 3)
+        self.assertRegex(paso, r"Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con "
+                               r"`grilling-es` en esta sesión, sobre esos huecos\.")
+        self.assertRegex(paso, r"Con el sí, sigue con `grilling-es` y, con el spec que deje, vuelve a correr los cuatro controles\.")
+        self.assertNotIn("sugiere volver a `grilling-es`", paso)
+
+    def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
+        """Q144. El paso 3 trae un bloque con `# Convenciones de gestión`, que corta `seccion`: se busca en el archivo."""
+        paso = self.texto
+        self.assertRegex(paso, r"Si la sesión tiene que escribir en el repositorio de diseño y el producto no tiene uno, "
+                               r"detente: no lo crees tú, porque el TL decide el host y los accesos")
+        self.assertRegex(paso, r"Redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
+
+    def test_una_publicacion_a_medias_reintenta_sin_duplicar(self):
+        paso = seccion(self.texto, "7. Publicar", 3)
+        self.assertRegex(paso, r"Si la creación de un ticket falla a mitad de camino, detente y di qué quedó creado y qué no\.")
+        self.assertRegex(paso, r"Busca el que falló por su identificador, para no duplicarlo, y propón reintentarlo\.")
+        self.assertRegex(paso, r"Con el sí, reintenta, vuelve a leerlo para confirmar que quedó y sigue con los demás\.")
+        self.assertNotIn("para y di qué quedó creado", paso)
+
+    def test_sin_acceso_al_tracker_deja_archivos_y_la_orden_para_el_tl(self):
+        """Q145."""
+        acceso = seccion(self.trackers, "Acceso", 2)
+        self.assertRegex(acceso, r"Nada de lo anterior, o la lectura falla: no pidas credenciales ni las escribas en archivos\. "
+                                 r"Publica los tickets como archivos markdown \(sección \"Sin tracker\"\) y deja la orden "
+                                 r"lista para que el TL los suba \(sección \"Para que el TL los suba\"\): la persona no queda bloqueada\.")
+        subir = seccion(self.trackers, "Para que el TL los suba", 3)
+        self.assertIn('`gh issue create --title "<título>" --body-file specs/<épica>/tickets/<archivo> --label "<label>"`', subir)
+        self.assertRegex(subir, r"en el orden de la tabla")
+        cierre = seccion(self.texto, "10. Cerrar", 3)
+        self.assertRegex(cierre, r"Si los tickets quedaron como archivos porque la sesión no llega al tracker, entrega la orden "
+                                 r"para el TL y di que en el tracker todavía no hay tickets\.")
+
+    def test_un_label_que_no_existe_en_linear_se_ofrece_crear(self):
+        """Q150."""
+        linear = seccion(self.trackers, "Linear", 2)
+        self.assertRegex(linear, r"Un label de las convenciones que no existe en Linear se ofrece crear: muéstralo y créalo "
+                                 r"solo con el sí, como en GitHub\.")
+        self.assertNotIn("no un label que se inventa", linear)
 
 
 if __name__ == "__main__":
