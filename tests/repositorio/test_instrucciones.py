@@ -274,6 +274,10 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         self.assertIn("valor entero de la declaración", tokens_md)
         self.assertIn("Roles del components.css del repositorio", tokens_md)
         self.assertIn("--roles", tokens_md)
+        # Q141: el límite de los candidatos de medida dentro de calc().
+        self.assertRegex(tokens_md, r"Un token de medida dentro de `calc\(\)`, como divisor o multiplicado por otro "
+                                    r"`var\(\)`, recibe igual los candidatos del mockup de su propiedad, y ahí pueden ser "
+                                    r"CSS inválido[^\n]*?: revisa esa fila antes de elegir\.")
         self.assertNotIn("deriva a `spec-a-html`", self.paso)
         # Q137: en el design/ a medias la puesta al día va con --solo-usados y agrega solo lo que usa algún compartido.
         for comando in ("comparar", "mostrar", "aplicar"):
