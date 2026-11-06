@@ -1,7 +1,7 @@
-// Rama decide en qué rama guarda una skill del flujo y protege el trabajo que la persona tenía en la copia. Es el
-// port a Go de `scripts/rama.py` (issue 45, Q151, Q152): la misma interfaz, las mismas salidas y las mismas pruebas
-// de CLI de `tests/rama/`. El contrato está en `uso`, que imprime `rama -h`.
-package main
+// Package rama es `flujo rama`: decide en qué rama guarda una skill del flujo y protege el trabajo que la persona tenía
+// en la copia. Es el port a Go de `scripts/rama.py` (issue 45, Q151, Q152, Q163): la misma interfaz, las mismas
+// salidas y las mismas pruebas de CLI de `tests/rama/`. El contrato está en `uso`, que imprime `flujo rama -h`.
+package rama
 
 import (
 	"fmt"
@@ -16,13 +16,13 @@ import (
 const uso = `Decide en qué rama guarda una skill del flujo y protege el trabajo que la persona tenía en la copia.
 
 Uso, desde el repositorio de diseño o con --repo:
-  rama revisar --tipo <spec|tickets|diseno> --epica <épica>
-  rama revisar --tipo diseno --mockup <mockup> --epicas <épica>,<épica>[,...]
-  rama apartar <los mismos --tipo y --epica, o --mockup y --epicas> [--rama <rama>]
-  rama volver <los mismos --tipo y --epica, o --mockup y --epicas> [--rama-nueva <rama>]
-  rama commit -m <mensaje> [-m <párrafo>...] -- <ruta>...
-  rama rechazo --tipo <spec|tickets|diseno> --epica <épica>
-  rama rechazo --tipo diseno --mockup <mockup>
+  flujo rama revisar --tipo <spec|tickets|diseno> --epica <épica>
+  flujo rama revisar --tipo diseno --mockup <mockup> --epicas <épica>,<épica>[,...]
+  flujo rama apartar <los mismos --tipo y --epica, o --mockup y --epicas> [--rama <rama>]
+  flujo rama volver <los mismos --tipo y --epica, o --mockup y --epicas> [--rama-nueva <rama>]
+  flujo rama commit (-F <archivo> | -m <mensaje> [-m <párrafo>...]) -- <ruta>...
+  flujo rama rechazo --tipo <spec|tickets|diseno> --epica <épica>
+  flujo rama rechazo --tipo diseno --mockup <mockup>
 
 --mockup es de html-a-vista cuando las vistas quedan en más de una épica: el nombre del archivo del mockup sin
 extensión, en minúsculas y con guiones, reemplaza a la épica en la rama.
@@ -72,7 +72,8 @@ volver   con ` + "`volver`, o con `ofrecer` y el sí de la persona a `rama_nueva
          cambia nada y para con ` + "`cambios-sin-guardar`" + `.
 
 commit   después de ` + "`git add`" + ` de lo que escribió la skill. Hace el commit solo con las rutas dadas, que tienen que
-         estar dentro de las de la skill, con un -m por párrafo. Devuelve ` + "`empujar` con `rama` y `archivos`" + ` (estado
+         estar dentro de las de la skill, con un -m por párrafo o con -F y el mensaje en un archivo UTF-8,
+         con o sin BOM, relativo a donde corre flujo: así el mensaje no pasa por la línea de órdenes (Q162). Devuelve ` + "`empujar` con `rama` y `archivos`" + ` (estado
          y ruta de cada uno, separados por un tab), o ` + "`sin-cambios`" + ` si esas rutas no cambiaron. Si una ruta no está
          en la copia y no cambió, no hace el commit y para con ` + "`ruta-que-falta` y `rutas`" + `.
 
@@ -91,7 +92,8 @@ hijos (` + "`taskkill /T`" + ` en Windows) y paran con ` + "`sin-servidor`" + `.
 
 Escribe en stdout un objeto JSON con ` + "`accion`" + ` y sale con 0. Con uso incorrecto, una épica o un mockup que no sirve
 como nombre de rama (con mayúsculas, o que termina en guion y número, como ` + "`fase-2`" + `), o una ruta de commit que no es
-de la skill, sale con 2 sin escribir en stdout y dice en stderr por qué. Si no encuentra git, sale con 1.
+de la skill, o un -F que no se puede leer, sale con 2 sin escribir en stdout y dice en stderr por qué. Si no
+encuentra git, sale con 1.
 `
 
 // argumentos son los de una orden de rama, ya validados.
@@ -101,6 +103,8 @@ type argumentos struct {
 	ramaNueva                               string
 	epicas                                  []string
 	mensajes, rutas                         []string
+	mensajeDeArchivo                        string
+	conArchivo                              bool
 	conEpica, conMockup, conEpicas, conTipo bool
 }
 
@@ -138,7 +142,7 @@ var ordenes = map[string]func(Git, argumentos) *objeto{
 func opciones(orden string) []string {
 	switch orden {
 	case "commit":
-		return []string{"m", "repo"}
+		return []string{"m", "F", "repo"}
 	case "rechazo":
 		return []string{"tipo", "epica", "mockup", "repo"}
 	case "apartar":
@@ -182,8 +186,8 @@ func leerArgumentos(argv []string) (a argumentos, ayuda bool, err error) {
 			continue
 		case strings.HasPrefix(token, "--"):
 			nombre, valor, conValor = strings.Cut(token[2:], "=")
-		case strings.HasPrefix(token, "-m") && a.orden == "commit":
-			nombre, valor, conValor = "m", token[2:], len(token) > 2
+		case (strings.HasPrefix(token, "-m") || strings.HasPrefix(token, "-F")) && a.orden == "commit":
+			nombre, valor, conValor = token[1:2], token[2:], len(token) > 2
 		default:
 			return a, false, fallo("argumento que no se esperaba: %s", citar(token))
 		}
@@ -191,8 +195,8 @@ func leerArgumentos(argv []string) (a argumentos, ayuda bool, err error) {
 			return a, false, fallo("%s no es una opción de %s", citar(token), a.orden)
 		}
 		guion := "--" + nombre
-		if nombre == "m" {
-			guion = "-m"
+		if nombre == "m" || nombre == "F" {
+			guion = "-" + nombre
 		}
 		if !conValor {
 			if i+1 >= len(argv) || (strings.HasPrefix(argv[i+1], "-") && argv[i+1] != "-") {
@@ -204,6 +208,8 @@ func leerArgumentos(argv []string) (a argumentos, ayuda bool, err error) {
 		switch nombre {
 		case "m":
 			a.mensajes = append(a.mensajes, valor)
+		case "F":
+			a.mensajeDeArchivo, a.conArchivo = valor, true
 		case "repo":
 			a.repo = valor
 		case "tipo":
@@ -225,8 +231,8 @@ func leerArgumentos(argv []string) (a argumentos, ayuda bool, err error) {
 
 func validar(a argumentos) error {
 	if a.orden == "commit" {
-		if len(a.mensajes) == 0 {
-			return fallo("commit lleva -m con el mensaje")
+		if a.conArchivo == (len(a.mensajes) > 0) {
+			return fallo("commit lleva -F con el archivo del mensaje o -m con el mensaje, uno de los dos")
 		}
 		if len(a.rutas) == 0 {
 			return fallo("commit lleva al menos una ruta después de --")
@@ -336,24 +342,39 @@ func citar(valor string) string {
 	return "'" + valor + "'"
 }
 
-func correr(argv []string, stdout, stderr io.Writer) int {
+// Correr corre `flujo rama` con sus argumentos y devuelve el código de salida.
+func Correr(argv []string, stdout, stderr io.Writer) int {
 	a, ayuda, err := leerArgumentos(argv)
 	if ayuda {
 		fmt.Fprint(stdout, uso)
 		return 0
 	}
 	if _, errGit := exec.LookPath("git"); errGit != nil {
-		fmt.Fprintln(stderr, "rama: no encuentro git en el PATH")
+		fmt.Fprintln(stderr, "flujo rama: no encuentro git en el PATH")
 		return 1
 	}
+	if err == nil && a.conArchivo {
+		a.mensajes, err = leerMensaje(a.mensajeDeArchivo)
+	}
 	if err != nil {
-		fmt.Fprintf(stderr, "rama: %s\nUso: rama -h\n", err)
+		fmt.Fprintf(stderr, "flujo rama: %s\nUso: flujo rama -h\n", err)
 		return 2
 	}
 	fmt.Fprintln(stdout, ordenes[a.orden](Git{a.repo}, a).json())
 	return 0
 }
 
-func main() {
-	os.Exit(correr(os.Args[1:], os.Stdout, os.Stderr))
+// leerMensaje lee el mensaje de commit de `ruta`, relativa a donde corre flujo: UTF-8, sin el BOM que escribe
+// `Set-Content -Encoding UTF8` en PowerShell 5.1 y con los CRLF como LF. Va a git como un solo -m.
+func leerMensaje(ruta string) ([]string, error) {
+	contenido, err := os.ReadFile(ruta)
+	if err != nil {
+		return nil, fallo("no se puede leer el mensaje de -F %s: %v", citar(ruta), err)
+	}
+	texto := strings.TrimPrefix(string(contenido), "\ufeff")
+	texto = strings.TrimSpace(strings.ReplaceAll(texto, "\r\n", "\n"))
+	if texto == "" {
+		return nil, fallo("el mensaje de -F %s está vacío", citar(ruta))
+	}
+	return []string{texto}, nil
 }
