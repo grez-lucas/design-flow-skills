@@ -523,5 +523,210 @@ class Commit(Base):
         self.correr("commit", "--", "design/", codigo=2)
 
 
+class RutasIgnoradas(Base):
+    """N1 y N2: una ruta de la skill ignorada, como el puntero que queda solo en esta máquina cuando la persona no
+    acepta la excepción de Q157, no rompe `apartar`, y un cambio de rama no la pisa sin guardarla antes."""
+
+    def ignorar(self, regla):
+        self.escribir(self.otra, ".gitignore", regla)
+        git("add", ".gitignore", cwd=self.otra)
+        git("commit", "-q", "-m", "ignorar", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        git("pull", "-q", "--ff-only", cwd=self.copia)
+
+    def test_n1_con_claude_ignorado_y_el_puntero_en_disco_aparta(self):
+        self.ignorar(".claude/\n")
+        self.escribir(self.copia, ".claude/pm-conventions.md", "puntero local\n")
+        self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["apartado"]), ("guardar", ["apartado/main"]), salida)
+        self.assertEqual(self.archivos_de("apartado/main"), {"M", "design/vistas/alertas/a.html"})
+        self.assertEqual((self.copia / ".claude/pm-conventions.md").read_text(encoding="utf-8"), "puntero local\n")
+        self.assertEqual(self.ramas_locales("apartado/*"), ["apartado/main"])
+
+    def test_n1_con_design_ignorado_aparta(self):
+        self.ignorar("design/\n")
+        self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
+        self.escribir(self.copia, "design/ignorado.html", "<p>ignorado</p>\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["apartado"]), ("guardar", ["apartado/main"]), salida)
+        self.assertEqual(self.archivos_de("apartado/main"), {"M", "design/vistas/alertas/a.html"})
+        self.assertTrue((self.copia / "design/ignorado.html").is_file())
+
+    def test_n2_volver_no_pisa_el_puntero_ignorado_que_la_principal_trae(self):
+        self.ignorar(".claude/\n")
+        self.trabajar_en("tickets/alertas")
+        git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
+        self.escribir(self.copia, ".claude/pm-conventions.md", "puntero local\n")
+        self.escribir(self.otra, ".claude/pm-conventions.md", "puntero del servidor\n")
+        git("add", "-f", ".claude/pm-conventions.md", cwd=self.otra)
+        git("commit", "-q", "-m", "puntero", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        orden = ("--tipo", "tickets", "--epica", "alertas")
+        salida = self.parada(self.revisar(*orden), "cambios-sin-guardar")
+        self.assertIn("!! .claude/pm-conventions.md", salida["archivos"])
+        self.parada(self.volver(*orden), "cambios-sin-guardar")
+        self.assertEqual((self.copia / ".claude/pm-conventions.md").read_text(encoding="utf-8"), "puntero local\n")
+        salida = self.apartar(*orden)
+        self.assertEqual((salida["accion"], salida["apartado"]), ("volver", ["apartado/tickets-alertas"]), salida)
+        self.assertEqual(self.volver(*orden)["rama"], "main")
+        self.assertEqual(self.contenido("apartado/tickets-alertas", ".claude/pm-conventions.md"), "puntero local\n")
+
+    def test_n2_apartar_no_pisa_el_puntero_ignorado_de_la_rama_de_destino(self):
+        self.ignorar(".claude/\n")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.otra, ".claude/pm-conventions.md", "puntero del servidor\n")
+        git("add", "-f", ".claude/pm-conventions.md", cwd=self.otra)
+        git("commit", "-q", "-m", "puntero", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        self.escribir(self.copia, ".claude/pm-conventions.md", "puntero local\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", ["apartado/experimento"]))
+        self.assertEqual(self.contenido("apartado/experimento", ".claude/pm-conventions.md"), "puntero local\n")
+        self.assertEqual(self.status(), "")
+
+    def test_un_ignorado_igual_al_de_la_rama_de_destino_no_detiene(self):
+        self.ignorar(".claude/\n")
+        self.trabajar_en("tickets/alertas")
+        git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
+        for repo in (self.copia, self.otra):
+            self.escribir(repo, ".claude/pm-conventions.md", "el mismo puntero\n")
+        git("add", "-f", ".claude/pm-conventions.md", cwd=self.otra)
+        git("commit", "-q", "-m", "puntero", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        self.assertEqual(self.revisar("--tipo", "tickets", "--epica", "alertas")["accion"], "volver")
+
+
+class SinSeguimientoQueChoca(Base):
+    """N3: un archivo sin seguimiento fuera de las rutas que la rama de destino tiene no deja un ciclo: `revisar` lo
+    nombra y `apartar` lo guarda."""
+
+    def con_informe_en_el_servidor(self):
+        self.escribir(self.otra, "informe.txt", "del servidor\n")
+        git("add", "informe.txt", cwd=self.otra)
+        git("commit", "-q", "-m", "informe", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        self.escribir(self.copia, "informe.txt", "local\n")
+
+    def test_n3_con_volver(self):
+        self.trabajar_en("diseno/alertas")
+        git("push", "-q", "origin", "--delete", "diseno/alertas", cwd=self.copia)
+        self.con_informe_en_el_servidor()
+        self.assertIn("?? informe.txt", self.parada(self.revisar(), "cambios-sin-guardar")["archivos"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["apartado"]), ("volver", ["apartado/diseno-alertas"]), salida)
+        self.assertEqual(self.volver()["rama"], "main")
+        self.assertEqual(self.contenido("apartado/diseno-alertas", "informe.txt"), "local\n")
+
+    def test_n3_desde_otra_rama(self):
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.con_informe_en_el_servidor()
+        self.assertIn("?? informe.txt", self.parada(self.revisar(), "otra-rama")["archivos"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", "informe.txt"), "local\n")
+
+    def test_un_sin_seguimiento_que_la_rama_de_destino_no_tiene_se_queda(self):
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "informe.txt", "local\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["apartado"]), ("guardar", []))
+        self.assertEqual(self.status(), "?? informe.txt\n")
+
+
+class RamaDelFlujoSinUpstream(Base):
+    """N4: una rama del flujo que está en el servidor pero no lo sigue queda siguiéndolo después de `apartar`."""
+
+    def test_n4_sin_upstream(self):
+        git("switch", "-q", "-c", "spec/alertas", cwd=self.copia)
+        git("push", "-q", "origin", "spec/alertas", cwd=self.copia)
+        orden = ("--tipo", "spec", "--epica", "alertas")
+        salida = self.parada(self.revisar(*orden), "otra-rama")
+        self.assertIn("no sigue", salida["detalle"])
+        salida = self.apartar(*orden)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "spec/alertas", []), salida)
+        self.assertEqual(git("rev-parse", "--abbrev-ref", "spec/alertas@{upstream}", cwd=self.copia).stdout.strip(),
+                         "origin/spec/alertas")
+
+    def test_n4_siguiendo_a_otra_rama(self):
+        git("switch", "-q", "-c", "spec/alertas", "origin/main", cwd=self.copia)
+        git("push", "-q", "origin", "spec/alertas", cwd=self.copia)
+        orden = ("--tipo", "spec", "--epica", "alertas")
+        self.parada(self.revisar(*orden), "otra-rama")
+        self.assertEqual(self.apartar(*orden)["accion"], "guardar")
+
+    def test_n4_con_commits_que_el_servidor_no_tiene_los_aparta(self):
+        git("switch", "-q", "-c", "spec/alertas", cwd=self.copia)
+        git("push", "-q", "origin", "spec/alertas", cwd=self.copia)
+        self.escribir(self.copia, "specs/alertas/spec.md", "# local\n")
+        git("commit", "-q", "-am", "commit local", cwd=self.copia)
+        orden = ("--tipo", "spec", "--epica", "alertas")
+        salida = self.apartar(*orden)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "spec/alertas", ["apartado/spec-alertas"]), salida)
+        self.assertTrue(self.igual_al_servidor("spec/alertas"))
+        self.assertIn("commit local", git("log", "--format=%s", "apartado/spec-alertas", cwd=self.copia).stdout)
+
+
+class CommitDeLosArchivosDeLaSkill(Base):
+    """N5 y Q160: la skill pasa a `commit` los archivos que escribió; si uno no está y no cambió, porque otra sesión
+    lo apartó o lo guardó, `commit` para con su motivo y no dice `sin-cambios`. N6: con `--repo`, desde otra carpeta."""
+
+    def test_n5_un_archivo_de_la_skill_que_ya_no_esta(self):
+        self.escribir(self.copia, "design/vistas/alertas/b.html", "<p>b</p>\n")
+        git("add", "design/vistas/alertas/b.html", cwd=self.copia)
+        salida = self.parada(self.commit("-m", "x", "--", "design/vistas/alertas/nueva.html",
+                                         "design/vistas/alertas/b.html"), "ruta-que-falta")
+        self.assertEqual(salida["rutas"], ["design/vistas/alertas/nueva.html"])
+        self.assertEqual(git("log", "-1", "--format=%s", cwd=self.copia).stdout.strip(), "inicio")
+
+    def test_n5_un_archivo_borrado_por_la_skill_si_cambio(self):
+        git("rm", "-q", "specs/alertas/spec.md", cwd=self.copia)
+        self.assertEqual(self.commit("-m", "x", "--", "specs/alertas/spec.md")["accion"], "empujar")
+
+    def test_n6_con_repo_desde_otra_carpeta(self):
+        afuera = self.tmp / "afuera"
+        git("init", "-q", str(afuera), cwd=self.tmp)
+        self.escribir(self.copia, "design/vistas/alertas/nueva.html", "<p>nueva</p>\n")
+        git("add", "design/", cwd=self.copia)
+        salida = self.correr("commit", "--repo", str(self.copia), "-m", "x", "--", "design/vistas/alertas/nueva.html",
+                             cwd=afuera)
+        self.assertEqual(salida["accion"], "empujar")
+
+
+class Detalles(Base):
+    def test_n9_las_rutas_con_tildes_salen_legibles(self):
+        self.escribir(self.copia, "design/señales/vista ñ.html", "<p>x</p>\n")
+        self.assertIn("?? design/señales/vista ñ.html", self.parada(self.revisar(), "cambios-sin-guardar")["archivos"])
+
+    def test_n10_un_servidor_que_no_responde_para_con_sin_servidor(self):
+        lento = self.tmp / "lento.sh"
+        lento.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+        lento.chmod(0o755)
+        git("config", "remote.origin.uploadpack", str(lento), cwd=self.copia)
+        antes = self.status(), self.rama_actual()
+        for orden in ("revisar", "apartar"):
+            with self.subTest(orden=orden):
+                salida = self.correr(orden, *EPICA, entorno={"RAMA_TOPE": "2"}, tope=20)
+                self.parada(salida, "sin-servidor")
+                self.assertEqual((self.status(), self.rama_actual()), antes)
+
+    def test_n11_un_error_de_git_al_apartar_no_deja_un_apartado_vacio(self):
+        for clave in ("user.name", "user.email"):
+            git("config", "--unset", clave, cwd=self.copia)
+        git("config", "user.useConfigOnly", "true", cwd=self.copia)
+        self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
+        git("add", "design/", cwd=self.copia)
+        salida = self.parada(self.apartar(), "error-de-git")
+        self.assertEqual((salida["apartado"], salida["desde"]), ([], "main"))
+        self.assertEqual(self.rama_actual(), "main")
+        self.assertEqual(self.ramas_locales("apartado/*"), [])
+        self.assertEqual(self.status(), "M  design/vistas/alertas/a.html\n")
+        git("config", "user.name", "producto", cwd=self.copia)
+        git("config", "user.email", "producto@example.com", cwd=self.copia)
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["apartado"], salida["desde"]), ("guardar", ["apartado/main"], "main"))
+
+
 if __name__ == "__main__":
     unittest.main()

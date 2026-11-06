@@ -84,10 +84,11 @@ class Repositorio(unittest.TestCase):
 
     escribir = staticmethod(escribir)
 
-    def correr(self, *args, codigo=0):
-        """Corre `rama.py` como proceso desde la copia y devuelve su JSON."""
-        r = subprocess.run([*orden_de_rama(), *args], cwd=self.copia, env=ENTORNO, capture_output=True, text=True,
-                           encoding="utf-8")
+    def correr(self, *args, codigo=0, cwd=None, entorno=None, tope=60):
+        """Corre `rama.py` como proceso desde la copia, o desde `cwd`, y devuelve su JSON. Pasado el `tope` en
+        segundos, la prueba falla en lugar de quedar colgada."""
+        r = subprocess.run([*orden_de_rama(), *args], cwd=cwd or self.copia, env={**ENTORNO, **(entorno or {})},
+                           capture_output=True, text=True, encoding="utf-8", timeout=tope)
         self.assertEqual(r.returncode, codigo, r.stderr)
         if codigo:
             self.assertEqual(r.stdout, "")
