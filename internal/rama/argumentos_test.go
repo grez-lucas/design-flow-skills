@@ -1,4 +1,4 @@
-package main
+package rama
 
 import (
 	"bytes"
@@ -90,7 +90,7 @@ func TestLeerArgumentos(t *testing.T) {
 
 func TestUsoIncorrectoSaleConDosSinStdout(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	if codigo := correr([]string{"revisar", "--tipo", "spec", "--epica", "fase-2"}, &stdout, &stderr); codigo != 2 {
+	if codigo := Correr([]string{"revisar", "--tipo", "spec", "--epica", "fase-2"}, &stdout, &stderr); codigo != 2 {
 		t.Errorf("código %d, quiero 2", codigo)
 	}
 	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "guion y número") {

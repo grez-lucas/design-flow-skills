@@ -6,7 +6,7 @@ Uso, desde el repositorio de diseño o con --repo:
   python3 -B rama.py revisar --tipo diseno --mockup <mockup> --epicas <épica>,<épica>[,...]
   python3 -B rama.py apartar <los mismos --tipo y --epica, o --mockup y --epicas> [--rama <rama>]
   python3 -B rama.py volver <los mismos --tipo y --epica, o --mockup y --epicas> [--rama-nueva <rama>]
-  python3 -B rama.py commit -m <mensaje> [-m <párrafo>...] -- <ruta>...
+  python3 -B rama.py commit (-F <archivo> | -m <mensaje> [-m <párrafo>...]) -- <ruta>...
   python3 -B rama.py rechazo --tipo <spec|tickets|diseno> --epica <épica>
   python3 -B rama.py rechazo --tipo diseno --mockup <mockup>
 
@@ -57,7 +57,8 @@ volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, qu
          cambia nada y para con `cambios-sin-guardar`.
 
 commit   después de `git add` de lo que escribió la skill. Hace el commit solo con las rutas dadas, que tienen que
-         estar dentro de las de la skill, con un -m por párrafo. Devuelve `empujar` con `rama` y `archivos` (estado
+         estar dentro de las de la skill, con un -m por párrafo o con -F y el mensaje en un archivo UTF-8,
+         con o sin BOM, relativo a donde corre el script (Q162). Devuelve `empujar` con `rama` y `archivos` (estado
          y ruta de cada uno, separados por un tab), o `sin-cambios` si esas rutas no cambiaron. Si una ruta no está
          en la copia y no cambió, no hace el commit y para con `ruta-que-falta` y `rutas`.
 
@@ -612,13 +613,24 @@ def argumentos(argv):
             p.add_argument("--rama-nueva", help="con `ofrecer` y el sí de la persona: la `rama_nueva` aceptada")
         p.add_argument("--repo", default=".")
     p = sub.add_parser("commit")
-    p.add_argument("-m", dest="mensaje", action="append", required=True, help="un párrafo del mensaje")
+    mensaje = p.add_mutually_exclusive_group(required=True)
+    mensaje.add_argument("-m", dest="mensaje", action="append", help="un párrafo del mensaje")
+    mensaje.add_argument("-F", dest="archivo", help="el archivo con el mensaje, UTF-8 con o sin BOM")
     p.add_argument("--repo", default=".")
     p.add_argument("rutas", nargs="+", help="después de --: las rutas de la skill que agregaste con git add")
     if argv[:1] == ["commit"] and "--" not in argv:
         parser.error("commit lleva las rutas después de --")
     args = parser.parse_args(argv)
     if args.orden == "commit":
+        if args.archivo is not None:
+            try:
+                with open(args.archivo, encoding="utf-8-sig") as archivo:
+                    texto = archivo.read().replace("\r\n", "\n").strip()
+            except (OSError, UnicodeDecodeError) as error:
+                parser.error(f"no se puede leer el mensaje de -F {args.archivo!r}: {error}")
+            if not texto:
+                parser.error(f"el mensaje de -F {args.archivo!r} está vacío")
+            args.mensaje = [texto]
         for ruta in args.rutas:
             if not es_ruta_de_la_skill(ruta):
                 parser.error(f"{ruta!r} no es una ruta de la skill: van {', '.join(RUTAS)} o rutas dentro de ellas")
