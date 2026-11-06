@@ -66,6 +66,14 @@ Si `resumen.md` dice "requiere render: sí" (React, Vue, Babel o Tailwind por CD
 - Sin navegador en la sesión, detente antes de lanzar subagentes: este mockup no se convierte sin render. Propón instalarlo como dice `references/navegador.md`, sección "Instalar": con el sí, instálalo y repite la prueba de su sección "Probar"; el render necesita además red para bajar el framework. Si pasa, sigue con el render. Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: no se convirtió nada.
 - Con navegador, renderiza el estado inicial y convierte desde el DOM, con `references/escenarios.md`, sección "Render". Los estados que solo se alcanzan interactuando con el framework quedan fuera, salvo los que el código deja leer; dilo en el informe.
 
+Después de cada render, comprueba que no quedó vacío: el contenedor donde monta el framework (`#root`, o `#app` en Vue) tiene que tener contenido.
+
+```
+<intérprete> -B -c "import re, sys; t = open(sys.argv[1], encoding='utf-8').read(); sys.exit(0 if re.search(r'<div[^>]*id=.(?:root|app).[^>]*>\s*<[^/]', t) else 1)" <trabajo>/render/<parte>.html
+```
+
+Si sale con 1, el render quedó vacío: casi siempre falta red para bajar el framework, y eso no se arregla desde la sesión. Detente antes de lanzar subagentes, dilo en simple, di qué quedó sin hacer (no se convirtió nada) y, cuando haya red, vuelve a correr el render y esta prueba.
+
 Sin framework por CDN, el navegador sirve para las capturas de la ola 3: si no hay, propón instalarlo igual, como dice `references/navegador.md`. Para saber si hay navegador, en los dos casos, sigue su sección "Probar". Sin el sí, sigue: la verificación queda en el inventario y el informe lo dice.
 
 ### 4. Spec y tickets
