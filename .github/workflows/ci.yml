@@ -19,11 +19,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - name: Tests de cada carpeta de tests/, lo de Go y tests/rama contra bin/rama
+      - name: Tests de cada carpeta de tests/, lo de Go y tests/rama contra bin/flujo rama
         run: python3 tests/correr.py
 
-  # Q161: los lanzadores y los ejecutables de bin/ en macOS y Windows; en Linux los prueba el job tests.
-  rama:
+  # Q162 y Q163: flujo de bin/ en macOS y Windows; en Linux lo prueba el job tests.
+  flujo:
     strategy:
       fail-fast: false
       matrix:
@@ -44,15 +44,15 @@ jobs:
         run: go vet ./... && go test ./...
       - name: Los ejecutables de bin/ son los que salen de la fuente en este sistema
         run: scripts/compilar --verificar
-      - name: tests/rama contra bin/rama
+      - name: tests/rama contra flujo rama
         if: runner.os != 'Windows'
-        run: python3 tests/correr.py --rama "$PWD/bin/rama"
-      - name: tests/rama contra bin/rama.cmd, el lanzador de PowerShell
+        run: python3 tests/correr.py --rama "$PWD/bin/flujo rama"
+      - name: tests/rama contra flujo.exe rama, como lo resuelve PowerShell
         if: runner.os == 'Windows'
-        run: python tests/correr.py --rama "$(cygpath -m "$PWD/bin/rama.cmd")"
-      - name: tests/rama contra bin/rama con el bash de Git para Windows
+        run: python tests/correr.py --rama "'$(cygpath -m "$PWD/bin/flujo.exe")' rama"
+      - name: tests/rama contra bin/flujo rama con el bash de Git para Windows
         if: runner.os == 'Windows'
-        run: python tests/correr.py --rama "'$(cygpath -m "$(command -v bash)")' '$(cygpath -m "$PWD/bin/rama")'"
+        run: python tests/correr.py --rama "'$(cygpath -m "$(command -v bash)")' '$(cygpath -m "$PWD/bin/flujo")' rama"
 
   plugin:
     runs-on: ubuntu-latest
