@@ -63,7 +63,7 @@ Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, dete
 
 El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
-- `guardar`: antes de escribir, sigue `references/rama.md`, sección "Antes de guardar": el trabajo sin guardar de otra persona y una principal adelantada entrarían en tu commit. Si pasa, guarda en la rama actual.
+- `guardar`: antes de escribir, sigue `references/rama.md`, sección "Antes de guardar": el trabajo sin guardar de otra persona, lo que dejó preparado en el índice y una principal adelantada entrarían en tu commit. Si pasa, guarda en la rama actual, con el commit de "El commit de la skill".
 - `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí, después de "Antes de guardar". Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
 - `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
 
