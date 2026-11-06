@@ -569,5 +569,64 @@ class MockupsChicos(unittest.TestCase):
         self.assertIn("@keyframes pulso", (trabajo / css["archivo"]).read_text())
 
 
+class Render(Base):
+    """H1: `desarmar.py render` compara el contenedor del fuente con el renderizado. Si el fuente tiene un contenedor
+    vacío con `id` `root` o `app`, de cualquier etiqueta, el render queda vacío cuando ese contenedor sigue vacío; si
+    el framework lo reemplazó (Vue 2) o el fuente no tiene ese contenedor (Tailwind o Alpine solos), cuando el `<body>`
+    renderizado no tiene contenido."""
+
+    CDN = '<script src="https://cdn.example.com/framework.js"></script>'
+    CASOS = {
+        "solo Tailwind": ('<html><head><script src="https://cdn.tailwindcss.com"></script></head><body>'
+                          '<main class="p-4"><h1 class="text-red-600">Panel</h1></main></body></html>',
+                          '<html><head></head><body><main class="p-4"><h1 class="text-red-600">Panel</h1></main>'
+                          '</body></html>', 0),
+        "solo Alpine": ('<html><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + CDN + '</body></html>',
+                        '<html><body><div x-data="{ n: 1 }"><span x-text="n">1</span></div></body></html>', 0),
+        "Vue 2 reemplaza el contenedor": ('<html><body><div id="app"></div>' + CDN + '</body></html>',
+                                          '<html><body><div class="panel"><h1>Panel</h1></div></body></html>', 0),
+        "main con id app": ('<html><body><main id="app"></main>' + CDN + '</body></html>',
+                            '<html><body><main id="app"><h1>Panel</h1></main></body></html>', 0),
+        "React en div root": ('<html><body><div id="root"></div>' + CDN + '</body></html>',
+                              '<html><body><div id="root">\n  <main><h1>Panel</h1></main></div></body></html>', 0),
+        "root vacío": ('<html><body><div id="root"></div>' + CDN + '</body></html>',
+                       '<html><body><div id="root"></div>' + CDN + '</body></html>', 1),
+        "root con solo espacios": ("<html><body><div id='root'></div></body></html>",
+                                   "<html><body><div id='root'>\n  </div></body></html>", 1),
+        "main con id app vacío": ('<html><body><main id="app"></main></body></html>',
+                                  '<html><body><main id="app"></main></body></html>', 1),
+        "Vue 2 reemplazado por nada": ('<html><body><div id="app"></div>' + CDN + '</body></html>',
+                                       '<html><body>' + CDN + '</body></html>', 1),
+        "sin contenedor y body vacío": ('<html><body><div x-data="{}"></div>' + CDN + '</body></html>',
+                                        '<html><body>' + CDN + '<style>p {}</style></body></html>', 1),
+    }
+
+    def render(self, fuente, renderizado):
+        (self.tmp / "fuente.html").write_text(fuente, encoding="utf-8")
+        (self.tmp / "render.html").write_text(renderizado, encoding="utf-8")
+        return subprocess.run([sys.executable, "-B", str(SCRIPT), "render", str(self.tmp / "fuente.html"),
+                               str(self.tmp / "render.html")], capture_output=True, text=True)
+
+    def test_casos_de_la_revision(self):
+        for caso, (fuente, renderizado, esperado) in self.CASOS.items():
+            with self.subTest(caso=caso):
+                r = self.render(fuente, renderizado)
+                self.assertEqual(r.returncode, esperado, r.stdout + r.stderr)
+                self.assertTrue(r.stdout.strip(), "dice qué comparó")
+
+    def test_dice_el_contenedor_que_miro(self):
+        self.assertIn("#app", self.render(*self.CASOS["main con id app vacío"][:2]).stdout)
+        self.assertIn("<body>", self.render(*self.CASOS["solo Tailwind"][:2]).stdout)
+
+    def test_uso(self):
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), "render", str(self.tmp / "solo-uno.html")],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), "render", str(self.tmp / "no-existe.html"),
+                            str(self.tmp / "tampoco.html")], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("no-existe.html", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

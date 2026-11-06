@@ -69,10 +69,10 @@ Si `resumen.md` dice "requiere render: sí" (React, Vue, Babel o Tailwind por CD
 - Detente. Sin navegador en la sesión, no lances subagentes: este mockup no se convierte sin render. Propón instalarlo como dice `references/navegador.md`, sección "Instalar": con el sí, instálalo y repite la prueba de su sección "Probar"; el render necesita además red para bajar el framework. Si pasa, sigue con el render. Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y di qué quedó sin hacer: no se convirtió nada.
 - Con navegador, renderiza el estado inicial y convierte desde el DOM, con `references/escenarios.md`, sección "Render". Los estados que solo se alcanzan interactuando con el framework quedan fuera, salvo los que el código deja leer; dilo en el informe.
 
-Después de cada render, comprueba que no quedó vacío: el contenedor donde monta el framework (`#root`, o `#app` en Vue) tiene que tener contenido.
+Después de cada render, comprueba que no quedó vacío. `desarmar.py` compara la parte con su render: si la parte tiene un contenedor vacío donde monta el framework (`#root` o `#app`, de cualquier etiqueta), ese contenedor tiene que tener contenido; si el framework lo reemplazó, como Vue 2, o la parte no lo tiene, como Tailwind o Alpine solos, el `<body>`.
 
 ```
-<intérprete> -B -c "import re, sys; t = open(sys.argv[1], encoding='utf-8').read(); sys.exit(0 if re.search(r'<div[^>]*id=.(?:root|app).[^>]*>\s*<[^/]', t) else 1)" <trabajo>/render/<parte>.html
+<intérprete> -B <ruta-de-esta-skill>/scripts/desarmar.py render <trabajo>/partes/<parte>.html <trabajo>/render/<parte>.html
 ```
 
 Detente. Si sale con 1, el render quedó vacío: casi siempre falta red para bajar el framework, y eso no se arregla desde la sesión. No lances subagentes, dilo en simple, di qué quedó sin hacer (no se convirtió nada) y, cuando haya red, vuelve a correr el render y esta prueba.

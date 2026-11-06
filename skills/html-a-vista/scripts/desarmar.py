@@ -2,6 +2,7 @@
 """Desarma un mockup HTML en partes y trozos, y escribe un manifiesto para repartir la conversión.
 
 Uso: python3 desarmar.py <mockup.html | carpeta-de-galería> <carpeta-de-trabajo> [--tope TOKENS]
+     python3 desarmar.py render <trabajo>/partes/<parte>.html <trabajo>/render/<parte>.html
 
 Escribe en la carpeta de trabajo:
   partes/<parte>.html          el shell y cada módulo embebido, decodificados y abribles solos
@@ -15,6 +16,13 @@ Escribe en la carpeta de trabajo:
 
 Un trozo que pasa el tope (en tokens estimados) se parte antes de escribirse. Sale con 1 y un
 mensaje, sin escribir nada, si no puede desarmar la entrada; con 2 si el uso es incorrecto.
+
+render compara una parte de un framework por CDN con su DOM renderizado y dice si el render quedó vacío.
+Si la parte tiene un contenedor vacío con id `root` o `app`, de cualquier etiqueta, mira ese contenedor en el
+render; si el framework lo reemplazó (Vue 2 con `el`) o la parte no lo tiene (Tailwind o Alpine solos), mira el
+<body>. Cuenta como contenido un elemento o un texto que no son <script>, <style>, <template>, <noscript>, <link>,
+<meta> ni <title>. Escribe una línea con lo que miró y sale con 0 si tiene contenido, con 1 si quedó vacío y con 2 si el uso
+es incorrecto o no puede leer un archivo.
 """
 import hashlib
 import html
@@ -823,8 +831,101 @@ def resumen(m):
     return "\n".join(l) + "\n"
 
 
+# --- render ------------------------------------------------------------------------------------
+
+MONTAJE = {"root", "app"}
+SIN_CONTENIDO = {"script", "style", "template", "noscript", "link", "meta", "title"}
+
+
+class Contenido(HTMLParser):
+    """Qué elementos tienen contenido: un elemento o un texto fuera de las etiquetas de SIN_CONTENIDO. Guarda el
+    <body> y el primer elemento con id `root` y con id `app`."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.pila, self.montajes = [], {}
+        self.body = None
+        self.algo = False
+        self.oculto = 0
+
+    def contar(self):
+        self.algo = True
+        for e in self.pila:
+            e["contenido"] = True
+
+    def handle_starttag(self, tag, attrs):
+        if self.oculto or tag in SIN_CONTENIDO:
+            self.oculto += tag not in VOID
+            return
+        if tag not in ("html", "head", "body"):
+            self.contar()
+        if tag in VOID:
+            return
+        e = {"tag": tag, "contenido": False}
+        self.pila.append(e)
+        id_ = (dict(attrs).get("id") or "").strip()
+        if id_ in MONTAJE:
+            self.montajes.setdefault(id_, e)
+        if tag == "body" and self.body is None:
+            self.body = e
+
+    def handle_startendtag(self, tag, attrs):
+        if not self.oculto and tag not in SIN_CONTENIDO:
+            self.contar()
+
+    def handle_endtag(self, tag):
+        if self.oculto:
+            self.oculto -= tag not in VOID
+            return
+        if any(e["tag"] == tag for e in self.pila):
+            while self.pila and self.pila.pop()["tag"] != tag:
+                pass
+
+    def handle_data(self, data):
+        if not self.oculto and data.strip():
+            self.contar()
+
+    def con_body(self):
+        """Si el <body> tiene contenido; sin <body>, si lo tiene el documento."""
+        return self.body["contenido"] if self.body else self.algo
+
+
+def contenido(texto):
+    lector = Contenido()
+    lector.feed(texto)
+    lector.close()
+    return lector
+
+
+def render(fuente, renderizado):
+    """(con contenido, lo que miró): el contenedor de montaje vacío del fuente, si sigue en el render, o el <body>."""
+    vacios = [id_ for id_, e in contenido(fuente).montajes.items() if not e["contenido"]]
+    dom = contenido(renderizado)
+    for id_ in vacios:
+        if id_ in dom.montajes:
+            return dom.montajes[id_]["contenido"], f"#{id_}, vacío en el fuente"
+    motivo = f"#{vacios[0]} vacío en el fuente y reemplazado en el render" if vacios else "sin #root ni #app vacíos en el fuente"
+    return dom.con_body(), f"<body>, {motivo}"
+
+
+def main_render(args):
+    if len(args) != 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        fuente, renderizado = (Path(a).read_text(encoding="utf-8") for a in args)
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"No pude leer {e.filename if isinstance(e, OSError) else args}: {e}", file=sys.stderr)
+        return 2
+    lleno, mirado = render(fuente, renderizado)
+    print(f"Render {'con contenido' if lleno else 'vacío'}: {mirado}.")
+    return 0 if lleno else 1
+
+
 def main(argv):
     args = list(argv[1:])
+    if args[:1] == ["render"]:
+        return main_render(args[1:])
     tope = TOPE
     if "--tope" in args:
         i = args.index("--tope")
