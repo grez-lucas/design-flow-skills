@@ -1,6 +1,6 @@
 # design-flow-skills
 
-Skills en español para pasar de una idea de producto a un diseño listo para construir: grilling del requerimiento, spec con historias de usuario, tickets y HTML de cada vista sobre un design system liviano. Funcionan con Claude Code y con cualquier agente compatible con `npx skills`.
+Skills en español para pasar de una idea de producto a un diseño listo para construir: grilling del requerimiento, spec con historias de usuario, tickets y HTML de cada vista sobre un design system liviano. Se instalan como plugin de Claude Code, desde la CLI o la app de escritorio.
 
 ---
 
@@ -13,9 +13,9 @@ Skills en español para pasar de una idea de producto a un diseño listo para co
 
 `html-a-vista` es la entrada para un HTML que ya está hecho: un mockup vigente que un ticket nuevo va a tocar, o un prototipo de otra herramienta. Lo desarma con un script, muestra un plan, reparte la conversión entre subagentes en tres olas y deja vistas con la misma convención que `spec-a-html`. Exige spec como `spec-a-html`: sin spec, arma un borrador desde el HTML y deriva a `grilling-es`. Necesita una sesión con subagentes.
 
-El nombre con que se invoca cada skill depende de cómo se instaló. Al cerrar, cada skill nombra el siguiente paso con las dos formas y dice qué hace.
+Con el plugin, cada skill se invoca con el prefijo `flujo-diseno:`; la sesión también la nombra sin prefijo. Al cerrar, cada skill nombra el siguiente paso con las dos formas y dice qué hace.
 
-| Con `npx skills` | Con el plugin de Claude Code |
+| Skill | Con el prefijo del plugin |
 | :--- | :--- |
 | `grilling-es` | `flujo-diseno:grilling-es` |
 | `spec-a-tickets` | `flujo-diseno:spec-a-tickets` |
@@ -102,38 +102,20 @@ Cada clase que usa una vista tiene regla en `components.css` o en el `<style>` d
 
 ## Instalación
 
-Con Claude Code, el camino principal es el plugin. Desde una sesión:
+Las skills se instalan como plugin de Claude Code, desde la CLI o la app de escritorio. Desde una sesión:
 
 ```
 /plugin marketplace add grez-lucas/design-flow-skills
 /plugin install flujo-diseno@design-flow-skills
 ```
 
-El plugin queda instalado a nivel de usuario y no escribe archivos en el repositorio de diseño.
-
-Con otro agente, la alternativa es `npx skills@latest`:
-
-```
-npx skills@latest add grez-lucas/design-flow-skills -a <agente>
-```
-
-El paquete `skills` declara Node.js 22.20 o superior. `@latest` hace que siempre corra la versión actual del CLI: sin él, con Node.js anterior a 22.20, npm corre sin avisar la última versión que acepta ese Node, una más vieja. Con `@latest` y Node.js anterior a 22.20, npm muestra una advertencia `EBADENGINE`, que es esperable, y la instalación funciona igual. Por ejemplo, con `skills@1.7.4` y Node.js 22.14, la salida fue esta; la versión del CLI y la de Node cambian con cada caso:
-
-```
-npm warn EBADENGINE   package: 'skills@1.7.4',
-npm warn EBADENGINE   required: { node: '>=22.20.0' },
-npm warn EBADENGINE   current: { node: 'v22.14.0', npm: '10.9.2' }
-```
-
-No hace falta hacer nada; para que no aparezca, actualiza Node.js a 22.20 o superior.
-
-`npx skills@latest add` instala las skills por proyecto, en el directorio actual, por ejemplo en `.agents/skills/` o `.claude/skills/`, y escribe `skills-lock.json`. Sin `-a`, elige los agentes según el entorno y puede dejar fuera al que se usa; `npx skills@latest --help` lista las opciones. Con `-g, --global` instala a nivel de usuario, sin dejar archivos en el repositorio de diseño. Si se instala dentro del repositorio de diseño, esos archivos quedan sin seguimiento y las skills no los suben: sus commits agregan solo `design/` y `specs/`, y `spec-a-tickets` además `.claude/pm-conventions.md` cuando guarda dónde están las convenciones de gestión del proyecto.
+El plugin queda instalado a nivel de usuario y no escribe archivos en el repositorio de diseño. Es la única instalación: trae en `bin/` el ejecutable `flujo` de las skills, y una skill instalada por separado quedaría sin él.
 
 ---
 
 ## Requisitos
 
-Para instalar, el plugin pide solo Claude Code; `npx skills@latest` declara Node.js 22.20 o superior, y con un Node.js anterior instala igual, con la advertencia `EBADENGINE` que explica "Instalación".
+Para instalar, el plugin pide solo Claude Code.
 
 Al usarse, las skills corren herramientas en la máquina de quien las usa, también cuando se instalaron como plugin:
 
@@ -225,7 +207,7 @@ python3 tests/correr.py
 
 Descubre las carpetas de `tests/` y corre cada una con `python3 -m unittest discover -s tests/<carpeta>`, así que una carpeta nueva entra sola. Corre también `claude plugin validate . --strict` si `claude` está en el `PATH`, y `actionlint` si está en el `PATH` o en `$(go env GOPATH)/bin`. Una carpeta sin `test*.py`, como una de fixtures o la que dejó solo su `__pycache__` al borrarse, se salta. Al final lista lo que pasó, con cuántos tests se saltaron en cada carpeta, lo que falló y lo que se saltó, y sale con error si algo falló. Es seguro dentro de `git rebase --exec`, para verificar cada commit de una rama (`git rebase --exec "python3 tests/correr.py" main`): cada carpeta corre con `GIT_DIR`, `GIT_WORK_TREE` y `GIT_INDEX_FILE` apuntando a un repositorio señuelo, y falla si un test escribe en él. Los tests que llaman a git quitan esas variables del entorno con `tests/aislar_git.py`. `tests/correr/` prueba el comando.
 
-`cmd/rama/` es `rama.py` en Go (issue 45), solo con la biblioteca estándar: la misma interfaz y las mismas salidas. `bin/` del plugin lleva un ejecutable por plataforma, `rama-<os>-<arch>` (`.exe` en Windows), para Linux, macOS y Windows en amd64 y arm64, y dos lanzadores: `bin/rama`, un sh para Linux, macOS y Git Bash que elige por `uname`, y `bin/rama.cmd`, para PowerShell y CMD, que elige por `%PROCESSOR_ARCHITECTURE%`. Sin ejecutable para la plataforma, salen con 3. Los ejecutables se compilan con `scripts/compilar` antes del commit que sube la versión y se suman a ese commit; la compilación es reproducible, y `scripts/compilar --verificar` falla si un ejecutable de `bin/` no es el que sale de la fuente. `RAMA=<orden>` corre `tests/rama/` contra otro ejecutable, y `python3 tests/correr.py --rama <orden>` corre solo esa carpeta así. Con `go.mod` en la raíz, `tests/correr.py` corre además `go vet ./...`, `go test ./...`, `scripts/compilar --verificar` si `go` está en el `PATH`, y `tests/rama/` otra vez contra el lanzador de `bin/`. Las skills siguen llamando a `rama.py` hasta que su prosa pase a `rama`.
+`cmd/flujo/` es el ejecutable único de las herramientas, con un subcomando por herramienta (issue 45); hoy tiene `flujo rama`, que es `rama.py` en Go, en `internal/rama/`, solo con la biblioteca estándar: la misma interfaz y las mismas salidas, más `commit -F <archivo>` para que el mensaje no pase por la línea de órdenes. `bin/` del plugin lleva `flujo-<os>-<arch>` para Linux y macOS en amd64 y arm64, `flujo.exe` para Windows (el de amd64, que Windows 11 en ARM64 corre emulado) y `bin/flujo`, un sh para Linux, macOS y Git Bash que elige por `uname` y en Git Bash corre `flujo.exe`. PowerShell resuelve `flujo` a `flujo.exe` por PATHEXT, sin pasar por `cmd.exe`. Sin ejecutable para la plataforma, el sh sale con 3. Los ejecutables se compilan con `scripts/compilar` antes del commit que sube la versión y se suman a ese commit; la compilación es reproducible, y `scripts/compilar --verificar` falla si un ejecutable de `bin/` no es el que sale de la fuente. `RAMA=<orden>` corre `tests/rama/` contra otra orden, por ejemplo `RAMA="bin/flujo rama"`, y `python3 tests/correr.py --rama <orden>` corre solo esa carpeta así. Con `go.mod` en la raíz, `tests/correr.py` corre además `go vet ./...`, `go test ./...`, `scripts/compilar --verificar` si `go` está en el `PATH`, y `tests/rama/` otra vez contra `flujo rama` de `bin/`. Las skills siguen llamando a `rama.py` hasta que su prosa pase a `flujo rama`.
 
 `tests/pruebas/` verifica que un `grade.py` falle entero, con código de salida 1 y 0 puntos, cuando la corrida está vacía o le falta su informe, y que la severidad dé el mismo puntaje con el informe escrito en distintos formatos. `tests/repositorio/` verifica reglas que cruzan las skills y los manifiestos, como que `checklist-diseno` corra `revisar.py` sin dejar `__pycache__/`. `tests/spec-a-html/` prueba `proto.js` en Chrome headless; sin Chrome se salta, salvo con `CI` definido, y `CHROME=<ruta>` elige el binario. También prueba `scripts/compartidos.py` contra el `design/` que dejaba la skill antes de 8b269c9 y uno con reglas propias.
 
@@ -249,7 +231,7 @@ python3 pruebas/checklist-diseno/grade.py iteraciones/checklist-diseno/iteration
 
 `grade.py` escribe un `grading.json` por corrida. El de `html-a-vista` lee el veredicto del revisor como `aprobadas.py`, solo en el formato fijo de la skill; las iteraciones 1 y 2, anteriores a ese formato, se califican con `--historico`. Regla de los `grade.py`: el contenido esperado se busca en todo el informe, sin depender de una sección ni de un formato, y la severidad o la ubicación se verifican en un chequeo aparte, solo sobre la primera oración de cada hallazgo para no contar menciones dentro de otro.
 
-El workflow `.github/workflows/ci.yml` corre los tests con `python3 tests/correr.py` en Linux; en macOS y Windows, `go vet`, `go test`, `scripts/compilar --verificar` y `tests/rama/` contra los lanzadores, en Windows con `bin/rama.cmd` y con `bin/rama` desde el bash de Git para Windows; y, en otro job que instala Claude Code, `claude plugin validate . --strict`. Corre en cada push a `main` y en cada pull request. `--strict` falla si `plugin.json` o la entrada de `marketplace.json` pierden su `version`; al publicar cambios para quien ya tiene el plugin, la versión sube en los dos, y `tests/repositorio/` verifica que coincidan.
+El workflow `.github/workflows/ci.yml` corre los tests con `python3 tests/correr.py` en Linux; en macOS y Windows, `go vet`, `go test`, `scripts/compilar --verificar` y `tests/rama/` contra `flujo rama`, en Windows con `bin/flujo.exe` y con `bin/flujo` desde el bash de Git para Windows; y, en otro job que instala Claude Code, `claude plugin validate . --strict`. Corre en cada push a `main` y en cada pull request. `--strict` falla si `plugin.json` o la entrada de `marketplace.json` pierden su `version`; al publicar cambios para quien ya tiene el plugin, la versión sube en los dos, y `tests/repositorio/` verifica que coincidan.
 
 ---
 

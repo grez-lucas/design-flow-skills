@@ -4,15 +4,15 @@
 Uso: python3 tests/correr.py
      python3 tests/correr.py --rama <orden>
 
-Con `--rama`, corre solo tests/rama con `RAMA=<orden>`, como el job de CI que prueba los lanzadores de bin/ en Linux,
-macOS y Windows; `<orden>` se parte como en sh, así que una ruta con espacios va entre comillas.
+Con `--rama`, corre solo tests/rama con `RAMA=<orden>`, como el job de CI que prueba `flujo rama` de bin/ en macOS y
+Windows; `<orden>` se parte como en sh, así que una ruta con espacios va entre comillas.
 
 Descubre las carpetas de tests/, todas salvo las ocultas y `__pycache__`, y corre cada una con
 `python -m unittest discover -s tests/<carpeta>`, sin escribir bytecode. Una carpeta sin `test*.py`, como una de
 fixtures o la que dejó solo su `__pycache__` al borrarse, se salta y se lista. Si la raíz tiene `go.mod`, corre además
 `go vet ./...`, `go test ./...` y `scripts/compilar --verificar`, que falla si un ejecutable de bin/ no es el que sale
-de la fuente, si `go` está en el PATH, y tests/rama otra vez con `RAMA` en el lanzador de bin/ (`bin/rama`, o
-`bin/rama.cmd` en Windows). `claude plugin validate . --strict` corre si `claude` está en el PATH, y
+de la fuente, si `go` está en el PATH, y tests/rama otra vez con `RAMA` en `flujo rama` de bin/ (`bin/flujo`, o
+`bin/flujo.exe` en Windows). `claude plugin validate . --strict` corre si `claude` está en el PATH, y
 `actionlint` si está en el PATH o en `$(go env GOPATH)/bin`. Al final lista lo que pasó, lo que falló y lo que se saltó,
 con cuántos tests se saltaron en cada carpeta, y sale con 1 si algo falló. Una herramienta que no está instalada se
 salta sin fallar.
@@ -125,9 +125,9 @@ def correr_herramienta(paso, orden, entorno, falta="no está instalado"):
 
 
 def lanzador():
-    """El lanzador de bin/ que corre este sistema, como orden para `RAMA`."""
-    ruta = RAIZ / "bin" / ("rama.cmd" if os.name == "nt" else "rama")
-    return shlex.quote(ruta.as_posix())
+    """`flujo rama` desde bin/ como lo corre este sistema, como orden para `RAMA`: el sh, o `flujo.exe` en Windows."""
+    ruta = RAIZ / "bin" / ("flujo.exe" if os.name == "nt" else "flujo")
+    return shlex.quote(ruta.as_posix()) + " rama"
 
 
 def pasos_de_go(entorno):
