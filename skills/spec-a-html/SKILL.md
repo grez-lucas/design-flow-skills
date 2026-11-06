@@ -178,7 +178,7 @@ diseno(alertas): listado con estados vacío, error y muchos datos
 Tickets: US-ALERT-002
 ```
 
-Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add specs/<épica>/` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
+Agrega solo los archivos que escribiste o cambiaste bajo `design/` y `specs/`, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos: `git add design/<archivo>` por cada uno, `git add specs/<épica>/<archivo>` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
 
