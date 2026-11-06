@@ -536,7 +536,7 @@ class ReferenciaDeRama(unittest.TestCase):
         # M2: la rama del flujo es la de `guardar`, una viva del servidor para este trabajo o la principal.
         self.assertRegex(seccion_, r"Vuelve a la rama del flujo\. Si saliste de una rama donde `rama\.py` había dicho "
                                    r"`guardar`, la del flujo es esa")
-        self.assertIn('git branch -r --list "origin/<tipo>/<nombre>" "origin/<tipo>/<nombre>-[0-9]*"', seccion_)
+        self.assertIn('git branch -r --list "origin/<tipo>/<nombre>" "origin/<tipo>/<nombre>-[2-9]"', seccion_)
         self.assertRegex(seccion_, r"No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo "
                                    r"encuentra después\.")
         self.assertIn("git switch -c apartado/<rama>", seccion_)
@@ -589,7 +589,8 @@ class ReferenciaDeRama(unittest.TestCase):
     def test_antes_de_guardar_mira_el_trabajo_ajeno_y_la_principal_adelantada(self):
         """A1 y M1; la conducta la prueban tests/rama/test_referencia.py contra repositorios reales."""
         antes = seccion(self.texto, "Antes de guardar", 2)
-        self.assertIn("git status --porcelain -- <rutas>", antes)
+        self.assertIn("git status --porcelain --ignore-submodules=dirty -- <rutas>", antes)
+        self.assertIn("git diff --cached --name-only", antes)
         self.assertIn("git rev-list --count origin/<principal>..<principal>", antes)
         adelantada = seccion(self.texto, "Principal adelantada", 2)
         self.assertIn("git branch apartado/<principal>", adelantada)

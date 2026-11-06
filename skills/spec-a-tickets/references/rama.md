@@ -7,6 +7,7 @@ Qué hacer cuando `rama.py` o `git` no dejan guardar: el arreglo que propones, c
 - Antes de proponer
 - Error de rama.py
 - Antes de guardar
+- El commit de la skill
 - Otra rama o trabajo sin guardar
 - Principal adelantada
 - Sin servidor
@@ -37,13 +38,14 @@ Sin el sí a cualquiera de esos arreglos, queda detenida sin escribir en el repo
 
 ## Antes de guardar
 
-Con `guardar`, o después de volver a la principal con `volver`, mira dos cosas antes de escribir, porque las dos entrarían en el commit de la skill con su mensaje. Primero, si hay trabajo sin guardar en lo que la skill va a agregar:
+Con `guardar`, con `ofrecer` antes de crear la rama nueva, o después de volver a la principal con `volver`, mira dos cosas antes de escribir, porque las dos entrarían en el commit de la skill con su mensaje. Primero, si hay trabajo sin guardar en lo que la skill va a agregar, también archivos sin seguimiento, y si hay algo preparado en el índice, en cualquier ruta:
 
 ```
-git status --porcelain -- <rutas>
+git status --porcelain --ignore-submodules=dirty -- <rutas>
+git diff --cached --name-only
 ```
 
-Si responde algo, es trabajo de otra persona o de una sesión anterior: detente, explica qué archivos son y propón apartarlos como dice "Otra rama o trabajo sin guardar". Con el sí, apártalos y vuelve a correr la misma orden de `rama.py`. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer.
+Un submódulo con cambios adentro no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí. Si alguna de las dos responde algo, es trabajo de otra persona o de una sesión anterior: detente, explica qué archivos son y propón apartarlos como dice "Otra rama o trabajo sin guardar". Con el sí, apártalos y vuelve a correr la misma orden de `rama.py`. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer.
 
 Después, si la rama actual es la principal (la de `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/` del comienzo), mira si tiene commits que el servidor no tiene:
 
@@ -51,7 +53,15 @@ Después, si la rama actual es la principal (la de `git symbolic-ref --short ref
 git rev-list --count origin/<principal>..<principal>
 ```
 
-Si da más de 0, sigue "Principal adelantada". Si no responde nada y da 0, guarda.
+Si da más de 0, sigue "Principal adelantada". Si no responde nada y da 0, guarda como dice "El commit de la skill".
+
+## El commit de la skill
+
+Haz el commit solo con las rutas que pasaste a `git add`, `<agregadas>`, para que un archivo que otra persona dejó preparado fuera de ellas no entre, aunque "Antes de guardar" no lo haya visto. El cuerpo del mensaje va con un `-m` más por párrafo:
+
+```
+git commit -m "<mensaje>" -- <agregadas>
+```
 
 ## Otra rama o trabajo sin guardar
 
@@ -59,23 +69,26 @@ Motivos `otra-rama`, `sin-rama`, `commits-sin-empujar` y `cambios-sin-guardar`, 
 
 Con el sí, desde el repositorio de diseño:
 
-1. Si `git status --short` muestra cambios, o el motivo es `sin-rama`, crea la rama del apartado donde estás y guarda ahí lo que había. Los cambios de archivos que el repositorio ya sigue van con `git add -u`, y los archivos nuevos (`??`) de `<rutas>` con `git add -A`; los demás `??` no se agregan, porque pueden ser la instalación de las skills (`.agents/`, `.claude/skills/`, `skills-lock.json`):
+1. Prepara lo que había y guárdalo en una rama propia. Los cambios de archivos que el repositorio ya sigue van con `git add -u`, y los archivos nuevos (`??`) de `<rutas>` con `git add -A`; los demás `??` no se agregan, porque pueden ser la instalación de las skills (`.agents/`, `.claude/skills/`, `skills-lock.json`). Lo que ya estaba en el índice entra también:
 
    ```
-   git switch -c apartado/<rama>
    git add -u
    git add -A -- <rutas>
+   git diff --cached --quiet
+   git switch -c apartado/<rama>
    git commit -m "Apartado: lo que había en <rama> antes de guardar"
    ```
 
-   `<rama>` es la rama actual con cada `/` cambiada por `-`, o `sin-rama`, y si ese nombre ya existe, usa el primer sufijo libre (`-2`, `-3`). Si no hay cambios (`git diff --cached --quiet` sale con 0 después de agregar), no hagas el commit. Si no hay cambios y la copia está en una rama, no hace falta apartar nada: sus commits siguen en esa rama.
+   `git diff --cached --quiet` es la compuerta: si sale con 0, no quedó nada preparado, y las dos órdenes de después no van, así que no queda una rama vacía; sus commits siguen en la rama donde estabas. Con `sin-rama` la rama va igual, sin el commit si no hay nada preparado, porque guarda los commits que no están en ninguna rama. `<rama>` es la rama actual con cada `/` cambiada por `-`, o `sin-rama`, y si ese nombre ya existe, usa el primer sufijo libre (`-2`, `-3`).
 2. Vuelve a la rama del flujo. Si saliste de una rama donde `rama.py` había dicho `guardar`, la del flujo es esa: vuelve con `git switch <rama>`, con su nombre de antes del apartado. Si no, mira si el servidor tiene una rama del flujo de este trabajo:
 
    ```
-   git branch -r --list "origin/<tipo>/<nombre>" "origin/<tipo>/<nombre>-[0-9]*"
+   git branch -r --list "origin/<tipo>/<nombre>" "origin/<tipo>/<nombre>-[2-9]" "origin/<tipo>/<nombre>-[1-9][0-9]" "origin/<tipo>/<nombre>-[1-9][0-9][0-9]"
    ```
 
-   Si responde una, vuelve a ella con `git switch <tipo>/<nombre>`, sin el `origin/`: git la crea siguiendo la del servidor. Si responde más de una, muéstralas y pregunta en cuál guardar. Si no responde ninguna, la rama del flujo es la principal (la de `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/`; si no responde, la nombra la línea de HEAD de `git remote show origin`): corre `git switch <principal>` y `git pull --ff-only`.
+   Los patrones toman la rama y sus sufijos (`-2`, `-10`) y nada más, para que otra épica que empieza igual, como `alertas-2fa` frente a `alertas`, no cuente.
+
+   Si responde una, vuelve a ella con `git switch <tipo>/<nombre>`, sin el `origin/`: git la crea siguiendo la del servidor. Si responde más de una, muéstralas y pregunta en cuál guardar. Si no responde ninguna, la rama del flujo es la principal (la de `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/`; si no responde, la nombra la línea de HEAD de `git remote show origin`): corre `git switch <principal>` y `git pull --ff-only`. Si `git pull --ff-only` falla porque la principal de esta copia tiene commits que el servidor no tiene, sigue "Principal adelantada".
 3. Vuelve a correr la misma orden de `rama.py`, sigue con la `accion` que devuelva y repite "Antes de guardar".
 
 Di dónde quedó lo anterior: en `apartado/<rama>` con sus archivos, o en `<rama>` si no hubo que apartar nada, y que una rama que creaste tú existe solo en esta máquina. Si un comando falla y el arreglo no se puede hacer desde la sesión, queda detenida: di en qué rama quedaste, qué quedó apartado y qué quedó sin hacer, y vuelve a correr la misma orden de `rama.py` cuando se resuelva.

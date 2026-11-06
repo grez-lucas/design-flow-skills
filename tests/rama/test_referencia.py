@@ -84,8 +84,9 @@ class Repositorio(unittest.TestCase):
         destino.parent.mkdir(parents=True, exist_ok=True)
         destino.write_text(texto, encoding="utf-8")
 
-    def rama(self):
-        r = subprocess.run([sys.executable, "-B", str(SCRIPT), "revisar", "--tipo", "diseno", "--epica", "alertas",
+    def rama(self, *nombre):
+        nombre = nombre or ("--epica", "alertas")
+        r = subprocess.run([sys.executable, "-B", str(SCRIPT), "revisar", "--tipo", "diseno", *nombre,
                             "--repo", str(self.copia)], env=ENTORNO, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr)
         return json.loads(r.stdout)
@@ -104,11 +105,21 @@ class Repositorio(unittest.TestCase):
                 if parte == "<rutas>":
                     argv += self.rutas()
                     continue
+                if parte == "<agregadas>":
+                    argv += valores["agregadas"]
+                    continue
                 for clave, valor in valores.items():
-                    parte = parte.replace(f"<{clave}>", valor)
+                    if isinstance(valor, str):
+                        parte = parte.replace(f"<{clave}>", valor)
                 self.assertNotRegex(parte, r"<[^>]+>", f"falta un valor en {linea!r}")
                 argv.append(parte)
-            if argv[0] == "commit" and git("diff", "--cached", "--quiet", cwd=self.copia, check=False).returncode == 0:
+            nada = git("diff", "--cached", "--quiet", cwd=self.copia, check=False).returncode == 0
+            if argv == ["diff", "--cached", "--quiet"]:
+                # B5: la compuerta del bloque. Sin nada preparado, lo que sigue no va, salvo con `sin-rama`.
+                if nada and not valores.get("sin_rama"):
+                    break
+                continue
+            if argv[0] == "commit" and nada and "apartado" in linea.lower():
                 continue  # "Si no hay cambios ..., no hagas el commit."
             salidas.append(git(*argv, cwd=self.copia).stdout)
         return salidas
@@ -117,21 +128,29 @@ class Repositorio(unittest.TestCase):
         return seccion(self.rama_md, titulo)
 
     def estado(self):
-        return self.correr(bloque_con(self.seccion("Antes de guardar"), "git status --porcelain"))[0]
+        """Todo lo que responde el primer bloque de "Antes de guardar": vacío si no hay nada que apartar."""
+        return "".join(self.correr(bloque_con(self.seccion("Antes de guardar"), "git status --porcelain")))
 
     def adelantada(self, principal="main"):
         return int(self.correr(bloque_con(self.seccion("Antes de guardar"), "git rev-list --count"),
                                principal=principal)[0].strip())
 
-    def apartar(self, rama):
-        bloque = bloque_con(self.seccion("Otra rama o trabajo sin guardar"), "git switch -c apartado/")
-        self.correr(bloque, rama=rama.replace("/", "-"))
+    def apartar(self, rama, **valores):
+        seccion_ = self.seccion("Otra rama o trabajo sin guardar")
+        bloque = next(b for b in bloques(seccion_) if any(l.startswith("git switch -c apartado/") for l in b))
+        self.correr(bloque, rama=rama.replace("/", "-"), **valores)
+
+    def ramas_vivas(self, nombre="alertas"):
+        bloque = bloque_con(self.seccion("Otra rama o trabajo sin guardar"), "git branch -r --list")
+        return self.correr(bloque, tipo="diseno", nombre=nombre)[0].split()
 
     def guardar_como_la_skill(self):
         """Lo que hace `spec-a-html` al guardar: escribe su vista, `git add design/`, commit y push."""
         self.escribir(self.copia, "design/vistas/alertas/nueva.html", "<p>nueva</p>\n")
         git("add", "design/", cwd=self.copia)
-        git("commit", "-q", "-m", "diseno(alertas): nueva", cwd=self.copia)
+        # A3: el commit va con las rutas que la skill agregó, como dice "El commit de la skill".
+        self.correr(bloque_con(self.seccion("El commit de la skill"), "git commit"), mensaje="diseno(alertas): nueva",
+                    agregadas=["design/"])
         git("push", "-q", "origin", "HEAD", cwd=self.copia)
         return set(git("show", "--name-only", "--format=", "HEAD", cwd=self.copia).stdout.split())
 
@@ -177,13 +196,70 @@ class TrabajoSinGuardar(Repositorio):
         self.assertIn("design/vistas/alertas/borrador.html", apartado)
         self.assertIn("design/vistas/alertas/a.html", apartado)
         self.assertNotIn(".agents/skills/x/SKILL.md", apartado)
-        vivas = self.correr(bloque_con(self.seccion("Otra rama o trabajo sin guardar"), "git branch -r --list"),
-                            tipo="diseno", nombre="alertas")[0]
-        self.assertEqual(vivas.strip(), "")
+        self.assertEqual(self.ramas_vivas(), [])
         git("switch", "-q", "main", cwd=self.copia)
         git("pull", "-q", "--ff-only", cwd=self.copia)
         self.assertEqual(self.rama()["accion"], "guardar")
         self.assertEqual(self.guardar_como_la_skill(), {"design/vistas/alertas/nueva.html"})
+
+
+class TrabajoAjenoFueraDeLasRutas(Repositorio):
+    def test_a3_un_archivo_ajeno_en_el_indice_se_ve_y_no_entra_al_commit(self):
+        self.escribir(self.copia, "notas.txt", "de otra persona\n")
+        git("add", "notas.txt", cwd=self.copia)
+        self.assertEqual(self.rama()["accion"], "guardar")
+        self.assertIn("notas.txt", self.estado(), "Antes de guardar no mira el índice entero")
+        self.assertNotIn("notas.txt", self.guardar_como_la_skill())
+        self.assertIn("notas.txt", git("diff", "--cached", "--name-only", cwd=self.copia).stdout)
+
+    def test_a3_con_volver_tambien(self):
+        git("switch", "-q", "-c", "diseno/alertas", cwd=self.copia)
+        git("push", "-q", "-u", "origin", "diseno/alertas", cwd=self.copia)
+        git("push", "-q", "origin", "--delete", "diseno/alertas", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "de otra persona\n")
+        git("add", "notas.txt", cwd=self.copia)
+        self.assertEqual(self.rama()["accion"], "volver")
+        git("switch", "-q", "main", cwd=self.copia)
+        git("pull", "-q", "--ff-only", cwd=self.copia)
+        self.assertIn("notas.txt", self.estado())
+
+    def test_b5_sin_nada_que_apartar_no_crea_una_rama_vacia(self):
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, ".agents/skills/x/SKILL.md", "instalación de las skills\n")
+        self.assertEqual(self.rama()["motivo"], "otra-rama")
+        self.apartar("experimento")
+        self.assertEqual(git("branch", "--list", "apartado/*", cwd=self.copia).stdout.strip(), "")
+
+    def test_b6_un_submodulo_con_cambios_adentro_no_manda_a_apartar(self):
+        modulo = self.tmp / "modulo"
+        git("init", "-q", "--initial-branch=main", str(modulo), cwd=self.tmp)
+        self.escribir(modulo, "a.css", "a {}\n")
+        git("add", "-A", cwd=modulo)
+        git("commit", "-q", "-m", "modulo", cwd=modulo)
+        git("-c", "protocol.file.allow=always", "submodule", "add", "-q", str(modulo), "design/lib", cwd=self.copia)
+        git("commit", "-q", "-m", "submódulo", cwd=self.copia)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.copia)
+        self.escribir(self.copia, "design/lib/suelto.txt", "x\n")
+        self.assertEqual(self.rama()["accion"], "guardar")
+        self.assertEqual(self.estado().strip(), "")
+
+
+class Ofrecer(Repositorio):
+    """A4: `ofrecer` de `html-a-vista` pasa por "Antes de guardar" y "Principal adelantada" antes de la rama nueva.
+    `rama.py` mira los cambios con `--untracked-files=no`, así que no ve un archivo nuevo bajo `design/`."""
+
+    def test_a4_un_archivo_sin_seguimiento_que_rama_py_no_ve_lo_ve_antes_de_guardar(self):
+        git("switch", "-q", "-c", "diseno/alertas", cwd=self.copia)
+        git("push", "-q", "-u", "origin", "diseno/alertas", cwd=self.copia)
+        self.escribir(self.copia, "design/vistas/alertas/borrador.html", "<p>borrador</p>\n")
+        self.assertEqual(self.rama("--mockup", "panel", "--epicas", "alertas,riego")["accion"], "ofrecer")
+        self.assertIn("design/vistas/alertas/borrador.html", self.estado())
+        texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
+        ofrecer = next(l for l in texto.splitlines() if l.startswith("- `ofrecer`: "))
+        antes, adelantada, nueva = (ofrecer.index('"Antes de guardar"'), ofrecer.index('"Principal adelantada"'),
+                                    ofrecer.index("`git switch -c <rama_nueva>`"))
+        self.assertLess(antes, nueva)
+        self.assertLess(adelantada, nueva)
 
 
 class PrincipalAdelantada(Repositorio):
@@ -216,12 +292,19 @@ class VueltaALaRamaDelFlujo(Repositorio):
         git("switch", "-q", "-c", "experimento", cwd=self.copia)
         self.assertEqual(self.rama()["motivo"], "otra-rama")
         self.apartar("experimento")
-        vivas = self.correr(bloque_con(self.seccion("Otra rama o trabajo sin guardar"), "git branch -r --list"),
-                            tipo="diseno", nombre="alertas")[0].split()
-        self.assertEqual(vivas, ["origin/diseno/alertas"])
+        self.assertEqual(self.ramas_vivas(), ["origin/diseno/alertas"])
         git("switch", "-q", "diseno/alertas", cwd=self.copia)
         self.assertEqual(self.rama(), {"accion": "guardar", "rama": "diseno/alertas"})
         self.assertIn("design/vistas/alertas/nueva.html", self.guardar_como_la_skill())
+
+    def test_m9_el_sufijo_es_exacto_y_no_toma_otra_epica(self):
+        otra = self.tmp / "otra"
+        git("clone", "-q", str(self.servidor), str(otra), cwd=self.tmp)
+        for rama in ("diseno/alertas-2fa", "diseno/alertas-2", "diseno/alertas-10", "diseno/alertas-push"):
+            git("push", "-q", "origin", f"HEAD:refs/heads/{rama}", cwd=otra)
+        git("fetch", "-q", cwd=self.copia)
+        self.assertEqual(self.ramas_vivas(), ["origin/diseno/alertas-10", "origin/diseno/alertas-2"])
+        self.assertEqual(self.ramas_vivas("alertas-2fa"), ["origin/diseno/alertas-2fa"])
 
 
 if __name__ == "__main__":
