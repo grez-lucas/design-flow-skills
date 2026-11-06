@@ -18,9 +18,11 @@ Un trozo que pasa el tope (en tokens estimados) se parte antes de escribirse. Sa
 mensaje, sin escribir nada, si no puede desarmar la entrada; con 2 si el uso es incorrecto.
 
 render compara una parte de un framework por CDN con su DOM renderizado y dice si el render quedó vacío.
-Si la parte tiene un contenedor vacío con id `root` o `app`, de cualquier etiqueta, mira ese contenedor en el
-render; si el framework lo reemplazó (Vue 2 con `el`) o la parte no lo tiene (Tailwind o Alpine solos), mira el
-<body>. Cuenta como contenido un elemento o un texto que no son <script>, <style>, <template>, <noscript>, <link>,
+Si la parte tiene contenedores vacíos con id `root` o `app`, de cualquier etiqueta, alcanza con que uno tenga
+contenido en el render; si el framework los reemplazó (Vue 2 con `el`) o la parte no los tiene (Tailwind o Alpine
+solos), mira el <body>. Un render igual a la parte cuenta como vacío si la parte espera a un framework: usa
+directivas (`{{`, `v-`, `x-`, `@`, `:`) o tiene un `#root` o `#app` con contenido, como una plantilla o un
+"Cargando...". Cuenta como contenido un elemento o un texto que no son <script>, <style>, <template>, <noscript>, <link>,
 <meta> ni <title>. Escribe una línea con lo que miró y sale con 0 si tiene contenido, con 1 si quedó vacío y con 2 si el uso
 es incorrecto o no puede leer un archivo.
 """
@@ -837,9 +839,13 @@ MONTAJE = {"root", "app"}
 SIN_CONTENIDO = {"script", "style", "template", "noscript", "link", "meta", "title"}
 
 
+DIRECTIVA = re.compile(r"^(?:v-|x-|@|:)")
+
+
 class Contenido(HTMLParser):
     """Qué elementos tienen contenido: un elemento o un texto fuera de las etiquetas de SIN_CONTENIDO. Guarda el
-    <body> y el primer elemento con id `root` y con id `app`."""
+    <body>, el primer elemento con id `root` y con id `app`, la firma del documento fuera del <head> (etiquetas con
+    sus atributos y textos, sin lo de SIN_CONTENIDO) y si usa directivas de un framework (`{{`, `v-`, `x-`, `@`, `:`)."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -847,6 +853,8 @@ class Contenido(HTMLParser):
         self.body = None
         self.algo = False
         self.oculto = 0
+        self.en_head = False
+        self.firma, self.directivas = [], False
 
     def contar(self):
         self.algo = True
@@ -857,8 +865,13 @@ class Contenido(HTMLParser):
         if self.oculto or tag in SIN_CONTENIDO:
             self.oculto += tag not in VOID
             return
+        if tag == "head":
+            self.en_head = True
         if tag not in ("html", "head", "body"):
             self.contar()
+            if not self.en_head and tag != "tbody":
+                self.firma.append((tag, tuple(sorted((k, v or "") for k, v in attrs))))
+            self.directivas = self.directivas or any(DIRECTIVA.match(k) for k, _ in attrs)
         if tag in VOID:
             return
         e = {"tag": tag, "contenido": False}
@@ -871,12 +884,16 @@ class Contenido(HTMLParser):
 
     def handle_startendtag(self, tag, attrs):
         if not self.oculto and tag not in SIN_CONTENIDO:
-            self.contar()
+            self.handle_starttag(tag, attrs)
+            if tag not in VOID:
+                self.handle_endtag(tag)
 
     def handle_endtag(self, tag):
         if self.oculto:
             self.oculto -= tag not in VOID
             return
+        if tag == "head":
+            self.en_head = False
         if any(e["tag"] == tag for e in self.pila):
             while self.pila and self.pila.pop()["tag"] != tag:
                 pass
@@ -884,6 +901,9 @@ class Contenido(HTMLParser):
     def handle_data(self, data):
         if not self.oculto and data.strip():
             self.contar()
+            if not self.en_head:
+                self.firma.append(" ".join(data.split()))
+            self.directivas = self.directivas or "{{" in data
 
     def con_body(self):
         """Si el <body> tiene contenido; sin <body>, si lo tiene el documento."""
@@ -898,14 +918,24 @@ def contenido(texto):
 
 
 def render(fuente, renderizado):
-    """(con contenido, lo que miró): el contenedor de montaje vacío del fuente, si sigue en el render, o el <body>."""
-    vacios = [id_ for id_, e in contenido(fuente).montajes.items() if not e["contenido"]]
-    dom = contenido(renderizado)
-    for id_ in vacios:
-        if id_ in dom.montajes:
-            return dom.montajes[id_]["contenido"], f"#{id_}, vacío en el fuente"
+    """(con contenido, lo que miró). Un contenedor de montaje vacío en la parte que sigue en el render tiene que tener
+    contenido, alcanza con uno (N8); si el framework lo reemplazó o la parte no lo tiene, el <body>. Y un render igual a
+    la parte es vacío si la parte espera a un framework: tiene directivas o un contenedor de montaje con contenido,
+    como una plantilla de Vue o un "Cargando..." (N7)."""
+    parte, dom = contenido(fuente), contenido(renderizado)
+    vacios = [id_ for id_, e in parte.montajes.items() if not e["contenido"]]
+    presentes = [id_ for id_ in vacios if id_ in dom.montajes]
+    if presentes:
+        llenos = [id_ for id_ in presentes if dom.montajes[id_]["contenido"]]
+        return bool(llenos), f"#{(llenos or presentes)[0]}, vacío en el fuente"
+    if not dom.con_body():
+        motivo = f"#{vacios[0]} vacío en el fuente y reemplazado en el render" if vacios else "sin #root ni #app vacíos en el fuente"
+        return False, f"<body>, {motivo}"
+    espera = parte.directivas or any(e["contenido"] for e in parte.montajes.values())
+    if espera and parte.firma == dom.firma:
+        return False, "<body>, igual al fuente, que espera a un framework que no corrió"
     motivo = f"#{vacios[0]} vacío en el fuente y reemplazado en el render" if vacios else "sin #root ni #app vacíos en el fuente"
-    return dom.con_body(), f"<body>, {motivo}"
+    return True, f"<body>, {motivo}"
 
 
 def main_render(args):
