@@ -597,6 +597,24 @@ class Render(Base):
                                   '<html><body><main id="app"></main></body></html>', 1),
         "Vue 2 reemplazado por nada": ('<html><body><div id="app"></div>' + CDN + '</body></html>',
                                        '<html><body>' + CDN + '</body></html>', 1),
+        # N7: sin red, el render es igual a la parte, y eso es vacío si la parte espera a un framework.
+        "Vue 3 con la plantilla en #app sin red": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + CDN +
+                                                   '</body></html>',
+                                                   '<html><head></head><body><div id="app"><h1>{{ titulo }}</h1></div>'
+                                                   + CDN + '</body></html>', 1),
+        "Vue 3 con la plantilla en #app": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + CDN + '</body></html>',
+                                           '<html><body><div id="app" data-v-app=""><h1>Panel</h1></div>' + CDN +
+                                           '</body></html>', 0),
+        "Alpine sin red": ('<html><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + CDN + '</body></html>',
+                           '<html><head></head><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + CDN +
+                           '</body></html>', 1),
+        "Cargando sin red": ('<html><body><div id="root">Cargando...</div>' + CDN + '</body></html>',
+                             '<html><head></head><body><div id="root">Cargando...</div>' + CDN + '</body></html>', 1),
+        "Cargando con render": ('<html><body><div id="root">Cargando...</div>' + CDN + '</body></html>',
+                                '<html><body><div id="root"><main><h1>Panel</h1></main></div></body></html>', 0),
+        # N8: un contenedor vacío que el framework no usa no cuenta si otro montó.
+        "root sin usar y app montado": ('<html><body><div id="root"></div><div id="app"></div>' + CDN + '</body></html>',
+                                        '<html><body><div id="root"></div><div id="app"><h1>Panel</h1></div></body></html>', 0),
         "sin contenedor y body vacío": ('<html><body><div x-data="{}"></div>' + CDN + '</body></html>',
                                         '<html><body>' + CDN + '<style>p {}</style></body></html>', 1),
     }
