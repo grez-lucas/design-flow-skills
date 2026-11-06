@@ -17,9 +17,9 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ## Skills hermanas
 
-Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar.
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. El plugin las trae juntas; una falta si esta skill no vino con el plugin.
 
-Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
 
 ## Pasos
 
@@ -162,7 +162,7 @@ Muestra el cambio y, con el sí, escríbelo, vuelve a correr `git check-ignore .
 
 Detente. Si `git check-ignore .claude/pm-conventions.md` sigue respondiendo, la regla está fuera del `.gitignore` de la raíz: muestra la línea que da `git check-ignore -v .claude/pm-conventions.md`, y como eso no se arregla desde la sesión, redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: el puntero queda solo en esta máquina y lo demás se guarda. Cuando el TL cambie la regla, vuelve a correr `git check-ignore`.
 
-Nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
+Nunca `git add -A` ni `git add .`: llevarían al commit lo que la persona u otra sesión dejó sin seguimiento en la copia.
 
 La rama quedó revisada en el paso 3. El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, sigue `references/rama.md`, sección "Push sin credenciales": el TL es quien da los accesos, y el commit queda solo en esta máquina. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo tickets --epica <épica>`.
 
@@ -171,4 +171,4 @@ La rama quedó revisada en el paso 3. El push va a la rama actual, con `git push
 
 ### 10. Cerrar
 
-Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso. Si los tickets quedaron como archivos porque la sesión no llega al tracker, entrega la orden para el TL y di que en el tracker todavía no hay tickets. El siguiente paso es `spec-a-html` con el mismo spec, en una sesión nueva, para dibujar las vistas. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:spec-a-html`; con `npx skills`, `spec-a-html`.
+Entrega la tabla de identificadores y títulos con sus enlaces, las preguntas abiertas que quedaron y el siguiente paso. Si los tickets quedaron como archivos porque la sesión no llega al tracker, entrega la orden para el TL y di que en el tracker todavía no hay tickets. El siguiente paso es `spec-a-html` con el mismo spec, en una sesión nueva, para dibujar las vistas. Nómbrala con el prefijo del plugin: `flujo-diseno:spec-a-html`.

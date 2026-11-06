@@ -15,9 +15,9 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ## Skills hermanas
 
-Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar.
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. El plugin las trae juntas; una falta si esta skill no vino con el plugin.
 
-Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
 
 ## Por qué hay subagentes, olas y un script
 
@@ -210,7 +210,7 @@ Cuando la persona dé el visto bueno, haz commit y push a la rama actual del rep
 
 Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`, como lo deja `spec-a-html`; si no la tiene, agrégala, y crea el archivo si falta: las revisiones con Lavish de las otras skills escriben ahí archivos que no son diseño.
 
-Agrega solo los archivos que escribiste o cambiaste bajo `design/` y `specs/`, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos: `git add design/<archivo>` por cada uno, `git add specs/<épica>/<archivo>` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit, y tampoco va el mockup original si está en el repositorio. Revisa con `git status` que no quede nada más en el área de preparación.
+Agrega solo los archivos que escribiste o cambiaste bajo `design/` y `specs/`, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos: `git add design/<archivo>` por cada uno, `git add specs/<épica>/<archivo>` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: llevarían al commit lo que la persona u otra sesión dejó sin seguimiento en la copia, como el mockup original si está en el repositorio. Revisa con `git status` que no quede nada más en el área de preparación.
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
 
@@ -228,4 +228,4 @@ Tickets: SEM-14
 
 ### 11. Informe
 
-Cierra con el informe en el chat, con `references/plan.md`, sección "Informe": plan ejecutado, decisiones de tokens y los valores pendientes de decisión, escenarios que salieron de controles de prototipo, lo que no tiene equivalente y cómo quedó (cada lógica JS como criterio para su ticket), variante elegida si había varias, inventario por vista con quién lo revisó, capturas o la mención de que se verificó sin render, y lo que no se pudo ver. Termina sugiriendo correr `checklist-diseno` sobre las vistas nuevas antes de la planificación, y `spec-a-tickets` para las vistas sin ticket que se vayan a construir. Nombra las skills como figuran en tu lista de skills: instaladas como plugin de Claude Code son `flujo-diseno:checklist-diseno` y `flujo-diseno:spec-a-tickets`; con `npx skills`, `checklist-diseno` y `spec-a-tickets`.
+Cierra con el informe en el chat, con `references/plan.md`, sección "Informe": plan ejecutado, decisiones de tokens y los valores pendientes de decisión, escenarios que salieron de controles de prototipo, lo que no tiene equivalente y cómo quedó (cada lógica JS como criterio para su ticket), variante elegida si había varias, inventario por vista con quién lo revisó, capturas o la mención de que se verificó sin render, y lo que no se pudo ver. Termina sugiriendo correr `checklist-diseno` sobre las vistas nuevas antes de la planificación, y `spec-a-tickets` para las vistas sin ticket que se vayan a construir. Nómbralas con el prefijo del plugin: `flujo-diseno:checklist-diseno` y `flujo-diseno:spec-a-tickets`.

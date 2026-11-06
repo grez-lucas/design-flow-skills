@@ -28,9 +28,9 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ## Skills hermanas
 
-Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar.
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. El plugin las trae juntas; una falta si esta skill no vino con el plugin.
 
-Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
 
 ## Por qué el formato es liviano
 
@@ -178,7 +178,7 @@ diseno(alertas): listado con estados vacío, error y muchos datos
 Tickets: US-ALERT-002
 ```
 
-Agrega solo los archivos que escribiste o cambiaste bajo `design/` y `specs/`, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos: `git add design/<archivo>` por cada uno, `git add specs/<épica>/<archivo>` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
+Agrega solo los archivos que escribiste o cambiaste bajo `design/` y `specs/`, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos: `git add design/<archivo>` por cada uno, `git add specs/<épica>/<archivo>` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: llevarían al commit lo que la persona u otra sesión dejó sin seguimiento en la copia.
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
 
@@ -189,4 +189,4 @@ La rama quedó revisada en el paso 2. El push va a la rama actual, con `git push
 
 ### 10. Siguiente paso
 
-Cierra diciendo qué quedó (vistas, escenarios, si cambió el design system) y que antes de la planificación del sprint conviene correr `checklist-diseno` sobre las vistas nuevas. Si el design system cambió, avisa que diseño lo revisa en la planificación. Nombra la skill como figura en tu lista de skills: instalada como plugin de Claude Code es `flujo-diseno:checklist-diseno`; con `npx skills`, `checklist-diseno`.
+Cierra diciendo qué quedó (vistas, escenarios, si cambió el design system) y que antes de la planificación del sprint conviene correr `checklist-diseno` sobre las vistas nuevas. Si el design system cambió, avisa que diseño lo revisa en la planificación. Nómbrala con el prefijo del plugin: `flujo-diseno:checklist-diseno`.

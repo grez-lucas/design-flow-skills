@@ -201,7 +201,7 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
             for ruta in self.archivos_con_commit(skill):
                 with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
                     texto = ruta.read_text(encoding="utf-8")
-                    self.assertIn("skills-lock.json", texto)
+                    self.assertIn("nunca `git add -A` ni `git add .`", texto.replace("Nunca", "nunca"))
                     self.assertIn("el resumen", texto.lower())
 
 

@@ -522,7 +522,7 @@ class DetencionesConArreglo(unittest.TestCase):
 
 class ReferenciaDeRama(unittest.TestCase):
     """Q143 y Q144: lo que hace una skill cuando `rama.py` o `git` no la dejan guardar vive en `references/rama.md`,
-    igual en cada skill que guarda, porque `npx skills` instala cada una por separado (como `rama.py`, Q99)."""
+    igual en cada skill que guarda, como `rama.py` (Q99)."""
 
     CON_REFERENCIA = ("checklist-diseno", "grilling-es", "spec-a-tickets", "spec-a-html", "html-a-vista")
     ORIGINAL = SKILLS / "grilling-es" / "references" / "rama.md"
@@ -1058,7 +1058,8 @@ class ReadmeSinContradicciones(unittest.TestCase):
 
 class SkillsHermanas(unittest.TestCase):
     """Q154 y M5: cada skill dice, con el mismo párrafo, cómo comprueba que una hermana esté instalada y cómo la instala
-    con el sí; y cada vez que sigue con una hermana remite a ese párrafo, porque con `npx skills` se instalan de a una."""
+    con el sí; y cada vez que sigue con una hermana remite a ese párrafo, porque una skill copiada sin el plugin puede
+    estar sola. Q164: el arreglo es solo instalar el plugin."""
 
     SKILLS_DEL_FLUJO = ("checklist-diseno", "grilling-es", "html-a-vista", "spec-a-html", "spec-a-tickets")
     DERIVA = re.compile(r"sigue con `(?:checklist-diseno|grilling-es|html-a-vista|spec-a-html|spec-a-tickets)`|síguelas")
@@ -1077,9 +1078,9 @@ class SkillsHermanas(unittest.TestCase):
         self.assertRegex(parrafo, r"Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de "
                                   r"skills, o que exista `\.\./<hermana>/SKILL\.md` junto a esta skill\.")
         for orden in ("`claude plugin marketplace add grez-lucas/design-flow-skills`",
-                      "`claude plugin install flujo-diseno@design-flow-skills`",
-                      "`npx skills@latest add grez-lucas/design-flow-skills -a <agente>`"):
+                      "`claude plugin install flujo-diseno@design-flow-skills`"):
             self.assertIn(orden, parrafo)
+        self.assertNotIn("npx", parrafo)
         self.assertRegex(parrafo, r"pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté")
 
     def test_cada_derivacion_remite_al_parrafo(self):
@@ -1095,6 +1096,28 @@ class SkillsHermanas(unittest.TestCase):
         self.assertRegex(pasos, r"Si no están, sigue \"Skills hermanas\"")
         checklist = (SKILLS / "checklist-diseno" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("como dice el comienzo de los pasos de `html-a-vista`", checklist)
+
+
+class SoloElPlugin(unittest.TestCase):
+    """Q164, que supera Q142 y la parte de Q99 sobre `npx skills`: la única instalación es el plugin. Ninguna skill
+    ofrece `npx skills` ni habla de lo que deja en la copia (`.agents/`, `skills-lock.json`), y el cierre nombra la
+    siguiente skill con el prefijo del plugin, sin la forma de `npx skills`."""
+
+    NPX_SKILLS = re.compile(r"\bnpx(?:[ \t]+-[\w-]+)*[ \t]+skills\b|`npx skills")
+
+    def test_ninguna_skill_nombra_npx_skills_ni_lo_que_deja(self):
+        for ruta in sorted(SKILLS.rglob("*.md")):
+            texto = ruta.read_text(encoding="utf-8")
+            with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
+                self.assertEqual(self.NPX_SKILLS.findall(texto), [])
+                self.assertNotIn("skills-lock.json", texto)
+                self.assertNotIn("`.agents/`", texto)
+
+    def test_el_cierre_nombra_la_siguiente_skill_con_el_prefijo_del_plugin(self):
+        for skill in SkillsHermanas.SKILLS_DEL_FLUJO:
+            texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(skill=skill):
+                self.assertRegex(texto, r"Nómbral[ao]s? con el prefijo del plugin: `flujo-diseno:")
 
 
 class Navegador(unittest.TestCase):
