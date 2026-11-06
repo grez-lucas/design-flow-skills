@@ -576,6 +576,11 @@ class Render(Base):
     renderizado no tiene contenido."""
 
     CDN = '<script src="https://cdn.example.com/framework.js"></script>'
+    VUE = '<script src="https://unpkg.com/vue@3.4.38/dist/vue.global.prod.js"></script>'
+    ALPINE = '<script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>'
+    REACT = '<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>'
+    TAILWIND = '<script src="https://cdn.tailwindcss.com"></script>'
+    ESTILO = '<style>.p-4 { padding: 1rem }</style>'
     CASOS = {
         "solo Tailwind": ('<html><head><script src="https://cdn.tailwindcss.com"></script></head><body>'
                           '<main class="p-4"><h1 class="text-red-600">Panel</h1></main></body></html>',
@@ -597,21 +602,46 @@ class Render(Base):
                                   '<html><body><main id="app"></main></body></html>', 1),
         "Vue 2 reemplazado por nada": ('<html><body><div id="app"></div>' + CDN + '</body></html>',
                                        '<html><body>' + CDN + '</body></html>', 1),
-        # N7: sin red, el render es igual a la parte, y eso es vacío si la parte espera a un framework.
-        "Vue 3 con la plantilla en #app sin red": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + CDN +
+        # N7: sin red, el render es igual a la parte, y eso es vacío si la parte carga un framework que la cambia.
+        "Vue 3 con la plantilla en #app sin red": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + VUE +
                                                    '</body></html>',
                                                    '<html><head></head><body><div id="app"><h1>{{ titulo }}</h1></div>'
-                                                   + CDN + '</body></html>', 1),
-        "Vue 3 con la plantilla en #app": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + CDN + '</body></html>',
-                                           '<html><body><div id="app" data-v-app=""><h1>Panel</h1></div>' + CDN +
+                                                   + VUE + '</body></html>', 1),
+        "Vue 3 con la plantilla en #app": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + VUE + '</body></html>',
+                                           '<html><body><div id="app" data-v-app=""><h1>Panel</h1></div>' + VUE +
                                            '</body></html>', 0),
-        "Alpine sin red": ('<html><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + CDN + '</body></html>',
-                           '<html><head></head><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + CDN +
+        "Alpine sin red": ('<html><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + ALPINE + '</body></html>',
+                           '<html><head></head><body><div x-data="{ n: 1 }"><span x-text="n"></span></div>' + ALPINE +
                            '</body></html>', 1),
-        "Cargando sin red": ('<html><body><div id="root">Cargando...</div>' + CDN + '</body></html>',
-                             '<html><head></head><body><div id="root">Cargando...</div>' + CDN + '</body></html>', 1),
-        "Cargando con render": ('<html><body><div id="root">Cargando...</div>' + CDN + '</body></html>',
+        "Cargando sin red": ('<html><body><div id="root">Cargando...</div>' + REACT + '</body></html>',
+                             '<html><head></head><body><div id="root">Cargando...</div>' + REACT + '</body></html>', 1),
+        "Cargando con render": ('<html><body><div id="root">Cargando...</div>' + REACT + '</body></html>',
                                 '<html><body><div id="root"><main><h1>Panel</h1></main></div></body></html>', 0),
+        # M2: con red, Tailwind solo o Alpine sin directivas que cambien el DOM dejan el body igual, y eso no es vacío.
+        "Tailwind con #app con contenido": ('<html><head>' + TAILWIND + '</head><body><div id="app" class="p-4"><h1>Panel</h1>'
+                                            '</div></body></html>',
+                                            '<html><head>' + TAILWIND + ESTILO + '</head><body><div id="app" class="p-4">'
+                                            '<h1>Panel</h1></div></body></html>', 0),
+        "Tailwind con llaves en un texto": ('<html><head>' + TAILWIND + '</head><body><p>Usa {{ nombre }} en el asunto del '
+                                            'correo.</p></body></html>',
+                                            '<html><head>' + TAILWIND + ESTILO + '</head><body><p>Usa {{ nombre }} en el '
+                                            'asunto del correo.</p></body></html>', 0),
+        "Alpine con solo eventos": ('<html><head>' + ALPINE + '</head><body><div x-data="{ n: 0 }"><button '
+                                    '@click="n++">Sumar</button></div></body></html>',
+                                    '<html><head>' + ALPINE + '</head><body><div x-data="{ n: 0 }"><button '
+                                    '@click="n++">Sumar</button></div></body></html>', 0),
+        "control: Alpine con x-text": ('<html><head>' + ALPINE + '</head><body><div x-data="{ n: 0 }"><span x-text="n">'
+                                       '</span></div></body></html>',
+                                       '<html><head>' + ALPINE + '</head><body><div x-data="{ n: 0 }"><span x-text="n">0'
+                                       '</span></div></body></html>', 0),
+        "control: Tailwind solo sin #app": ('<html><head>' + TAILWIND + '</head><body><main class="p-4"><h1>Panel</h1>'
+                                            '</main></body></html>',
+                                            '<html><head>' + TAILWIND + ESTILO + '</head><body><main class="p-4"><h1>Panel'
+                                            '</h1></main></body></html>', 0),
+        "un framework que desarmar.py no conoce no espera": ('<html><body><div id="root">Cargando...</div>' + CDN +
+                                                             '</body></html>',
+                                                             '<html><body><div id="root">Cargando...</div>' + CDN +
+                                                             '</body></html>', 0),
         # N8: un contenedor vacío que el framework no usa no cuenta si otro montó.
         "root sin usar y app montado": ('<html><body><div id="root"></div><div id="app"></div>' + CDN + '</body></html>',
                                         '<html><body><div id="root"></div><div id="app"><h1>Panel</h1></div></body></html>', 0),

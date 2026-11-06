@@ -20,9 +20,9 @@ mensaje, sin escribir nada, si no puede desarmar la entrada; con 2 si el uso es 
 render compara una parte de un framework por CDN con su DOM renderizado y dice si el render quedó vacío.
 Si la parte tiene contenedores vacíos con id `root` o `app`, de cualquier etiqueta, alcanza con que uno tenga
 contenido en el render; si el framework los reemplazó (Vue 2 con `el`) o la parte no los tiene (Tailwind o Alpine
-solos), mira el <body>. Un render igual a la parte cuenta como vacío si la parte espera a un framework: usa
-directivas (`{{`, `v-`, `x-`, `@`, `:`) o tiene un `#root` o `#app` con contenido, como una plantilla o un
-"Cargando...". Cuenta como contenido un elemento o un texto que no son <script>, <style>, <template>, <noscript>, <link>,
+solos), mira el <body>. Un render igual a la parte cuenta como vacío si la parte carga un framework que la cambia:
+Vue con `{{` o directivas `v-`, `@` o `:`; Alpine con `x-text`, `x-html`, `x-show`, `x-for`, `x-if`, `x-cloak` o
+`x-bind`; React, Preact o Vue con un `#root` o `#app` con contenido, como un "Cargando...". Tailwind solo nunca. Cuenta como contenido un elemento o un texto que no son <script>, <style>, <template>, <noscript>, <link>,
 <meta> ni <title>. Escribe una línea con lo que miró y sale con 0 si tiene contenido, con 1 si quedó vacío y con 2 si el uso
 es incorrecto o no puede leer un archivo.
 """
@@ -839,7 +839,9 @@ MONTAJE = {"root", "app"}
 SIN_CONTENIDO = {"script", "style", "template", "noscript", "link", "meta", "title"}
 
 
-DIRECTIVA = re.compile(r"^(?:v-|x-|@|:)")
+DIRECTIVA_VUE = re.compile(r"^(?:v-|@|:)")
+# Las directivas de Alpine que cambian el DOM renderizado; `x-data` o `@click` solos lo dejan igual (M2).
+DIRECTIVA_ALPINE = re.compile(r"^(?:x-(?:text|html|show|for|if|cloak)$|x-bind:|:)")
 
 
 class Contenido(HTMLParser):
@@ -854,7 +856,8 @@ class Contenido(HTMLParser):
         self.algo = False
         self.oculto = 0
         self.en_head = False
-        self.firma, self.directivas = [], False
+        self.firma, self.srcs = [], []
+        self.llaves = self.vue = self.alpine = False
 
     def contar(self):
         self.algo = True
@@ -862,6 +865,8 @@ class Contenido(HTMLParser):
             e["contenido"] = True
 
     def handle_starttag(self, tag, attrs):
+        if tag == "script" and dict(attrs).get("src"):
+            self.srcs.append(dict(attrs)["src"])
         if self.oculto or tag in SIN_CONTENIDO:
             self.oculto += tag not in VOID
             return
@@ -871,7 +876,8 @@ class Contenido(HTMLParser):
             self.contar()
             if not self.en_head and tag != "tbody":
                 self.firma.append((tag, tuple(sorted((k, v or "") for k, v in attrs))))
-            self.directivas = self.directivas or any(DIRECTIVA.match(k) for k, _ in attrs)
+            self.vue = self.vue or any(DIRECTIVA_VUE.match(k) for k, _ in attrs)
+            self.alpine = self.alpine or any(DIRECTIVA_ALPINE.match(k) for k, _ in attrs)
         if tag in VOID:
             return
         e = {"tag": tag, "contenido": False}
@@ -903,7 +909,20 @@ class Contenido(HTMLParser):
             self.contar()
             if not self.en_head:
                 self.firma.append(" ".join(data.split()))
-            self.directivas = self.directivas or "{{" in data
+            self.llaves = self.llaves or "{{" in data
+
+    def frameworks(self):
+        """Los frameworks que la parte carga por `<script src>`, como los detecta `desarmar`."""
+        return {n for u in self.srcs for n, patron in FRAMEWORKS if patron.search(u)}
+
+    def espera(self):
+        """La parte carga un framework que cambia lo que hay en ella: Vue con sus llaves o directivas, Alpine con
+        directivas que cambian el DOM, o React, Preact o Vue con un `#root` o `#app` con contenido, que reemplazan al
+        montar. Tailwind solo nunca espera: no cambia el <body> (M2)."""
+        f = self.frameworks()
+        montaje = any(e["contenido"] for e in self.montajes.values())
+        return bool(("vue" in f and (self.llaves or self.vue)) or ("alpine" in f and self.alpine)
+                    or (f & {"react", "preact", "vue"} and montaje))
 
     def con_body(self):
         """Si el <body> tiene contenido; sin <body>, si lo tiene el documento."""
@@ -920,8 +939,8 @@ def contenido(texto):
 def render(fuente, renderizado):
     """(con contenido, lo que miró). Un contenedor de montaje vacío en la parte que sigue en el render tiene que tener
     contenido, alcanza con uno (N8); si el framework lo reemplazó o la parte no lo tiene, el <body>. Y un render igual a
-    la parte es vacío si la parte espera a un framework: tiene directivas o un contenedor de montaje con contenido,
-    como una plantilla de Vue o un "Cargando..." (N7)."""
+    la parte es vacío si la parte espera a un framework que la cambia, como una plantilla de Vue o de Alpine o un
+    "Cargando..." de React (N7, M2)."""
     parte, dom = contenido(fuente), contenido(renderizado)
     vacios = [id_ for id_, e in parte.montajes.items() if not e["contenido"]]
     presentes = [id_ for id_ in vacios if id_ in dom.montajes]
@@ -931,8 +950,7 @@ def render(fuente, renderizado):
     if not dom.con_body():
         motivo = f"#{vacios[0]} vacío en el fuente y reemplazado en el render" if vacios else "sin #root ni #app vacíos en el fuente"
         return False, f"<body>, {motivo}"
-    espera = parte.directivas or any(e["contenido"] for e in parte.montajes.values())
-    if espera and parte.firma == dom.firma:
+    if parte.espera() and parte.firma == dom.firma:
         return False, "<body>, igual al fuente, que espera a un framework que no corrió"
     motivo = f"#{vacios[0]} vacío en el fuente y reemplazado en el render" if vacios else "sin #root ni #app vacíos en el fuente"
     return True, f"<body>, {motivo}"
