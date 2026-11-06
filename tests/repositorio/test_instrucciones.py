@@ -830,6 +830,24 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
         self.assertRegex(seccion(escenarios, "Capturas", 2), r"Sin navegador, y sin el sí a instalarlo \(paso 3 de "
                                                              r"`SKILL\.md`\), el inventario es la única verificación")
 
+    def test_m12_el_render_de_un_framework_por_cdn_no_puede_quedar_vacio(self):
+        """M12: la prueba del render corre de verdad sobre un DOM vacío y uno con contenido."""
+        import subprocess, sys, tempfile
+        paso = seccion(self.texto, "3. Framework por CDN", 3)
+        orden = next(l for l in paso.splitlines() if l.startswith('<intérprete> -B -c "import re'))
+        programa = re.match(r'<intérprete> -B -c "(.*)" <trabajo>/render/<parte>\.html$', orden).group(1)
+        with tempfile.TemporaryDirectory() as tmp:
+            casos = {'<html><body><div id="root"></div></body></html>': 1,
+                     '<html><body><div id="root">\n  <main><h1>Panel</h1></main></div></body></html>': 0,
+                     "<html><body><div id='app'><section>x</section></div></body></html>": 0}
+            for html, esperado in casos.items():
+                ruta = Path(tmp) / "parte.html"
+                ruta.write_text(html, encoding="utf-8")
+                r = subprocess.run([sys.executable, "-B", "-c", programa, str(ruta)], capture_output=True)
+                with self.subTest(html=html[:40]):
+                    self.assertEqual(r.returncode, esperado, r.stderr)
+        self.assertRegex(paso, r"Si sale con 1, el render quedó vacío")
+
     def test_sin_spec_propone_cerrarlo_con_grilling_desde_el_borrador(self):
         paso = seccion(self.texto, "4. Spec y tickets", 3)
         self.assertRegex(paso, r"\*\*Sin spec\*\*: detente antes de convertir\.")
@@ -1056,10 +1074,25 @@ class Navegador(unittest.TestCase):
 
     def test_instala_con_el_gestor_del_sistema_en_cada_plataforma(self):
         instalar = seccion(self.texto, "Instalar", 2)
-        for orden in ("`sudo apt install chromium`", "`sudo snap install chromium`", "`brew install --cask google-chrome`",
+        for orden in ("`sudo apt install chromium`", "`sudo apt install <trabajo>/chrome.deb`", "`brew install --cask google-chrome`",
                       "`winget install Google.Chrome`"):
             self.assertIn(orden, instalar)
         self.assertRegex(instalar, r"Con el sí, instálalo y repite la prueba")
+
+    def test_en_ubuntu_no_usa_el_chromium_de_snap(self):
+        """M11: el Chromium de snap no ve `/tmp`, donde queda la carpeta de trabajo. Google Chrome en `.deb` sí."""
+        instalar = seccion(self.texto, "Instalar", 2)
+        self.assertNotIn("snap install", instalar)
+        self.assertIn("`wget -O <trabajo>/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb`",
+                      instalar)
+        self.assertIn("`sudo apt install <trabajo>/chrome.deb`", instalar)
+        self.assertRegex(seccion(self.texto, "Probar", 2), r"El Chromium de snap \(`/snap/bin/chromium`\)[^.]*no ve `/tmp`")
+
+    def test_sin_sudo_entrega_la_orden_para_que_la_corra_la_persona(self):
+        """B9."""
+        instalar = seccion(self.texto, "Instalar", 2)
+        self.assertRegex(instalar, r"entrégale a la persona la orden lista para copiar, para que la corra en su terminal")
+        self.assertRegex(instalar, r"cuando la haya corrido, vuelve a correr la prueba")
 
     def test_ninguna_skill_instala_playwright_con_pip(self):
         for ruta in [RAIZ / "README.md", *SKILLS.rglob("*.md")]:
