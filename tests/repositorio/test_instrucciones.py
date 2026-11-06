@@ -851,22 +851,26 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
                                                              r"`SKILL\.md`\), el inventario es la única verificación")
 
     def test_m12_el_render_de_un_framework_por_cdn_no_puede_quedar_vacio(self):
-        """M12: la prueba del render corre de verdad sobre un DOM vacío y uno con contenido."""
+        """M12 y H1: la orden de la prueba corre de verdad con la parte y su render; los casos de Tailwind o Alpine
+        solos, Vue 2 y un contenedor que no es `div` los prueba tests/html-a-vista/test_desarmar.py."""
         import subprocess, sys, tempfile
         paso = seccion(self.texto, "3. Framework por CDN", 3)
-        orden = next(l for l in paso.splitlines() if l.startswith('<intérprete> -B -c "import re'))
-        programa = re.match(r'<intérprete> -B -c "(.*)" <trabajo>/render/<parte>\.html$', orden).group(1)
+        orden = next(l for l in paso.splitlines() if l.startswith("<intérprete> -B <ruta-de-esta-skill>/scripts/desarmar.py render "))
+        self.assertEqual(orden.split()[4:], ["<trabajo>/partes/<parte>.html", "<trabajo>/render/<parte>.html"])
+        script = SKILLS / "html-a-vista" / "scripts" / "desarmar.py"
+        fuente = '<html><body><div id="root"></div><script src="https://cdn.example.com/react.js"></script></body></html>'
         with tempfile.TemporaryDirectory() as tmp:
             casos = {'<html><body><div id="root"></div></body></html>': 1,
-                     '<html><body><div id="root">\n  <main><h1>Panel</h1></main></div></body></html>': 0,
-                     "<html><body><div id='app'><section>x</section></div></body></html>": 0}
+                     '<html><body><div id="root">\n  <main><h1>Panel</h1></main></div></body></html>': 0}
             for html, esperado in casos.items():
-                ruta = Path(tmp) / "parte.html"
-                ruta.write_text(html, encoding="utf-8")
-                r = subprocess.run([sys.executable, "-B", "-c", programa, str(ruta)], capture_output=True)
+                parte, render = Path(tmp) / "parte.html", Path(tmp) / "render.html"
+                parte.write_text(fuente, encoding="utf-8")
+                render.write_text(html, encoding="utf-8")
+                r = subprocess.run([sys.executable, "-B", str(script), "render", str(parte), str(render)], capture_output=True)
                 with self.subTest(html=html[:40]):
                     self.assertEqual(r.returncode, esperado, r.stderr)
         self.assertRegex(paso, r"Si sale con 1, el render quedó vacío")
+        self.assertNotIn("-B -c", paso)
 
     def test_sin_spec_propone_cerrarlo_con_grilling_desde_el_borrador(self):
         paso = seccion(self.texto, "4. Spec y tickets", 3)
