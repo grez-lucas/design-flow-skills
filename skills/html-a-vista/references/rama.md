@@ -21,7 +21,7 @@ Qué hacer cuando `rama.py` o `git` no dejan guardar: el arreglo que propones, l
 
 Quien opera la skill es de producto o de diseño y no arregla git a mano: cada caso de abajo trae un arreglo, y nada se escribe en el repositorio hasta que `rama.py` devuelva `guardar`. Explica en simple el `detalle`, propón el arreglo y aplícalo solo con el sí. Sin el sí, o si el arreglo no se puede hacer desde la sesión, di qué quedó sin hacer: qué iba a guardar la skill y dónde está ahora, en el chat, en la carpeta de trabajo o en un commit que existe solo en esta máquina.
 
-Hasta el commit, los cambios de rama, los apartados y el commit mismo los hace `rama.py`, no tú: no corras `git switch`, `git stash`, `git reset` ni `git commit` por tu cuenta. Después del commit, el push y la rama nueva van como dice `SKILL.md`. `apartar` y `volver` van con los mismos argumentos que la orden de `revisar` que corriste (`--tipo`, `--epica` o `--mockup` y `--epicas`, y `--repo` si la llevaba), y devuelven un JSON con una `accion`, como `revisar`: sigue con esa.
+Hasta el commit, los cambios de rama, los apartados y el commit mismo los hace `rama.py`, no tú: no corras `git switch`, `git stash`, `git reset` ni `git commit` por tu cuenta. Después del commit, el push y la rama nueva van como dice `SKILL.md`. `apartar` y `volver` van con los mismos argumentos que la orden de `revisar` que corriste (`--tipo`, `--epica` o `--mockup` y `--epicas`, y `--repo` si la llevaba), y devuelven un JSON con una `accion`, como `revisar`: sigue con esa. `commit` lleva también ese `--repo`.
 
 ## Error de rama.py
 
@@ -33,7 +33,7 @@ Si `rama.py` sale con error o no devuelve un JSON, antes de escribir nada en el 
 
 ## Trabajo por apartar
 
-Detente. Con los motivos `cambios-sin-guardar`, `otra-rama`, `sin-rama`, `commits-sin-empujar` y `principal-adelantada`, lo que hay en la copia entraría en el commit o en el push de la skill, o la copia no está en una rama de este trabajo. Explica en simple en qué rama estás y qué hay ahí que no está en el servidor, con los `archivos` y los `commits` del JSON, y propón apartarlo en una rama propia y guardar desde la rama del flujo. Con el sí, corre la misma orden de `rama.py` con `apartar` en lugar de `revisar`: guarda lo que había en `apartado/<rama>`, vuelve a la rama del flujo y vuelve a correr la revisión desde ahí. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer. No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo encuentra después.
+Detente. Con los motivos `cambios-sin-guardar`, `otra-rama`, `sin-rama`, `commits-sin-empujar` y `principal-adelantada`, lo que hay en la copia entraría en el commit o en el push de la skill, o la copia no está en una rama de este trabajo. Explica en simple en qué rama estás y qué hay ahí que no está en el servidor, con los `archivos` y los `commits` del JSON (una línea `??` o `!!` es un archivo sin seguimiento, o ignorado, que el cambio de rama pisaría), y propón apartarlo en una rama propia y guardar desde la rama del flujo. Con el sí, corre la misma orden de `rama.py` con `apartar` en lugar de `revisar`: guarda lo que había en `apartado/<rama>`, vuelve a la rama del flujo y vuelve a correr la revisión desde ahí. Sin el sí, queda detenida sin escribir en el repositorio y di qué quedó sin hacer. No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo encuentra después.
 
 Di dónde quedó lo anterior: en las ramas de `apartado`, que existen solo en esta máquina, o, si la lista viene vacía, en `desde`, donde siguen sus commits.
 
@@ -41,13 +41,15 @@ Con `elegir`, el servidor tiene más de una rama de este trabajo: muestra las `r
 
 ## El commit de la skill
 
-Después de `git add` de lo que escribió la skill, haz el commit con `rama.py`, con un `-m` por párrafo del mensaje y, después de `--`, las mismas rutas que pasaste a `git add`:
+Después de `git add` de cada archivo que escribió la skill, haz el commit con `rama.py`, con un `-m` por párrafo del mensaje y, después de `--`, los mismos archivos que pasaste a `git add`, uno por uno. `--repo <repo-de-diseño>` va antes de `--` si la orden de `revisar` lo llevaba:
 
 ```
-<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py commit -m "<mensaje>" -- <agregadas>
+<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py commit [--repo <repo-de-diseño>] -m "<mensaje>" -- <agregadas>
 ```
 
 El commit lleva solo esas rutas, que tienen que estar dentro de `design/`, `specs/`, `.gitignore` o `.claude/pm-conventions.md`: un archivo que otra persona dejó preparado fuera de ellas no entra. Con `empujar`, los `archivos` son los del commit, los que lista el resumen; sigue con el push. Con `sin-cambios`, no hubo nada que guardar: no hay commit ni push, y el resumen lo dice.
+
+Detente. Con `ruta-que-falta`, los archivos de `rutas` los escribió la skill y ya no están en la copia ni cambiaron: casi siempre otra sesión trabajó en la misma copia y los apartó o los guardó, y una copia no admite dos sesiones a la vez. No hay commit. Explícalo en simple y propón volver a escribirlos desde lo que tiene esta sesión. Con el sí, escríbelos, agrégalos y vuelve a correr la orden de `commit`. Sin el sí, di qué quedó sin hacer: qué archivos no se guardaron y dónde está lo que se alcanzó a escribir.
 
 ## Sin servidor
 

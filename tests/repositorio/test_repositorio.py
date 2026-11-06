@@ -186,6 +186,16 @@ class CommitSoloDeDesignYSpecs(unittest.TestCase):
                                 permitidos.append(argumentos)
                     self.assertTrue(permitidos, "no da un git add limitado a design/ y specs/")
 
+    def test_agrega_sus_archivos_y_no_la_carpeta(self):
+        """Q160: cada skill agrega y pasa a `rama.py commit` solo los archivos que escribió; una carpeta entera
+        llevaría al commit lo que otra sesión dejó en ella."""
+        for skill in self.SKILLS_CON_COMMIT:
+            texto = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(skill=skill):
+                carpetas = [a for a in re.findall(r"`git add ([^`]*)`", texto) if a.rstrip().endswith("/")]
+                self.assertEqual(carpetas, [])
+                self.assertIn("uno por uno, no la carpeta", texto)
+
     def test_el_resumen_antes_del_push_lista_solo_lo_que_entra_al_commit(self):
         for skill in self.SKILLS_CON_COMMIT:
             for ruta in self.archivos_con_commit(skill):
@@ -558,7 +568,7 @@ class PunteroALasConvenciones(unittest.TestCase):
         paso = self.paso(9)
         agregados = re.findall(r"`git add ([^`]*)`", paso)
         self.assertIn(self.PUNTERO, agregados)
-        self.assertIn("specs/<épica>/", agregados)
+        self.assertIn("specs/<épica>/<archivo>", agregados)
 
     def test_es_un_solo_commit_al_final(self):
         self.assertIn("Es un solo commit al final", self.paso(9))

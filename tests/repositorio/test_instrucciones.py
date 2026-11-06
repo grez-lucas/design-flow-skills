@@ -614,7 +614,7 @@ class ReferenciaDeRama(unittest.TestCase):
     def test_el_commit_de_la_skill_lo_hace_rama_py_con_sus_rutas(self):
         """A3 y Q159; la conducta la prueba tests/rama/test_proteccion.py contra repositorios reales."""
         commit = seccion(self.texto, "El commit de la skill", 2)
-        self.assertIn('<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py commit -m "<mensaje>" -- <agregadas>', commit)
+        self.assertIn('<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py commit [--repo <repo-de-diseño>] -m "<mensaje>" -- <agregadas>', commit)
         self.assertRegex(commit, r"Con `empujar`, los `archivos` son los del commit[^\n]*?sigue con el push\.")
         self.assertRegex(commit, r"Con `sin-cambios`, no hubo nada que guardar: no hay commit ni push")
         for skill in self.CON_REFERENCIA:
@@ -622,6 +622,25 @@ class ReferenciaDeRama(unittest.TestCase):
                 skill_md = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
                 guardar = next(l for l in skill_md.splitlines() if l.startswith("- `guardar`: "))
                 self.assertIn('sección "El commit de la skill"', guardar)
+
+    def test_un_archivo_que_falta_al_hacer_el_commit_se_vuelve_a_escribir(self):
+        """Q160: `ruta-que-falta` no es `sin-cambios`: lo que escribió la skill ya no está."""
+        commit = seccion(self.texto, "El commit de la skill", 2)
+        self.assertIn("`ruta-que-falta`", commit)
+        self.assertRegex(commit, r"Detente\. Con `ruta-que-falta`[^\n]*?propón volver a escribirlos[^\n]*?Con el sí, "
+                                 r"escríbelos, agrégalos y vuelve a correr la orden de `commit`")
+
+    def test_commit_lleva_repo_si_revisar_lo_llevaba(self):
+        """N6: `html-a-vista` trabaja desde otra carpeta; sin `--repo`, `commit` no encuentra lo preparado."""
+        commit = seccion(self.texto, "El commit de la skill", 2)
+        self.assertIn('rama.py commit [--repo <repo-de-diseño>] -m "<mensaje>" -- <agregadas>', commit)
+        self.assertRegex(commit, r"`--repo <repo-de-diseño>` va antes de `--`")
+
+    def test_una_sesion_por_copia(self):
+        """Q160: dos sesiones a la vez sobre la misma copia no se soportan, y el README lo dice."""
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertRegex(readme, r"Una sesión por copia: dos sesiones a la vez sobre la misma copia del repositorio "
+                                 r"de diseño no se soportan")
 
     def test_ofrecer_con_otro_nombre_libre_lo_ofrece_de_nuevo(self):
         """B3: si la rama nueva ya existe, `rama.py` da el primer nombre libre y la skill lo ofrece."""

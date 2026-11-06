@@ -144,9 +144,9 @@ Si la sesión escribió en el repositorio de diseño, haz commit y push a la ram
 
 Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`; si no la tiene, agrégala, y crea el archivo si falta: las revisiones con Lavish escriben ahí archivos que no son diseño.
 
-Agrega solo lo que escribiste:
+Agrega solo lo que escribiste, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos:
 
-- Los tickets sin tracker y el spec congelado: `git add specs/<épica>/`.
+- Los tickets sin tracker y el spec congelado: `git add specs/<épica>/<archivo>` por cada archivo que escribiste ahí.
 - El puntero a las convenciones, si lo escribiste en esta sesión: `git add .claude/pm-conventions.md`. Si git responde que la ruta está ignorada, sigue el párrafo de abajo.
 - El `.gitignore`, si le agregaste `.lavish/`: `git add .gitignore`.
 

@@ -210,7 +210,7 @@ Cuando la persona dé el visto bueno, haz commit y push a la rama actual del rep
 
 Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`, como lo deja `spec-a-html`; si no la tiene, agrégala, y crea el archivo si falta: las revisiones con Lavish de las otras skills escriben ahí archivos que no son diseño.
 
-Agrega solo lo que está bajo `design/` y `specs/`: `git add design/`, `git add specs/<épica>/` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit, y tampoco va el mockup original si está en el repositorio. Revisa con `git status` que no quede nada más en el área de preparación.
+Agrega solo los archivos que escribiste o cambiaste bajo `design/` y `specs/`, uno por uno, no la carpeta, porque una carpeta entera llevaría lo que otra sesión dejó en ella, y al commit le pasas esos mismos archivos: `git add design/<archivo>` por cada uno, `git add specs/<épica>/<archivo>` si tocaste algo ahí, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit, y tampoco va el mockup original si está en el repositorio. Revisa con `git status` que no quede nada más en el área de preparación.
 
 Muestra el resumen de archivos antes de hacer push, solo con los que entran en el commit, y pide la confirmación.
 
