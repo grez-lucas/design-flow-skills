@@ -728,5 +728,86 @@ class Detalles(Base):
         self.assertEqual((salida["accion"], salida["apartado"], salida["desde"]), ("guardar", ["apartado/main"], "main"))
 
 
+class LlegadaALaRamaLocal(Base):
+    """M1: `apartar` mira los archivos sin seguimiento contra la rama a la que cambia de verdad: la local del flujo,
+    si tiene un commit que no llegó al servidor, no la del servidor."""
+
+    def rama_local_adelantada(self, ruta, texto, forzar=False):
+        self.trabajar_en("tickets/alertas")
+        self.escribir(self.copia, ruta, texto)
+        git("add", *(("-f",) if forzar else ()), ruta, cwd=self.copia)
+        git("commit", "-q", "-m", "commit sin push", cwd=self.copia)
+        git("switch", "-q", "-c", "experimento", "origin/main", cwd=self.copia)
+
+    def test_m1_un_ignorado_que_solo_la_rama_local_tiene_se_aparta(self):
+        self.escribir(self.otra, ".gitignore", ".claude/\n")
+        git("add", ".gitignore", cwd=self.otra)
+        git("commit", "-q", "-m", "ignorar", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        git("pull", "-q", "--ff-only", cwd=self.copia)
+        self.rama_local_adelantada(".claude/pm-conventions.md", "puntero en la rama\n", forzar=True)
+        self.escribir(self.copia, ".claude/pm-conventions.md", "puntero local\n")
+        orden = ("--tipo", "tickets", "--epica", "alertas")
+        self.assertIn("!! .claude/pm-conventions.md", self.parada(self.revisar(*orden), "otra-rama")["archivos"])
+        salida = self.apartar(*orden)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "tickets/alertas", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", ".claude/pm-conventions.md"), "puntero local\n")
+
+    def test_m1_un_sin_seguimiento_que_solo_la_rama_local_tiene_no_deja_un_ciclo(self):
+        self.rama_local_adelantada("informe.txt", "de la rama\n")
+        self.escribir(self.copia, "informe.txt", "local\n")
+        orden = ("--tipo", "tickets", "--epica", "alertas")
+        salida = self.apartar(*orden)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "tickets/alertas", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", "informe.txt"), "local\n")
+
+
+class IndiceTalCual(Base):
+    """B1: si el commit del apartado falla, el índice queda como estaba, también sin nada preparado, y el apartado
+    de después no dice que el script preparó lo que la persona no preparó."""
+
+    def sin_identidad(self):
+        for clave in ("user.name", "user.email"):
+            git("config", "--unset", clave, cwd=self.copia)
+        git("config", "user.useConfigOnly", "true", cwd=self.copia)
+
+    def test_b1_sin_nada_preparado(self):
+        self.sin_identidad()
+        self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
+        self.escribir(self.copia, "design/nueva.html", "<p>nueva</p>\n")
+        antes = self.status()
+        salida = self.parada(self.apartar(), "error-de-git")
+        self.assertEqual((salida["apartado"], self.rama_actual(), self.status()), ([], "main", antes))
+        git("config", "user.name", "producto", cwd=self.copia)
+        git("config", "user.email", "producto@example.com", cwd=self.copia)
+        self.assertEqual(self.apartar()["apartado"], ["apartado/main"])
+        self.assertEqual(git("log", "--format=%s", "origin/main..apartado/main", cwd=self.copia).stdout,
+                         "Apartado: lo que había en main antes de guardar\n")
+
+    def test_b1_con_un_ignorado_que_el_cambio_de_rama_pisaria(self):
+        self.escribir(self.otra, ".claude/pm-conventions.md", "del servidor\n")
+        self.escribir(self.otra, ".gitignore", ".claude/\n")
+        git("add", "-f", ".gitignore", ".claude/pm-conventions.md", cwd=self.otra)
+        git("commit", "-q", "-m", "puntero", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, ".gitignore", ".claude/\n")
+        self.escribir(self.copia, ".claude/pm-conventions.md", "local\n")
+        self.sin_identidad()
+        antes = self.status()
+        self.parada(self.apartar(), "error-de-git")
+        self.assertEqual((self.rama_actual(), self.status()), ("experimento", antes))
+
+
+class RenombradoEnLaCarpeta(Base):
+    def test_b3_un_renombrado_en_la_segunda_columna_es_una_linea(self):
+        (self.copia / "design/vistas/alertas/a.html").rename(self.copia / "design/vistas/alertas/movido.html")
+        git("add", "-N", "design/vistas/alertas/movido.html", cwd=self.copia)
+        archivos = self.parada(self.revisar(), "cambios-sin-guardar")["archivos"]
+        self.assertEqual(archivos, [" R design/vistas/alertas/a.html -> design/vistas/alertas/movido.html"])
+
+
 if __name__ == "__main__":
     unittest.main()
