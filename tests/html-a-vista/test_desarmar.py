@@ -581,6 +581,13 @@ class Render(Base):
     REACT = '<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>'
     TAILWIND = '<script src="https://cdn.tailwindcss.com"></script>'
     ESTILO = '<style>.p-4 { padding: 1rem }</style>'
+    VUE_MODULO = ('<script type="module">import { createApp } from "https://unpkg.com/vue@3.4.38/dist/vue.esm-browser.prod.js";'
+                  ' createApp({ data() { return { titulo: "Panel" } } }).mount("#app")</script>')
+    REACT_MODULO = ('<script type="module">import React from "https://esm.sh/react@18.3.1"; import { createRoot } from '
+                    '"https://esm.sh/react-dom@18.3.1/client"; createRoot(document.getElementById("root"))'
+                    '.render(React.createElement("h1", null, "Panel"))</script>')
+    LISTA = ('<div x-data="{ items: [\'a\', \'b\'] }"><ul><template x-for="i in items"><li x-text="i"></li></template>'
+             '</ul></div>')
     CASOS = {
         "solo Tailwind": ('<html><head><script src="https://cdn.tailwindcss.com"></script></head><body>'
                           '<main class="p-4"><h1 class="text-red-600">Panel</h1></main></body></html>',
@@ -638,6 +645,24 @@ class Render(Base):
                                             '</main></body></html>',
                                             '<html><head>' + TAILWIND + ESTILO + '</head><body><main class="p-4"><h1>Panel'
                                             '</h1></main></body></html>', 0),
+        # M3: el framework importado como módulo, y el Alpine que solo usa <template x-for>, también esperan.
+        "Vue 3 como módulo sin red": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + VUE_MODULO + '</body></html>',
+                                      '<html><head></head><body><div id="app"><h1>{{ titulo }}</h1></div>' + VUE_MODULO +
+                                      '</body></html>', 1),
+        "control: Vue 3 como módulo montado": ('<html><body><div id="app"><h1>{{ titulo }}</h1></div>' + VUE_MODULO +
+                                               '</body></html>',
+                                               '<html><body><div id="app" data-v-app=""><h1>Panel</h1></div>' + VUE_MODULO +
+                                               '</body></html>', 0),
+        "React desde esm.sh con Cargando sin red": ('<html><body><div id="root">Cargando...</div>' + REACT_MODULO +
+                                                    '</body></html>',
+                                                    '<html><head></head><body><div id="root">Cargando...</div>' +
+                                                    REACT_MODULO + '</body></html>', 1),
+        "Alpine con solo template x-for sin red": ('<html><head>' + ALPINE + '</head><body>' + LISTA + '</body></html>',
+                                                   '<html><head>' + ALPINE + '</head><body>' + LISTA + '</body></html>', 1),
+        "control: Alpine con template x-for montado": ('<html><head>' + ALPINE + '</head><body>' + LISTA + '</body></html>',
+                                                       '<html><head>' + ALPINE + '</head><body>' +
+                                                       LISTA.replace('</template>', '</template><li>a</li><li>b</li>') +
+                                                       '</body></html>', 0),
         "un framework que desarmar.py no conoce no espera": ('<html><body><div id="root">Cargando...</div>' + CDN +
                                                              '</body></html>',
                                                              '<html><body><div id="root">Cargando...</div>' + CDN +
