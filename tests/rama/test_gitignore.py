@@ -82,8 +82,8 @@ class ExcepcionDelGitignore(unittest.TestCase):
         self.agregar_excepcion(repo)
         self.assertTrue(self.ignorado(repo, ".claude/pm-conventions.md"))
         texto = (SKILLS / "spec-a-tickets" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertRegex(texto, r"Si `git check-ignore \.claude/pm-conventions\.md` sigue respondiendo, la regla está fuera "
-                                r"del `\.gitignore` de la raíz: detente, muestra la línea que da `git check-ignore -v "
+        self.assertRegex(texto, r"Detente\. Si `git check-ignore \.claude/pm-conventions\.md` sigue respondiendo, la regla está "
+                                r"fuera del `\.gitignore` de la raíz: muestra la línea que da `git check-ignore -v "
                                 r"\.claude/pm-conventions\.md`")
         self.assertNotIn("git add -f", texto)
 

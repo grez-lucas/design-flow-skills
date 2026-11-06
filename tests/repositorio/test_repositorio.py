@@ -358,7 +358,7 @@ class LlamadaARama(unittest.TestCase):
     PASO_GUARDAR = MensajeYRamaDelCommit.PASO_GUARDAR
     INTERPRETE = Interprete.SIN_PYTHON_AL_GUARDAR
     # Issue 42, Q143 y Q144: se detiene, propone el arreglo de `references/rama.md` y sigue con el sí.
-    SI_FALLA = ("Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el "
+    SI_FALLA = ("Detente. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, no escribas en el "
                 "repositorio")
 
     def paso(self, skill, nombre):
@@ -561,7 +561,7 @@ class PunteroALasConvenciones(unittest.TestCase):
 
     def test_sin_convenciones_no_escribe_el_puntero(self):
         paso = self.paso(3)
-        self.assertIn("Si la persona dice que no hay convenciones, no escribas el puntero", paso)
+        self.assertIn("Si la persona dice que no hay convenciones, el puntero no va", paso)
         self.assertIn("si lo escribiste en esta sesión", self.paso(9))
 
     def test_sin_convenciones_pregunta_donde_estan_y_guarda_el_puntero(self):

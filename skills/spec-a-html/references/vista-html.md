@@ -43,7 +43,7 @@ Parte de `assets/vista.html`. La estructura es:
 - `sin-permiso` muestra lo que ve un usuario sin acceso, no una pantalla en blanco.
 - Los escenarios propios del spec usan el slug que les da su tabla `## Escenarios en pantalla`, letra por letra: `plan-expirado`, `pago-rechazado`. Los base no necesitan fila. `checklist-diseno` bloquea un escenario que no es base ni está en la tabla.
 
-`proto.js` arma un panel fuera del frame con los escenarios y los anchos (390, 1280 y 1440), y lee `?escenario=` y `?ancho=` de la URL. El panel abre abajo a la izquierda, lejos de los avisos, que van abajo a la derecha; su botón "Cambiar de lado" lo pasa a la derecha cuando tapa algo de la pantalla, y la URL lo recuerda con `?panel=derecha`. Si `tokens.css` define un tema oscuro, el panel suma un grupo "Tema" con `claro` y `oscuro`, y la URL acepta `?tema=claro|oscuro`; la vista abre en claro salvo `?tema=oscuro`. `?proto=0` esconde el panel para una captura limpia y respeta `?tema=`. No escribas otros controles de prototipo, tampoco un selector de tema propio.
+`proto.js` arma un panel fuera del frame con los escenarios y los anchos (390, 1280 y 1440), y lee `?escenario=` y `?ancho=` de la URL. El panel abre abajo a la izquierda, lejos de los avisos, que van abajo a la derecha; su botón "Cambiar de lado" lo pasa a la derecha cuando tapa algo de la pantalla, y la URL lo recuerda con `?panel=derecha`. Si `tokens.css` define un tema oscuro, el panel suma un grupo "Tema" con `claro` y `oscuro`, y la URL acepta `?tema=claro|oscuro`; la vista abre en claro salvo `?tema=oscuro`. `?proto=0` esconde el panel para una captura limpia y respeta `?tema=`. La vista no lleva otros controles de prototipo, tampoco un selector de tema propio.
 
 ## Modales y avisos
 
@@ -85,7 +85,7 @@ El frame (`<main data-frame>`) es la pantalla: `components.css` lo deja con posi
 - Datos ficticios y verosímiles: nombres inventados, dominios `example.com`, montos y fechas creíbles. Nada de clientes reales.
 - Textos de la interfaz completos, no "Lorem ipsum": el texto es parte del diseño y DEV lo copia.
 - Un flujo de varios pasos puede ir en un solo archivo con un escenario por paso (`paso-1`, `paso-2`) o en un archivo por paso; elige lo que deje cada archivo más corto y dilo en el plan.
-- Interacciones que el HTML no muestra (qué pasa al hacer clic, validaciones, tiempos) van como comentario corto junto al elemento: `<!-- al confirmar: vuelve al listado con un aviso de éxito -->`. No escribas JavaScript de comportamiento, tampoco en un `href="javascript:..."` ni en un `onclick`.
+- Interacciones que el HTML no muestra (qué pasa al hacer clic, validaciones, tiempos) van como comentario corto junto al elemento: `<!-- al confirmar: vuelve al listado con un aviso de éxito -->`. La vista no lleva JavaScript de comportamiento, tampoco en un `href="javascript:..."` ni en un `onclick`.
 
 ## Tamaño
 

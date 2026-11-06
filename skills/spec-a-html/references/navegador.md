@@ -38,4 +38,4 @@ Sin navegador, propón instalar Chromium o Google Chrome con el gestor del siste
 
 Con el sí, instálalo y repite la prueba de "Probar". Si pasa, sigue con el paso que te trajo.
 
-Si la orden lleva `sudo` y pide una contraseña que la sesión no puede escribir, o la prueba sigue fallando después de instalar, eso no se arregla desde la sesión: detente, entrégale a la persona la orden lista para copiar, para que la corra en su terminal, di qué quedó sin hacer y sigue lo que `SKILL.md` dice para cuando no hay navegador; cuando la haya corrido, vuelve a correr la prueba.
+Detente. Si la orden lleva `sudo` y pide una contraseña que la sesión no puede escribir, o la prueba sigue fallando después de instalar, eso no se arregla desde la sesión: entrégale a la persona la orden lista para copiar, para que la corra en su terminal, di qué quedó sin hacer y sigue lo que `SKILL.md` dice para cuando no hay navegador; cuando la haya corrido, vuelve a correr la prueba.

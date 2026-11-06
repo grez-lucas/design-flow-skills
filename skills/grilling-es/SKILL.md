@@ -15,7 +15,9 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ## Skills hermanas
 
-Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar. Si falta, detente y propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar.
+
+Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
 
 ## Árbol de decisiones
 
@@ -53,7 +55,7 @@ Formato de cada pregunta:
 ➡️ <respuesta recomendada y por qué, en una o dos frases>
 ```
 
-Los hechos los buscas tú, las decisiones son de la persona. Si una pregunta necesita un dato que está en el código, en el repositorio de diseño, en el tracker o en un spec anterior, búscalo (con un subagente si la sesión los tiene, para no frenar la ronda) en vez de preguntarlo. Solo las preguntas que dependen de ese dato esperan. Lo que tomes de un spec anterior o del código va en el spec como dato de esa fuente, no como algo que dijo la persona; si no lo confirmó, no lo presentes como decidido.
+Los hechos los buscas tú, las decisiones son de la persona. Si una pregunta necesita un dato que está en el código, en el repositorio de diseño, en el tracker o en un spec anterior, búscalo (con un subagente si la sesión los tiene, para que la ronda siga) en vez de preguntarlo. Solo las preguntas que dependen de ese dato esperan. Lo que tomes de un spec anterior o del código va en el spec como dato de esa fuente, no como algo que dijo la persona; si no lo confirmó, no lo presentes como decidido.
 
 Cuando una decisión no es de la persona (la toma el dueño, finanzas, legal, otro equipo), no la fuerces ni la inventes: regístrala como pendiente con quién decide y sigue con el resto. Si la persona no sabe quién decide, pregúntale quién lo averigua y regístralo como "por definir, lo averigua <persona>". Un pendiente sin nombre no lo resuelve nadie.
 
@@ -82,7 +84,7 @@ Si el spec anterior está congelado, los tickets mandan sobre él. Si no los enc
 
 La sesión termina cuando la frontera está vacía: cada rama visitada y nada asumido en silencio. Antes del resumen, recorre cada vista nombrada con los estados base (normal, vacío, cargando, error, sin permiso, muchos datos): cada uno queda decidido, "no aplica" dicho por la persona, o pendiente. Si falta alguno, la frontera no está vacía. Cada escenario que cambia lo que se ve queda con su pantalla, o como global si cambia todas.
 
-Antes de escribir, muestra un resumen de las decisiones, con una línea por rama del árbol que diga "visitada" o "no aplica", y pregunta si llegaron a un entendimiento compartido. No escribas el spec hasta que la persona lo confirme.
+Antes de escribir, muestra un resumen de las decisiones, con una línea por rama del árbol que diga "visitada" o "no aplica", y pregunta si llegaron a un entendimiento compartido. Escribe el spec solo cuando la persona lo confirme.
 
 ### Escribir el spec
 
@@ -94,10 +96,10 @@ Muestra el spec completo y ajusta hasta que la persona lo apruebe.
 
 ### Guardar
 
-- Si el proyecto tiene tracker, guarda el spec como documento de la épica o del proyecto (en Linear, un documento del proyecto; en GitHub o GitLab, la descripción de la épica o un issue de spec). Usa la herramienta que tenga la sesión y verifica el acceso con una lectura antes de escribir. Si la lectura falla, la sesión no llega al tracker, y eso no detiene el guardado: guarda el spec en `specs/<épica>/spec.md` del repositorio de diseño por el camino sin tracker de la viñeta siguiente, como `spec-a-tickets` con los tickets, entrega su texto para que el TL lo suba al tracker, y di al cerrar que el documento del tracker quedó sin crear.
+- Si el proyecto tiene tracker, guarda el spec como documento de la épica o del proyecto (en Linear, un documento del proyecto; en GitHub o GitLab, la descripción de la épica o un issue de spec). Usa la herramienta que tenga la sesión y verifica el acceso con una lectura antes de escribir. Si la lectura falla, la sesión no llega al tracker, y el guardado sigue igual: guarda el spec en `specs/<épica>/spec.md` del repositorio de diseño por el camino sin tracker de la viñeta siguiente, como `spec-a-tickets` con los tickets, entrega su texto para que el TL lo suba al tracker, y di al cerrar que el documento del tracker quedó sin crear.
 - Si no hay tracker, guárdalo en `specs/<épica>/spec.md` del repositorio de diseño, con `<épica>` en minúsculas y con guiones. Haz commit y push a la rama actual después de mostrar el resumen y pedir confirmación, con el mensaje `spec(<épica>): <resumen>`, por ejemplo `spec(recordatorios): recordatorio por correo antes del vencimiento`. Revisa que el `.gitignore` de la raíz del repositorio de diseño tenga la línea `.lavish/`; si no la tiene, agrégala, y crea el archivo si falta: las rondas con Lavish escriben ahí archivos que no son diseño. Agrega solo esa carpeta, con `git add specs/<épica>/`, y `git add .gitignore` si le agregaste `.lavish/`; nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit. El resumen lista solo los archivos que entran en el commit.
 
-Si el producto no tiene repositorio de diseño, detente: no lo crees tú, porque el TL decide el host y los accesos, y eso no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: el spec aprobado está solo en el chat, así que entrégalo completo. Cuando el TL lo cree, vuelve a correr este paso.
+Detente. Si el producto no tiene repositorio de diseño, no lo crees tú, porque el TL decide el host y los accesos, y eso no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: el spec aprobado está solo en el chat, así que entrégalo completo. Cuando el TL lo cree, vuelve a correr este paso.
 
 Sin tracker, antes de escribir el spec en el repositorio de diseño, no recién al hacer el commit, decide la rama, porque cambiar de rama con archivos sin guardar puede fallar. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
 
@@ -107,13 +109,13 @@ Sin tracker, antes de escribir el spec en el repositorio de diseño, no recién 
 
 Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
 
-Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
+Detente. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, no escribas en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
 
 El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: antes de escribir, sigue `references/rama.md`, sección "Antes de guardar": el trabajo sin guardar de otra persona, lo que dejó preparado en el índice y una principal adelantada entrarían en tu commit. Si pasa, guarda en la rama actual, con el commit de "El commit de la skill".
 - `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí, después de "Antes de guardar". Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
-- `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
+- `parar`: Detente. Todavía no escribas en el repositorio: explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`. Con `otra-rama`, `sin-rama`, `commits-sin-empujar` o `cambios-sin-guardar`, propón apartar lo que había en una rama propia y, con el sí, apártalo y vuelve a correr la misma orden de `rama.py`; cuando falta el servidor, eso no se arregla desde la sesión y va el pedido al TL. Sin el sí, di qué quedó sin hacer.
 
 El push va a la rama actual, con `git push`. Si falla por credenciales, porque el servidor no reconoce el usuario o el token, sigue `references/rama.md`, sección "Push sin credenciales": el TL es quien da los accesos, y el commit queda solo en esta máquina. Si lo rechaza por cualquier motivo que no sea de credenciales (la rama está protegida, o tiene cambios que tu copia no tiene), no lo arregles en esa rama, sin `git pull --rebase`, `git reset --hard` ni `--force`: el TL resuelve en el merge request. Pide la rama nueva, desde el repositorio de diseño, con `<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py rechazo --tipo spec --epica <épica>`.
 
