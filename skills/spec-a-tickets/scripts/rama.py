@@ -403,7 +403,7 @@ def primera_libre(git, ramas_del_servidor, base):
 def apartar(git, args):
     principal, ramas = servidor(git)
     desde, inicio = git.rama(), git.salida("rev-parse", "HEAD")
-    indice = git.salida("write-tree")
+    indice = leer_indice(git)
     creadas = []
     try:
         return apartar_y_volver(git, args, principal, ramas, desde, creadas)
@@ -414,16 +414,31 @@ def apartar(git, args):
         raise
 
 
+def ruta_del_indice(git):
+    ruta = git.salida("rev-parse", "--git-path", "index")
+    return ruta and os.path.join(git.repo, ruta)
+
+
+def leer_indice(git):
+    """El archivo del índice tal cual, con sus marcas (`add -N`, `skip-worktree`), o None si no hay."""
+    try:
+        with open(ruta_del_indice(git), "rb") as archivo:
+            return archivo.read()
+    except (OSError, TypeError):
+        return None
+
+
 def deshacer_apartado_vacio(git, desde, inicio, indice, creadas):
-    """Si git falló antes del primer commit del apartado, vuelve a donde estaba, con el índice como estaba al entrar
-    (`indice`, de `git write-tree`), y borra la rama vacía, para que otra corrida no aparte dentro de ella (N11, B1)."""
+    """Si git falló antes del primer commit del apartado, vuelve a donde estaba, con el archivo del índice como estaba
+    al entrar, marcas incluidas, y borra la rama vacía, para que otra corrida no aparte dentro de ella (N11, B1, B4)."""
     if not creadas or git.rama() != creadas[-1] or git.salida("rev-parse", "HEAD") != inicio:
         return
     vuelta = ("switch", "--quiet", desde) if desde else ("switch", "--quiet", "--detach", inicio)
     if git.correr(*vuelta).returncode == 0 and git.correr("branch", "--quiet", "-D", creadas[-1]).returncode == 0:
         creadas.pop()
-        if indice:
-            git.correr("read-tree", indice)
+        if indice is not None:
+            with open(ruta_del_indice(git), "wb") as archivo:
+                archivo.write(indice)
 
 
 def apartar_y_volver(git, args, principal, ramas, desde, creadas):
