@@ -801,6 +801,31 @@ class IndiceTalCual(Base):
         self.assertEqual((self.rama_actual(), self.status()), ("experimento", antes))
 
 
+    def test_b4_vuelve_la_marca_de_add_n(self):
+        self.sin_identidad()
+        self.escribir(self.copia, "design/nueva.html", "<p>nueva</p>\n")
+        git("add", "-N", "design/nueva.html", cwd=self.copia)
+        antes = self.status()
+        self.parada(self.apartar(), "error-de-git")
+        self.assertEqual((self.rama_actual(), self.status()), ("main", antes))
+        self.assertEqual(antes, " A design/nueva.html\n")
+
+    def test_b4_vuelve_skip_worktree_del_sparse_checkout(self):
+        self.escribir(self.otra, "otros/o.txt", "otro\n")
+        git("add", "otros/o.txt", cwd=self.otra)
+        git("commit", "-q", "-m", "otros", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        git("pull", "-q", "--ff-only", cwd=self.copia)
+        git("sparse-checkout", "set", "design", "specs", cwd=self.copia)
+        self.assertTrue(git("ls-files", "-v", "otros/o.txt", cwd=self.copia).stdout.startswith("S "))
+        self.sin_identidad()
+        self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
+        antes = self.status()
+        self.parada(self.apartar(), "error-de-git")
+        self.assertEqual(self.status(), antes)
+        self.assertTrue(git("ls-files", "-v", "otros/o.txt", cwd=self.copia).stdout.startswith("S "))
+
+
 class RenombradoEnLaCarpeta(Base):
     def test_b3_un_renombrado_en_la_segunda_columna_es_una_linea(self):
         (self.copia / "design/vistas/alertas/a.html").rename(self.copia / "design/vistas/alertas/movido.html")
