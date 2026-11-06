@@ -702,15 +702,11 @@ class DetencionesDeSpecATickets(unittest.TestCase):
         self.assertNotIn("git add -f", self.texto)
         self.assertNotIn("el TL decide si cambia el `.gitignore`", guardar)
 
-    def test_las_ordenes_para_el_tl_funcionan_en_cmd_y_sin_titulo_repetido(self):
-        """B1: `$(cat ...)` no existe en CMD, y `--body-file` con el archivo entero repite el título en el cuerpo."""
+    def test_las_ordenes_para_el_tl_se_prueban_como_conducta(self):
+        """B1 y B10: tests/rama/test_ordenes_tl.py corre las órdenes con un `gh` y un `glab` de prueba."""
         subir = seccion(self.trackers, "Para que el TL los suba", 3)
-        self.assertIn('`more +1 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - '
-                      '--label "<label>"`', subir)
-        self.assertIn('`tail -n +2 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - '
-                      '--label "<label>"`', subir)
         self.assertNotIn("--body-file specs/<épica>/tickets/<archivo>", subir)
-        self.assertRegex(subir, r"En CMD, `glab` no tiene cómo leer el cuerpo de un archivo")
+        self.assertNotIn("more +1", subir)
 
     def test_un_label_que_no_existe_en_linear_se_ofrece_crear(self):
         """Q150."""
@@ -935,6 +931,12 @@ class CorreccionesDelChecklist(unittest.TestCase):
         self.assertRegex(mecanica, r"propón dibujarlas con `spec-a-html`[^\n]*?o convertirlas con `html-a-vista`")
         self.assertRegex(mecanica, r"Si `revisar\.py` lista vistas fuera del repositorio, no las revisa: propón la ruta "
                                    r"equivalente dentro del repositorio de diseño")
+
+    def test_un_valor_con_un_solo_token_de_otra_familia_va_al_informe(self):
+        """B8, que completa M7: solo es mecánico si el único token con ese valor es de la familia de la propiedad."""
+        valores = next(l for l in self.paso.splitlines() if l.startswith("- **Valores sueltos**"))
+        self.assertRegex(valores, r"y ese token es de la familia de la propiedad")
+        self.assertRegex(valores, r"Un valor con un solo token de otra familia[^.]*va al informe")
 
     def test_un_valor_que_comparten_dos_tokens_va_al_informe(self):
         """M7: elegir entre dos tokens con el mismo valor es de producto (Q146)."""

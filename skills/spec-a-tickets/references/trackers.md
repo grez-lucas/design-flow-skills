@@ -70,9 +70,10 @@ Los archivos quedan listos para pasar a un tracker más adelante, uno a uno. El 
 
 Si los tickets van como archivos porque hay tracker pero la sesión no llega a él, entrega al cerrar una orden por archivo, en el orden de la tabla, para que el TL los suba sin rearmarlos. El título es el encabezado del archivo, sin `# `, y los labels son los de las convenciones. El cuerpo es el archivo sin su primera línea, para que el título no quede repetido:
 
-- GitHub, desde CMD: `more +1 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - --label "<label>"`.
-- GitHub, desde Git Bash, macOS o Linux: `tail -n +2 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - --label "<label>"`.
-- GitLab, desde Git Bash, macOS o Linux: `glab issue create --title "<título>" --description "$(tail -n +2 specs/<épica>/tickets/<archivo>)" --label "<label>"`. En CMD, `glab` no tiene cómo leer el cuerpo de un archivo: la orden va desde Git Bash, o el TL pega el cuerpo al crear el issue.
+- GitHub: `tail -n +2 specs/<épica>/tickets/<archivo> | gh issue create --title "<título>" --body-file - --label "<label>"`.
+- GitLab: `glab issue create --title "<título>" --description "$(tail -n +2 specs/<épica>/tickets/<archivo>)" --label "<label>"`.
+
+En Windows, las órdenes van desde Git Bash, que viene con Git: `tail` pasa el archivo tal cual, con los tildes. En CMD no hay una forma de quitar la primera línea que deje el texto intacto, así que no se entrega una orden para CMD.
 - Linear u otro: la lista de archivos con título, labels, dependencias y estado inicial, para crearlos con la herramienta que tenga el TL.
 
 Di que, al subirlos, el TL reemplaza el identificador del spec por el que asigne el tracker si las convenciones lo piden, y que las dependencias citan los identificadores nuevos.
