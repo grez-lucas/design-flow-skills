@@ -1,0 +1,41 @@
+#!/bin/sh
+# Compila rama para cada plataforma en bin/, de forma reproducible, para el commit de la versión (Q152, Q161).
+#
+# Uso: scripts/compilar              escribe bin/rama-<os>-<arch>[.exe]
+#      scripts/compilar --verificar  compila en una carpeta temporal y sale con 1 si algún ejecutable de bin/ no es
+#                                    el que sale de la fuente
+#
+# El mismo commit da los mismos bytes en Linux, macOS y Windows: sin cgo, -trimpath, -buildvcs=false, sin build ID,
+# GOAMD64 y GOARM64 fijos y la versión de Go de go.mod, que GOTOOLCHAIN descarga si la instalada es otra.
+set -eu
+
+raiz=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$raiz"
+
+case ${1-} in
+  '') destino=bin ;;
+  --verificar) destino=$(mktemp -d) && trap 'rm -rf "$destino"' EXIT ;;
+  *) echo "uso: scripts/compilar [--verificar]" >&2 && exit 2 ;;
+esac
+
+version=$(sed -n 's/^go \([0-9.]*\)$/\1/p' go.mod)
+[ -n "$version" ] || { echo "compilar: go.mod no dice la versión de Go" >&2; exit 1; }
+
+distintos=''
+for plataforma in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+  os=${plataforma%/*}
+  arch=${plataforma#*/}
+  ext=''
+  [ "$os" = windows ] && ext=.exe
+  nombre=rama-$os-$arch$ext
+  CGO_ENABLED=0 GOOS=$os GOARCH=$arch GOAMD64=v1 GOARM64=v8.0 GOFLAGS='' GOTOOLCHAIN=go$version \
+    go build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$destino/$nombre" ./cmd/rama
+  if [ "$destino" != bin ] && ! cmp -s "$destino/$nombre" "bin/$nombre"; then
+    distintos="$distintos $nombre"
+  fi
+done
+
+if [ -n "$distintos" ]; then
+  echo "compilar: estos ejecutables de bin/ no son los de la fuente:$distintos. Corre scripts/compilar y súmalos al commit." >&2
+  exit 1
+fi

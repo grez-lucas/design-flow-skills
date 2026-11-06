@@ -1,0 +1,6 @@
+# Los lanzadores de bin/ llegan con el fin de línea que espera su intérprete aunque git convierta al copiar: sh no
+# corre un script con CRLF, y CMD sí lo espera en un .cmd. Los ejecutables no se tocan.
+bin/rama text eol=lf
+bin/rama.cmd text eol=crlf
+bin/rama-* binary
+scripts/compilar text eol=lf
