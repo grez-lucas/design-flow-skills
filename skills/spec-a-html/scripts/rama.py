@@ -28,21 +28,25 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
          parar    cualquier otro caso, con `motivo` y `detalle`. En lugar de `guardar`, `ofrecer` o `volver`, para
                   con `cambios-sin-guardar` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
                   rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con `ofrecer`, también
-                  cualquier cambio de un archivo con seguimiento. Y para con `principal-adelantada` si se va a
-                  guardar desde la principal y la de esta copia tiene commits que el servidor no tiene.
+                  cualquier cambio de un archivo con seguimiento; con `volver` y `ofrecer`, también un archivo sin
+                  seguimiento, ignorado o no, que la principal tiene con otro contenido y el cambio de rama pisaría.
+                  Y para con `principal-adelantada` si se va a guardar desde la principal y la de esta copia tiene
+                  commits que el servidor no tiene.
          Todas llevan `principal` cuando el servidor respondió y `rama` cuando la copia está en una. Con trabajo
-         sin guardar, `archivos` trae sus líneas de `git status --porcelain`: lo que `apartar` guardaría. Con la
-         principal adelantada, `commits` trae esos commits.
+         sin guardar, `archivos` trae sus líneas de `git status --porcelain`, con las rutas sin escapar: lo que
+         `apartar` guardaría, y `!! <ruta>` para un ignorado que el cambio de rama pisaría. Con la principal
+         adelantada, `commits` trae esos commits.
 
 apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar` o
          `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD
          separado, con el primer sufijo libre) lo que había: primero lo que estaba preparado en el índice, tal cual,
-         después los cambios de los archivos con seguimiento y los archivos nuevos de las rutas; los demás archivos sin
-         seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
+         después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados
+         y los archivos sin seguimiento que el cambio de rama pisaría; los demás archivos sin seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
          a guardar desde la principal y tiene commits que el servidor no tiene, los guarda en `apartado/<principal>`
          y la iguala al servidor. Vuelve después a la rama del flujo: la actual, si `revisar` daba `guardar`,
          `ofrecer` o `volver`; si no, la rama viva del servidor para este trabajo, `<tipo>/<nombre>` con sufijos
-         exactos, o la principal. Devuelve lo que devuelve `revisar` desde ahí, con `apartado` (las ramas que creó)
+         exactos, o la principal. Si esa es la rama actual y no sigue a la del servidor, la iguala al servidor, con
+         sus commits propios antes en `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar` desde ahí, con `apartado` (las ramas que creó)
          y `desde` (la rama donde estaba, o null). Con más de una rama viva para este trabajo devuelve `elegir`, con
          `ramas`, y --rama <una de ellas> vuelve a esa.
 
@@ -54,7 +58,8 @@ volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, qu
 
 commit   después de `git add` de lo que escribió la skill. Hace el commit solo con las rutas dadas, que tienen que
          estar dentro de las de la skill, con un -m por párrafo. Devuelve `empujar` con `rama` y `archivos` (estado
-         y ruta de cada uno, separados por un tab), o `sin-cambios` si esas rutas no cambiaron.
+         y ruta de cada uno, separados por un tab), o `sin-cambios` si esas rutas no cambiaron. Si una ruta no está
+         en la copia y no cambió, no hace el commit y para con `ruta-que-falta` y `rutas`.
 
 rechazo  después de que el servidor rechazó el push a la rama actual por algo que no son credenciales. Devuelve
          `rama-nueva` con `rama`, la actual, y `rama_nueva`: `<tipo>/<épica>` o, si ya existe en local o en el
@@ -63,7 +68,11 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          `rama-nueva-rechazada`, sin otro sufijo.
 
 Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git`, el mensaje de git en `detalle` y, en
-`apartar`, `apartado` y `desde` con lo que alcanzó a apartar.
+`apartar`, `apartado` y `desde` con lo que alcanzó a apartar. Si `apartar` falla antes del primer commit del
+apartado, vuelve a la rama donde estaba, con el índice tal cual, y borra la rama vacía.
+
+`fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, para con `sin-servidor`.
+git nunca pide credenciales por la terminal.
 
 Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, una épica o un mockup que no sirve
 como nombre de rama (con mayúsculas, o que termina en guion y número, como `fase-2`), o una ruta de commit que no es
@@ -74,6 +83,7 @@ import json
 import os
 import posixpath
 import re
+import signal
 import subprocess
 import sys
 
@@ -96,9 +106,24 @@ class Git:
     def __init__(self, repo):
         self.repo = repo
 
-    def correr(self, *args):
-        return subprocess.run(["git", "-C", self.repo, *args], capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", stdin=subprocess.DEVNULL)
+    def correr(self, *args, tope=None):
+        """Corre git en el repositorio, sin pedir credenciales por la terminal y con las rutas sin escapar. Con `tope`,
+        en segundos, mata a git y a lo que haya lanzado si no termina a tiempo, y devuelve código 124."""
+        orden = ["git", "-c", "core.quotePath=false", "-C", self.repo, *args]
+        entorno = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        proceso = subprocess.Popen(orden, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                                   text=True, encoding="utf-8", errors="replace", env=entorno,
+                                   start_new_session=os.name != "nt")
+        try:
+            salida, error = proceso.communicate(timeout=tope)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                proceso.kill()
+            else:
+                os.killpg(proceso.pid, signal.SIGKILL)
+            proceso.communicate()
+            return subprocess.CompletedProcess(orden, 124, "", f"el servidor no respondió en {tope} segundos")
+        return subprocess.CompletedProcess(orden, proceso.returncode, salida, error)
 
     def salida(self, *args):
         resultado = self.correr(*args)
@@ -108,6 +133,11 @@ class Git:
         """Las líneas de la salida, sin quitar los espacios del comienzo, que en `git status` son datos."""
         resultado = self.correr(*args)
         return [l for l in resultado.stdout.split("\n") if l] if resultado.returncode == 0 else []
+
+    def rutas(self, *args):
+        """Las rutas de una orden con `-z`."""
+        resultado = self.correr(*args)
+        return [r for r in resultado.stdout.split("\0") if r] if resultado.returncode == 0 else []
 
     def hacer(self, *args):
         """Una orden que cambia la copia: si git falla, para con su mensaje."""
@@ -122,13 +152,21 @@ class Git:
         return self.salida("symbolic-ref", "--quiet", "--short", "HEAD")
 
 
+def tope():
+    """Los segundos que se espera al servidor: `RAMA_TOPE` en el entorno, o 60."""
+    try:
+        return max(1, int(os.environ.get("RAMA_TOPE", "60")))
+    except ValueError:
+        return 60
+
+
 def servidor(git):
     """`git fetch --prune` y lo que el servidor dice tener: su rama principal y el conjunto de sus ramas."""
     if git.salida("remote", "get-url", "origin") is None:
         raise Parada("sin-servidor", "El repositorio no tiene un servidor `origin` configurado.")
     for args in (("fetch", "--quiet", "--prune", "origin"),
                  ("ls-remote", "--symref", "origin", "HEAD", "refs/heads/*")):
-        resultado = git.correr(*args)
+        resultado = git.correr(*args, tope=tope())
         if resultado.returncode != 0:
             raise Parada("sin-servidor", "git no pudo hablar con el servidor: " + resultado.stderr.strip())
     principal, ramas = None, set()
@@ -184,6 +222,9 @@ def rama_del_flujo(git, args, principal, ramas):
         raise Parada("commits-sin-empujar",
                      f"La rama {actual} ya no está en el servidor y tiene commits que el servidor no tiene.", actual,
                      principal=principal)
+    if actual in ramas and es_del_flujo(actual, nombre(args), (args.tipo,)):
+        raise Parada("otra-rama", f"La rama {actual} es de este trabajo y está en el servidor, pero no sigue a la del "
+                     "servidor: `git push` no iría a ella.", actual, principal=principal)
     raise Parada("otra-rama", f"La rama {actual} no es la principal ni una rama de este trabajo en el servidor.", actual,
                  principal=principal)
 
@@ -193,19 +234,41 @@ def llega_a_la_principal(decision):
     return decision["accion"] in ("ofrecer", "volver") or decision["rama"] == decision["principal"]
 
 
+def destino_del_flujo(args, principal, ramas, elegida=None):
+    """Adónde vuelve `apartar` desde una rama que no es de este trabajo: (rama o None si hay que elegir, candidatas).
+    La rama viva del servidor para este trabajo, con sufijos exactos, o la principal."""
+    candidatas = sorted(r for r in ramas if es_del_flujo(r, nombre(args), (args.tipo,)))
+    if len(candidatas) == 1:
+        return candidatas[0], candidatas
+    if candidatas:
+        return (elegida if elegida in candidatas else None), candidatas
+    return principal, candidatas
+
+
+def llegada(decision, destino, principal):
+    """La rama a la que la copia va a cambiar, o None si se queda en la actual."""
+    if decision is None:
+        return destino
+    return principal if decision["accion"] in ("ofrecer", "volver") else None
+
+
 def revisar(git, args, del_servidor=None):
     principal, ramas = del_servidor or servidor(git)
-    estrecho, amplio = sin_guardar(git)
     try:
         decision = rama_del_flujo(git, args, principal, ramas)
     except Parada as parada:
-        if parada.motivo in APARTABLES and amplio:
-            parada.salida["archivos"] = amplio
+        if parada.motivo in APARTABLES:
+            destino = destino_del_flujo(args, principal, ramas)[0]
+            amplio = sin_guardar(git, destino and f"refs/remotes/origin/{destino}")[1]
+            if amplio:
+                parada.salida["archivos"] = amplio
         raise
+    destino = llegada(decision, None, principal)
+    estrecho, amplio = sin_guardar(git, destino and f"refs/remotes/origin/{destino}")
     # `ofrecer` cambia de rama con lo que haya: cuenta cualquier cambio de un archivo con seguimiento.
     if estrecho or (decision["accion"] == "ofrecer" and amplio):
         raise Parada("cambios-sin-guardar", f"La copia tiene trabajo sin guardar en la rama {decision['rama']} que "
-                     "entraría en el commit de la skill o en el cambio de rama.", decision["rama"],
+                     "entraría en el commit de la skill o que el cambio de rama pisaría.", decision["rama"],
                      principal=principal, archivos=amplio)
     commits = adelantada(git, principal) if llega_a_la_principal(decision) else []
     if commits:
@@ -215,15 +278,55 @@ def revisar(git, args, del_servidor=None):
     return decision
 
 
-def sin_guardar(git):
-    """El trabajo sin guardar, en líneas de `git status --porcelain`: (lo que entraría en el commit de la skill, lo
-    que se aparta). Lo primero son las rutas de la skill, con sus archivos nuevos, y lo preparado en el índice, en
-    cualquier ruta; lo segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios adentro
-    no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí."""
-    en_rutas = git.lineas("status", "--porcelain", "--ignore-submodules=dirty", "--untracked-files=all", "--", *RUTAS)
-    seguidos = git.lineas("status", "--porcelain", "--ignore-submodules=dirty", "--untracked-files=no")
+def sin_guardar(git, destino=None):
+    """El trabajo sin guardar, en líneas de `git status --porcelain`: (lo que entraría en el commit de la skill o el
+    cambio a `destino` pisaría, lo que se aparta). Lo primero son las rutas de la skill, con sus archivos nuevos, lo
+    preparado en el índice, en cualquier ruta, y los archivos sin seguimiento, también los ignorados, que `destino`
+    tiene con otro contenido; lo segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
+    adentro no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí."""
+    en_rutas = estado(git, "--untracked-files=all", "--", *RUTAS)
+    seguidos = estado(git, "--untracked-files=no")
     preparados = [l for l in seguidos if l[0] not in " ?"]
-    return unicas(en_rutas + preparados), unicas(en_rutas + seguidos)
+    chocan = choques(git, destino) if destino else []
+    return unicas(en_rutas + preparados + chocan), unicas(en_rutas + seguidos + chocan)
+
+
+def estado(git, *args):
+    """Las líneas de `git status --porcelain`, `XY <ruta>` o `XY <antes> -> <después>`, con las rutas tal cual, sin
+    comillas ni escapes aunque lleven espacios o tildes (N9)."""
+    partes = git.rutas("status", "--porcelain", "-z", "--ignore-submodules=dirty", *args)
+    lineas = []
+    while partes:
+        linea = partes.pop(0)
+        if linea[0] in "RC" and partes:
+            linea = f"{linea[:3]}{partes.pop(0)} -> {linea[3:]}"
+        lineas.append(linea)
+    return lineas
+
+
+def choques(git, destino):
+    """Los archivos sin seguimiento que `destino` tiene con otro contenido, y que `git switch` pisaría o no dejaría
+    pasar: `?? <ruta>`, o `!! <ruta>` si está ignorado, porque git reemplaza un ignorado sin avisar."""
+    raiz = git.salida("rev-parse", "--show-toplevel")
+    if not raiz or not git.existe(destino):
+        return []
+    seguidos = set(git.rutas("ls-files", "-z"))
+    en_destino = {}
+    for entrada in git.rutas("ls-tree", "-r", "-z", "--full-tree", destino):
+        datos, _, ruta = entrada.partition("\t")
+        modo, tipo, objeto = datos.split(" ")
+        if tipo == "blob" and ruta not in seguidos and os.path.isfile(os.path.join(raiz, ruta)):
+            en_destino[ruta] = objeto
+    if not en_destino:
+        return []
+    rutas = sorted(en_destino)
+    locales = git.lineas("-C", raiz, "hash-object", "--", *rutas)
+    distintas = [r for r, h in zip(rutas, locales) if h != en_destino[r]]
+    if not distintas:
+        return []
+    ignoradas = set(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--",
+                              *distintas))
+    return [("!! " if r in ignoradas else "?? ") + r for r in distintas]
 
 
 def unicas(lineas):
@@ -271,14 +374,25 @@ def primera_libre(git, ramas_del_servidor, base):
 
 def apartar(git, args):
     principal, ramas = servidor(git)
-    desde = git.rama()
+    desde, inicio = git.rama(), git.salida("rev-parse", "HEAD")
     creadas = []
     try:
         return apartar_y_volver(git, args, principal, ramas, desde, creadas)
     except Parada as parada:
         if parada.motivo == "error-de-git":
-            parada.salida.update({"apartado": creadas, "desde": desde})
+            deshacer_apartado_vacio(git, desde, inicio, creadas)
+            parada.salida.update({"apartado": creadas, "desde": desde, "rama": git.rama()})
         raise
+
+
+def deshacer_apartado_vacio(git, desde, inicio, creadas):
+    """Si git falló antes del primer commit del apartado, vuelve a donde estaba, con el índice tal cual, y borra la
+    rama vacía, para que otra corrida no aparte dentro de ella (N11)."""
+    if not creadas or git.rama() != creadas[-1] or git.salida("rev-parse", "HEAD") != inicio:
+        return
+    vuelta = ("switch", "--quiet", desde) if desde else ("switch", "--quiet", "--detach", inicio)
+    if git.correr(*vuelta).returncode == 0 and git.correr("branch", "--quiet", "-D", creadas[-1]).returncode == 0:
+        creadas.pop()
 
 
 def apartar_y_volver(git, args, principal, ramas, desde, creadas):
@@ -289,16 +403,12 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         if parada.motivo not in APARTABLES:
             raise
         decision = None
-        candidatas = sorted(r for r in ramas if es_del_flujo(r, nombre(args), (args.tipo,)))
-        if len(candidatas) == 1:
-            destino = candidatas[0]
-        elif candidatas:
-            destino = args.rama if args.rama in candidatas else None
-        else:
-            destino = principal
+        destino, candidatas = destino_del_flujo(args, principal, ramas, args.rama)
+    va_a = llegada(decision, destino, principal)
+    chocan = [l[3:] for l in choques(git, f"refs/remotes/origin/{va_a}")] if va_a else []
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
-    if sin_guardar(git)[1] or sueltos:
+    if sin_guardar(git)[1] or chocan or sueltos:
         donde = desde or "sin-rama"
         apartado = primera_libre(git, ramas, "apartado/" + donde.replace("/", "-"))
         git.hacer("switch", "--quiet", "-c", apartado)
@@ -307,9 +417,12 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         if git.correr("diff", "--cached", "--quiet").returncode == 1:
             git.hacer("commit", "--quiet", "-m", f"Apartado: lo que estaba preparado en {donde}")
         git.hacer("add", "-u")
-        nuevos = [r for r in RUTAS if os.path.exists(os.path.join(git.repo, r))]
+        # Los archivos nuevos de las rutas que no están ignorados (N1), y los que el cambio de rama pisaría (N2, N3).
+        nuevos = git.rutas("ls-files", "-z", "--others", "--exclude-standard", "--", *RUTAS)
         if nuevos:
-            git.hacer("add", "-A", "--", *nuevos)
+            git.hacer("add", "--", *nuevos)
+        if chocan:
+            git.hacer("-C", git.salida("rev-parse", "--show-toplevel"), "add", "-f", "--", *chocan)
         if git.correr("diff", "--cached", "--quiet").returncode == 1:
             git.hacer("commit", "--quiet", "-m", f"Apartado: lo que había en {donde} antes de guardar")
 
@@ -319,13 +432,12 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
             apartado = primera_libre(git, ramas, "apartado/" + principal.replace("/", "-"))
             git.hacer("branch", apartado, local)
             creadas.append(apartado)
-        if git.rama() == principal:
-            git.hacer("reset", "--quiet", "--keep", f"refs/remotes/origin/{principal}")
-        else:
-            git.hacer("branch", "--quiet", "-f", principal, f"refs/remotes/origin/{principal}")
+        igualar(git, principal)
 
     if destino is None:
         return {"accion": "elegir", "ramas": candidatas, "principal": principal, "apartado": creadas, "desde": desde}
+    if decision is None and destino == desde:
+        seguir_al_servidor(git, ramas, destino, creadas)
     if git.rama() != destino:
         if destino != desde:
             al_dia(git, destino)
@@ -336,6 +448,28 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
     except Parada as parada:
         salida = parada.salida
     return {**salida, "apartado": creadas, "desde": desde}
+
+
+def igualar(git, rama):
+    """La rama local igual a la del servidor, esté o no la copia en ella."""
+    remota = f"refs/remotes/origin/{rama}"
+    if git.rama() == rama:
+        git.hacer("reset", "--quiet", "--keep", remota)
+    else:
+        git.hacer("branch", "--quiet", "-f", rama, remota)
+
+
+def seguir_al_servidor(git, ramas, rama, creadas):
+    """Una rama de este trabajo que está en el servidor pero no lo sigue pasa a seguirlo (N4). Si tiene commits que el
+    servidor no tiene, quedan antes en `apartado/<rama>`, y la rama se iguala al servidor."""
+    local, remota = f"refs/heads/{rama}", f"refs/remotes/origin/{rama}"
+    if git.correr("merge-base", "--is-ancestor", local, remota).returncode != 0:
+        if not (creadas and git.correr("merge-base", "--is-ancestor", local, creadas[-1]).returncode == 0):
+            apartado = primera_libre(git, ramas, "apartado/" + rama.replace("/", "-"))
+            git.hacer("branch", apartado, local)
+            creadas.append(apartado)
+    igualar(git, rama)
+    git.hacer("branch", "--quiet", f"--set-upstream-to=origin/{rama}", rama)
 
 
 def al_dia(git, rama):
@@ -359,7 +493,8 @@ def volver(git, args):
     resultado = git.correr("switch", "--quiet", principal)
     if resultado.returncode != 0:
         raise Parada("cambios-sin-guardar", "Volver a la principal pisaría trabajo sin guardar: "
-                     + resultado.stderr.strip(), decision["rama"], principal=principal, archivos=sin_guardar(git)[1])
+                     + resultado.stderr.strip(), decision["rama"], principal=principal,
+                     archivos=sin_guardar(git, f"refs/remotes/origin/{principal}")[1])
     if decision["accion"] == "ofrecer":
         git.hacer("switch", "--quiet", "-c", decision["rama_nueva"])
         return {"accion": "guardar", "rama": decision["rama_nueva"], "principal": principal}
@@ -368,6 +503,12 @@ def volver(git, args):
 
 def commit(git, args):
     actual = git.rama()
+    # Una ruta que no está y no cambió: la escribió la skill y otra sesión la apartó o la guardó (N5, Q160).
+    faltan = [r for r in args.rutas if not os.path.lexists(os.path.join(git.repo, r))
+              and git.correr("diff", "--quiet", "HEAD", "--", r).returncode == 0]
+    if faltan:
+        raise Parada("ruta-que-falta", "Estos archivos de la skill no están en la copia ni cambiaron: "
+                     + ", ".join(faltan), actual, rutas=faltan)
     if git.correr("diff", "--quiet", "HEAD", "--", *args.rutas).returncode == 0:
         return {"accion": "sin-cambios", "rama": actual}
     git.hacer("commit", "--quiet", *(parte for m in args.mensaje for parte in ("-m", m)), "--", *args.rutas)
