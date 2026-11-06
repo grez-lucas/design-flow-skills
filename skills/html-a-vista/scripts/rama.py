@@ -71,8 +71,8 @@ Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git`, el mens
 `apartar`, `apartado` y `desde` con lo que alcanzó a apartar. Si `apartar` falla antes del primer commit del
 apartado, vuelve a la rama donde estaba, con el índice tal cual, y borra la rama vacía.
 
-`fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, para con `sin-servidor`.
-git nunca pide credenciales por la terminal.
+`fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
+hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
 
 Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, una épica o un mockup que no sirve
 como nombre de rama (con mayúsculas, o que termina en guion y número, como `fase-2`), o una ruta de commit que no es
@@ -117,11 +117,13 @@ class Git:
         try:
             salida, error = proceso.communicate(timeout=tope)
         except subprocess.TimeoutExpired:
-            if os.name == "nt":
-                proceso.kill()
-            else:
-                os.killpg(proceso.pid, signal.SIGKILL)
-            proceso.communicate()
+            matar_arbol(proceso)
+            try:
+                proceso.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Un hijo que no murió sigue con la salida de git abierta: se deja de leer y se sigue (B2).
+                for tubo in (proceso.stdout, proceso.stderr):
+                    tubo.close()
             return subprocess.CompletedProcess(orden, 124, "", f"el servidor no respondió en {tope} segundos")
         return subprocess.CompletedProcess(orden, proceso.returncode, salida, error)
 
@@ -150,6 +152,22 @@ class Git:
 
     def rama(self):
         return self.salida("symbolic-ref", "--quiet", "--short", "HEAD")
+
+
+def matar_arbol(proceso):
+    """Mata a git y a los hijos que lanzó para hablar con el servidor: en Windows con `taskkill /T`, en los demás con
+    el grupo de procesos que se le dio al lanzarlo."""
+    if os.name == "nt":
+        try:
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proceso.pid)], capture_output=True, timeout=10)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        proceso.kill()
+    else:
+        try:
+            os.killpg(proceso.pid, signal.SIGKILL)
+        except OSError:
+            proceso.kill()
 
 
 def tope():
@@ -245,6 +263,15 @@ def destino_del_flujo(args, principal, ramas, elegida=None):
     return principal, candidatas
 
 
+def ref_de_llegada(git, rama, principal, al_servidor=False):
+    """La ref a la que va de verdad el `git switch` a `rama`: la del servidor si la rama se iguala a él (la principal,
+    o con `al_servidor`) o si la local no existe o avanza hasta él; si no, la local, con sus commits propios (M1)."""
+    local, remota = f"refs/heads/{rama}", f"refs/remotes/origin/{rama}"
+    if rama == principal or al_servidor or not git.existe(local):
+        return remota
+    return remota if git.correr("merge-base", "--is-ancestor", local, remota).returncode == 0 else local
+
+
 def llegada(decision, destino, principal):
     """La rama a la que la copia va a cambiar, o None si se queda en la actual."""
     if decision is None:
@@ -259,7 +286,8 @@ def revisar(git, args, del_servidor=None):
     except Parada as parada:
         if parada.motivo in APARTABLES:
             destino = destino_del_flujo(args, principal, ramas)[0]
-            amplio = sin_guardar(git, destino and f"refs/remotes/origin/{destino}")[1]
+            amplio = sin_guardar(git, destino and ref_de_llegada(git, destino, principal,
+                                                                  destino == git.rama()))[1]
             if amplio:
                 parada.salida["archivos"] = amplio
         raise
@@ -298,7 +326,7 @@ def estado(git, *args):
     lineas = []
     while partes:
         linea = partes.pop(0)
-        if linea[0] in "RC" and partes:
+        if (linea[0] in "RC" or linea[1] in "RC") and partes:
             linea = f"{linea[:3]}{partes.pop(0)} -> {linea[3:]}"
         lineas.append(linea)
     return lineas
@@ -375,24 +403,27 @@ def primera_libre(git, ramas_del_servidor, base):
 def apartar(git, args):
     principal, ramas = servidor(git)
     desde, inicio = git.rama(), git.salida("rev-parse", "HEAD")
+    indice = git.salida("write-tree")
     creadas = []
     try:
         return apartar_y_volver(git, args, principal, ramas, desde, creadas)
     except Parada as parada:
         if parada.motivo == "error-de-git":
-            deshacer_apartado_vacio(git, desde, inicio, creadas)
+            deshacer_apartado_vacio(git, desde, inicio, indice, creadas)
             parada.salida.update({"apartado": creadas, "desde": desde, "rama": git.rama()})
         raise
 
 
-def deshacer_apartado_vacio(git, desde, inicio, creadas):
-    """Si git falló antes del primer commit del apartado, vuelve a donde estaba, con el índice tal cual, y borra la
-    rama vacía, para que otra corrida no aparte dentro de ella (N11)."""
+def deshacer_apartado_vacio(git, desde, inicio, indice, creadas):
+    """Si git falló antes del primer commit del apartado, vuelve a donde estaba, con el índice como estaba al entrar
+    (`indice`, de `git write-tree`), y borra la rama vacía, para que otra corrida no aparte dentro de ella (N11, B1)."""
     if not creadas or git.rama() != creadas[-1] or git.salida("rev-parse", "HEAD") != inicio:
         return
     vuelta = ("switch", "--quiet", desde) if desde else ("switch", "--quiet", "--detach", inicio)
     if git.correr(*vuelta).returncode == 0 and git.correr("branch", "--quiet", "-D", creadas[-1]).returncode == 0:
         creadas.pop()
+        if indice:
+            git.correr("read-tree", indice)
 
 
 def apartar_y_volver(git, args, principal, ramas, desde, creadas):
@@ -405,7 +436,8 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         decision = None
         destino, candidatas = destino_del_flujo(args, principal, ramas, args.rama)
     va_a = llegada(decision, destino, principal)
-    chocan = [l[3:] for l in choques(git, f"refs/remotes/origin/{va_a}")] if va_a else []
+    # Con N4 la rama actual se iguala al servidor; las demás van a la local si tiene commits propios (M1).
+    chocan = [l[3:] for l in choques(git, ref_de_llegada(git, va_a, principal, va_a == desde))] if va_a else []
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
     if sin_guardar(git)[1] or chocan or sueltos:
