@@ -641,51 +641,35 @@ class DescripcionDeLasSkills(unittest.TestCase):
                 descripcion = re.search(r"^description: (.+)$", frente, flags=re.M).group(1).strip()
                 self.assertLessEqual(len(descripcion), 1024, f"{skill.name}: {len(descripcion)} caracteres")
 
-class InstalacionConSkillsLatest(unittest.TestCase):
-    """Q142: el README instala con `npx skills@latest` y explica que con Node anterior a 22.20 aparece `EBADENGINE`,
-    esperable, y la instalación funciona igual. Sin `@latest`, npm corre la última versión que acepta el Node local."""
+class InstalacionSoloPorElPlugin(unittest.TestCase):
+    """Q164, que supera Q142: la única instalación es el plugin, porque `npx skills` instala cada skill sin el `bin/`
+    del plugin y no le llegaría `flujo`. El README no ofrece `npx skills` en ninguna forma."""
+
+    NPX_SKILLS = re.compile(r"\bnpx(?:[ \t]+-[\w-]+)*[ \t]+skills\b|`npx skills")
 
     def seccion(self, nombre):
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         return re.search(rf"^## {nombre}\n.*?(?=^## )", readme, re.S | re.M).group(0)
 
-    @staticmethod
-    def ordenes_sin_latest(texto):
-        """Las órdenes de `npx` que corren `skills` sin `@latest`: `npx`, sus opciones, `skills` con o sin versión y
-        al menos un argumento. `npx skills` sin argumentos, entre comillas, nombra el método de instalación."""
-        orden = re.compile(r"\bnpx(?:[ \t]+-[\w-]+)*[ \t]+(skills(?:@[\w.-]+)?)[ \t]+\S")
-        return [m.group(0) for m in orden.finditer(texto) if m.group(1) != "skills@latest"]
-
-    def test_reconoce_cualquier_orden_de_npx_con_skills(self):
-        for orden in ("npx skills add a/b", "npx skills list", "npx skills --help", "npx -y skills add a/b",
-                      "npx --yes skills@1.7.4 add a/b", "npx skills@1.7.4 add a/b"):
-            with self.subTest(orden=orden):
-                self.assertTrue(self.ordenes_sin_latest(orden), orden)
-        for texto in ("npx skills@latest add a/b", "npx -y skills@latest list", "agente compatible con `npx skills`.",
-                      "| Con `npx skills` |", "npx -y lavish-axi --help"):
+    def test_reconoce_cualquier_mencion_de_npx_skills(self):
+        for texto in ("npx skills add a/b", "npx skills@latest add a/b", "npx -y skills list", "npx --yes skills@1.7.4",
+                      "agente compatible con `npx skills`.", "| Con `npx skills` |", "la alternativa es `npx skills@latest`"):
             with self.subTest(texto=texto):
-                self.assertEqual(self.ordenes_sin_latest(texto), [], texto)
+                self.assertRegex(texto, self.NPX_SKILLS)
+        for texto in ("npx -y lavish-axi --help", "`npx` un número", "skills-lock.json"):
+            with self.subTest(texto=texto):
+                self.assertNotRegex(texto, self.NPX_SKILLS)
 
-    def test_cada_orden_de_npx_skills_fija_latest(self):
-        self.assertIn("npx skills@latest add grez-lucas/design-flow-skills -a <agente>", self.seccion("Instalación"))
-        textos = {"README.md": (RAIZ / "README.md").read_text(encoding="utf-8")}
-        textos.update({str(r.relative_to(RAIZ)): r.read_text(encoding="utf-8") for r in sorted(SKILLS.rglob("*.md"))})
-        for nombre, texto in textos.items():
-            with self.subTest(archivo=nombre):
-                self.assertEqual(self.ordenes_sin_latest(texto), [])
+    def test_el_readme_no_ofrece_npx_skills(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertEqual(self.NPX_SKILLS.findall(readme), [])
+        self.assertNotIn("skills-lock.json", readme)
 
-    def test_la_instalacion_explica_ebadengine_con_node_anterior_a_22_20(self):
+    def test_la_instalacion_es_el_plugin(self):
         instalacion = self.seccion("Instalación")
-        self.assertIn("Node.js anterior a 22.20", instalacion)
-        self.assertIn("`EBADENGINE`", instalacion)
-        self.assertIn("esperable", instalacion)
-        self.assertIn("la instalación funciona igual", instalacion)
-
-    def test_los_requisitos_no_contradicen_la_instalacion(self):
-        requisitos = self.seccion("Requisitos")
-        self.assertNotIn("`npx skills` pide Node.js 22.20 o superior", requisitos)
-        self.assertIn("`npx skills@latest`", requisitos)
-        self.assertIn("`EBADENGINE`", requisitos)
+        self.assertIn("/plugin marketplace add grez-lucas/design-flow-skills", instalacion)
+        self.assertIn("/plugin install flujo-diseno@design-flow-skills", instalacion)
+        self.assertIn("única", instalacion)
 
 
 class VersionDelPlugin(unittest.TestCase):

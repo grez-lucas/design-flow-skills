@@ -523,6 +523,50 @@ class Commit(Base):
         self.correr("commit", "--", "design/", codigo=2)
 
 
+class MensajeDesdeArchivo(Base):
+    """Q162: `commit -F <archivo>` toma el mensaje de un archivo, para que no pase por la línea de órdenes de
+    PowerShell, que pierde las comillas dobles. El archivo es UTF-8, con o sin BOM (el de `Set-Content -Encoding UTF8`
+    de PowerShell 5.1) y con LF o CRLF, y su ruta es relativa a donde corre `rama`, no al repositorio."""
+
+    MENSAJE = 'diseno(alertas): "comillas" & a^b | %PATH% ñandú\n\nSegundo párrafo con `código`.'
+
+    def preparar(self):
+        self.escribir(self.copia, "design/vistas/alertas/nueva.html", "<p>nueva</p>\n")
+        git("add", "design/", cwd=self.copia)
+
+    def test_el_mensaje_es_el_del_archivo(self):
+        self.preparar()
+        (self.tmp / "mensaje.txt").write_text(self.MENSAJE + "\n", encoding="utf-8")
+        salida = self.commit("-F", str(self.tmp / "mensaje.txt"), "--", "design/")
+        self.assertEqual(salida["accion"], "empujar", salida)
+        self.assertEqual(git("log", "-1", "--format=%B", cwd=self.copia).stdout.strip(), self.MENSAJE)
+
+    def test_con_bom_y_crlf(self):
+        self.preparar()
+        (self.tmp / "mensaje.txt").write_bytes(b"\xef\xbb\xbf" + self.MENSAJE.replace("\n", "\r\n").encode() + b"\r\n")
+        self.commit("-F", str(self.tmp / "mensaje.txt"), "--", "design/")
+        self.assertEqual(git("log", "-1", "--format=%B", cwd=self.copia).stdout.strip(), self.MENSAJE)
+
+    def test_la_ruta_relativa_es_la_de_donde_corre(self):
+        self.preparar()
+        afuera = self.tmp / "afuera"
+        afuera.mkdir()
+        (afuera / "mensaje.txt").write_text(self.MENSAJE, encoding="utf-8")
+        salida = self.correr("commit", "--repo", str(self.copia), "-F", "mensaje.txt", "--", "design/", cwd=afuera)
+        self.assertEqual(salida["accion"], "empujar", salida)
+        self.assertEqual(git("log", "-1", "--format=%B", cwd=self.copia).stdout.strip(), self.MENSAJE)
+
+    def test_uso_incorrecto(self):
+        self.preparar()
+        (self.tmp / "mensaje.txt").write_text(self.MENSAJE, encoding="utf-8")
+        antes = git("rev-parse", "HEAD", cwd=self.copia).stdout
+        for args in (("-F", str(self.tmp / "no-existe.txt")), ("-F", str(self.tmp / "mensaje.txt"), "-m", "x"),
+                     ("-F",)):
+            with self.subTest(args=args):
+                self.correr("commit", *args, "--", "design/", codigo=2)
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.copia).stdout, antes)
+
+
 class RutasIgnoradas(Base):
     """N1 y N2: una ruta de la skill ignorada, como el puntero que queda solo en esta máquina cuando la persona no
     acepta la excepción de Q157, no rompe `apartar`, y un cambio de rama no la pisa sin guardarla antes."""

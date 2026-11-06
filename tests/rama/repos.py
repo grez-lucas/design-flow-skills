@@ -1,7 +1,8 @@
 """Lo que comparten las pruebas de `tests/rama`: git sin la configuración del entorno, un servidor bare local con la
 copia de quien usa la skill, y la orden que corre `rama.py` como proceso.
 
-`RAMA` en el entorno cambia el ejecutable que se prueba, por ejemplo el de Go (Q151, Q152): las pruebas miran solo
+`RAMA` en el entorno cambia la orden que se prueba, partida como en sh, por ejemplo `RAMA="bin/flujo rama"`, el
+subcomando del ejecutable en Go (Q151, Q152, Q163): las pruebas miran solo
 el JSON, el código de salida y el estado de git después, así que corren igual contra cualquier ejecutable con la misma
 interfaz. Sin `RAMA`, corren contra `skills/grilling-es/scripts/rama.py`.
 """
