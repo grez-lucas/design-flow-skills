@@ -1,0 +1,24 @@
+#!/bin/sh
+# Lanzador de flujo para Linux, macOS y Git Bash en Windows (Q162, Q163): corre el ejecutable de esta plataforma que
+# está en esta carpeta, flujo-<os>-<arch> en Linux y macOS y flujo.exe en Windows, con los argumentos tal cual. Sin
+# ejecutable para la plataforma, sale con 3. PowerShell no pasa por acá: resuelve flujo a flujo.exe por PATHEXT.
+dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 3
+sistema=$(uname -s)
+maquina=$(uname -m)
+case $maquina in
+  x86_64 | amd64) arch=amd64 ;;
+  aarch64 | arm64) arch=arm64 ;;
+  *) arch='' ;;
+esac
+case $sistema in
+  Linux) ejecutable=${arch:+$dir/flujo-linux-$arch} ;;
+  Darwin) ejecutable=${arch:+$dir/flujo-darwin-$arch} ;;
+  MINGW* | MSYS*) ejecutable=$dir/flujo.exe ;;
+  *) ejecutable='' ;;
+esac
+if [ -z "$ejecutable" ] || [ ! -f "$ejecutable" ]; then
+  echo "flujo: no hay ejecutable para esta plataforma ($sistema $maquina)${ejecutable:+: falta $ejecutable}." \
+    "Hay para Linux y macOS en amd64 y arm64, y flujo.exe para Windows." >&2
+  exit 3
+fi
+exec "$ejecutable" "$@"
