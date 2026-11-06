@@ -390,13 +390,18 @@ class LlamadaARama(unittest.TestCase):
             with self.subTest(skill=skill):
                 rama = self.tras(skill, self.PASO_DE_LA_RAMA[skill], "revisar")
                 self.assertIn("guarda en la rama actual", self.accion(rama, "guardar"))
+                # Q159: el cambio de rama y el apartado los hace `rama.py`, y la skill sigue con lo que devuelve.
                 volver = self.accion(rama, "volver")
-                for fragmento in ("`git switch <principal>`", "`git pull --ff-only`",
-                                  "Si uno falla, sigue `references/rama.md`, sección \"Volver que falla\""):
+                for fragmento in ("la misma orden de `rama.py` con `volver` en lugar de `revisar`",
+                                  "sigue con la `accion` que devuelva"):
                     self.assertIn(fragmento, volver)
                 parar = self.accion(rama, "parar")
-                for fragmento in ("no escribas", "`detalle`", "`references/rama.md`"):
+                for fragmento in ("no escribas", "`detalle`", "`references/rama.md`", "`principal-adelantada`",
+                                  "con el sí, corre la misma orden de `rama.py` con `apartar` en lugar de `revisar`"):
                     self.assertIn(fragmento, parar)
+                for accion in ("guardar", "volver", "parar"):
+                    for orden in ("`git switch", "`git pull", "`git commit", "`git add -u`"):
+                        self.assertNotIn(orden, self.accion(rama, accion))
                 self.assertNotIn("el TL dice cómo seguir", parar)
 
     def test_sin_python_para_y_no_guarda(self):
@@ -481,26 +486,28 @@ class LlamadaARama(unittest.TestCase):
                 self.assertNotIn("`ofrecer`", texto)
 
     def test_html_a_vista_cambia_de_rama_con_ofrecer_solo_con_el_si(self):
-        """Q97: antes de escribir nada explica y ofrece; sin el sí o con un fallo, para y dice dónde quedó."""
+        """Q97: antes de escribir nada explica y ofrece; sin el sí, para y dice dónde quedó. Q159: el cambio de rama
+        lo hace `rama.py volver`, solo con la `rama_nueva` que la persona aceptó."""
         ofrecer = self.accion(self.tras("html-a-vista", "5", "revisar"), "ofrecer")
+        volver = "con `volver` en lugar de `revisar` y `--rama-nueva <rama_nueva>`"
         for fragmento in ("guardar ahí no sirve", "Antes de escribir nada", "ofrece volver a la principal y guardar en `rama_nueva`",
-                          "Solo con el sí de la persona", "`git switch <principal>`", "`git pull --ff-only`",
-                          "`git switch -c <rama_nueva>`",
+                          "Solo con el sí de la persona", volver,
                           "Sin el sí, queda detenida sin escribir en el repositorio y di en qué rama estás y qué quedó "
-                          "sin hacer: la conversión no empezó.",
-                          "Si `git switch <principal>` falla por cambios sin guardar, sigue `references/rama.md`, sección "
-                          "\"Otra rama o trabajo sin guardar\""):
+                          "sin hacer: la conversión no empezó."):
             self.assertIn(fragmento, ofrecer)
-        self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index("`git switch <principal>`"))
+        self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index(volver))
+        self.assertNotIn("`git switch", ofrecer)
 
     def test_html_a_vista_vuelve_a_revisar_el_arbol_tras_el_si(self):
-        """Q97: el árbol pudo cambiar mientras la persona contestaba; se revisa otra vez antes de `git switch`."""
+        """Q97: el árbol pudo cambiar mientras la persona contestaba; `volver` vuelve a correr la revisión antes de
+        cambiar de rama. H5: después de apartar, `ofrecer` sigue con la rama nueva aceptada, sin preguntar otra vez."""
         ofrecer = self.accion(self.tras("html-a-vista", "5", "revisar"), "ofrecer")
-        revisa = "vuelve a correr la misma orden de `rama.py`"
+        revisa = "vuelve a correr la revisión, porque la copia pudo cambiar mientras esperabas"
         self.assertIn(revisa, ofrecer)
-        self.assertIn("si devuelve otra `accion`, sigue esa", ofrecer)
+        self.assertIn("Sigue con la `accion` que devuelva.", ofrecer)
         self.assertLess(ofrecer.index("Solo con el sí de la persona"), ofrecer.index(revisa))
-        self.assertLess(ofrecer.index(revisa), ofrecer.index("`git switch <principal>`"))
+        self.assertIn("Si `apartar` devuelve `ofrecer`, ya tienes el sí: corre `volver` con `--rama-nueva <rama_nueva>` "
+                      "sin preguntar otra vez.", ofrecer)
 
     def test_html_a_vista_empuja_con_upstream_la_rama_de_ofrecer(self):
         """Q98: la rama de `ofrecer` se empuja con `-u`; si el servidor la rechaza, `rechazo` devuelve `parar`."""
