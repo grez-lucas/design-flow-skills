@@ -856,7 +856,8 @@ class Contenido(HTMLParser):
         self.algo = False
         self.oculto = 0
         self.en_head = False
-        self.firma, self.srcs = [], []
+        self.firma, self.srcs, self.js = [], [], []
+        self.oculta = None
         self.llaves = self.vue = self.alpine = False
 
     def contar(self):
@@ -867,7 +868,13 @@ class Contenido(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == "script" and dict(attrs).get("src"):
             self.srcs.append(dict(attrs)["src"])
+        if not self.oculto and tag == "template":
+            # Alpine pone `x-for` y `x-if` en un <template>, que no tiene contenido propio (M3).
+            self.alpine = self.alpine or any(DIRECTIVA_ALPINE.match(k) or k in ("x-for", "x-if") for k, _ in attrs)
+            self.vue = self.vue or any(DIRECTIVA_VUE.match(k) for k, _ in attrs)
         if self.oculto or tag in SIN_CONTENIDO:
+            if not self.oculto and tag not in VOID:
+                self.oculta = tag
             self.oculto += tag not in VOID
             return
         if tag == "head":
@@ -905,6 +912,8 @@ class Contenido(HTMLParser):
                 pass
 
     def handle_data(self, data):
+        if self.oculto and self.oculta == "script":
+            self.js.append(data)
         if not self.oculto and data.strip():
             self.contar()
             if not self.en_head:
@@ -912,8 +921,10 @@ class Contenido(HTMLParser):
             self.llaves = self.llaves or "{{" in data
 
     def frameworks(self):
-        """Los frameworks que la parte carga por `<script src>`, como los detecta `desarmar`."""
-        return {n for u in self.srcs for n, patron in FRAMEWORKS if patron.search(u)}
+        """Los frameworks que la parte carga por `<script src>` o importa desde un `<script>` en línea, como los detecta
+        `desarmar` para "requiere render" (M3)."""
+        importados = [a or b for a, b in URL_JS.findall("".join(self.js))]
+        return {n for u in self.srcs + importados for n, patron in FRAMEWORKS if patron.search(u)}
 
     def espera(self):
         """La parte carga un framework que cambia lo que hay en ella: Vue con sus llaves o directivas, Alpine con
