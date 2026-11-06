@@ -88,9 +88,9 @@ Detente. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rech
 
 El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
-- `guardar`: antes de escribir, sigue `references/rama.md`, sección "Antes de guardar": el trabajo sin guardar de otra persona, lo que dejó preparado en el índice y una principal adelantada entrarían en tu commit. Si pasa, guarda en la rama actual, con el commit de "El commit de la skill".
-- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí, después de "Antes de guardar". Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
-- `parar`: Detente. Todavía no escribas en el repositorio: explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`. Con `otra-rama`, `sin-rama`, `commits-sin-empujar` o `cambios-sin-guardar`, propón apartar lo que había en una rama propia y, con el sí, apártalo y vuelve a correr la misma orden de `rama.py`; cuando falta el servidor, eso no se arregla desde la sesión y va el pedido al TL. Sin el sí, di qué quedó sin hacer.
+- `guardar`: nada de lo que había en la copia entraría en tu commit: guarda en la rama actual, con el commit de `rama.py` que dice `references/rama.md`, sección "El commit de la skill".
+- `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre la misma orden de `rama.py` con `volver` en lugar de `revisar`, que cambia a la principal al día con el servidor, y sigue con la `accion` que devuelva.
+- `parar`: Detente. Todavía no escribas en el repositorio: explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`. Con `cambios-sin-guardar`, `otra-rama`, `sin-rama`, `commits-sin-empujar` o `principal-adelantada`, propón apartar lo que había en una rama propia y, con el sí, corre la misma orden de `rama.py` con `apartar` en lugar de `revisar`, que lo aparta y vuelve a correr la revisión; cuando falta el servidor, eso no se arregla desde la sesión y va el pedido al TL. Sin el sí, di qué quedó sin hacer.
 
 Sin Python no hay cómo guardar: las correcciones van al informe como bloqueos, cada una con el arreglo que propones.
 

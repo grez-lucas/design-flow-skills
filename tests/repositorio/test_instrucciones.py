@@ -547,34 +547,37 @@ class ReferenciaDeRama(unittest.TestCase):
                     self.assertIn("`references/rama.md`", linea)
                 self.assertNotIn("el TL dice cómo seguir", skill_md)
 
-    def test_otra_rama_o_trabajo_sin_guardar_se_aparta_en_una_rama_propia_sin_stash(self):
-        """Q143."""
-        seccion_ = seccion(self.texto, "Otra rama o trabajo sin guardar", 2)
-        for motivo in ("otra-rama", "sin-rama", "commits-sin-empujar", "cambios-sin-guardar"):
+    def test_lo_que_hay_que_apartar_lo_aparta_rama_py_sin_stash(self):
+        """Q143, Q158 y Q159: el arreglo de cada motivo que aparta es `rama.py apartar`; la conducta la prueba
+        tests/rama/test_proteccion.py contra repositorios reales."""
+        seccion_ = seccion(self.texto, "Trabajo por apartar", 2)
+        for motivo in ("cambios-sin-guardar", "otra-rama", "sin-rama", "commits-sin-empujar", "principal-adelantada"):
             self.assertIn(f"`{motivo}`", seccion_)
         self.assertRegex(seccion_, r"propón apartarlo en una rama propia y guardar desde la rama del flujo\.")
-        # A2: los archivos nuevos de lo que la skill agrega también se apartan.
-        self.assertIn("git add -A -- <rutas>", seccion_)
-        # M2: la rama del flujo es la de `guardar`, una viva del servidor para este trabajo o la principal.
-        self.assertRegex(seccion_, r"Vuelve a la rama del flujo\. Si saliste de una rama donde `rama\.py` había dicho "
-                                   r"`guardar`, la del flujo es esa")
-        self.assertIn('git branch -r --list "origin/<tipo>/<nombre>" "origin/<tipo>/<nombre>-[2-9]"', seccion_)
+        self.assertRegex(seccion_, r"Con el sí, corre la misma orden de `rama\.py` con `apartar` en lugar de `revisar`: "
+                                   r"guarda lo que había en `apartado/<rama>`, vuelve a la rama del flujo y vuelve a "
+                                   r"correr la revisión desde ahí\.")
         self.assertRegex(seccion_, r"No uses `git stash`: lo que se aparta así no queda en ninguna rama y producto no lo "
                                    r"encuentra después\.")
-        self.assertIn("git switch -c apartado/<rama>", seccion_)
-        # Q158: con el primer sufijo libre.
-        self.assertRegex(seccion_, r"si ese nombre ya existe, usa el primer sufijo libre \(`-2`, `-3`\)")
-        adelantada = seccion(self.texto, "Principal adelantada", 2)
-        self.assertRegex(adelantada, r"Con el sí, guárdalos primero en una rama propia, con el primer sufijo libre si "
-                                     r"`apartado/<principal>` ya existe, y después iguala la principal al servidor")
-        self.assertIn("git switch -C <principal> origin/<principal>", adelantada)
-        self.assertRegex(seccion(self.texto, "Volver que falla", 2), r"es \"Principal adelantada\"")
-        self.assertIn("git add -u", seccion_)
-        self.assertIn("`git switch <principal>`", seccion_)
-        self.assertIn("`git pull --ff-only`", seccion_)
-        self.assertRegex(seccion_, r"Vuelve a correr la misma orden de `rama\.py`, sigue con la `accion` que devuelva y repite \"Antes de guardar\"\.")
-        self.assertRegex(seccion_, r"Di dónde quedó lo anterior:")
-        self.assertNotRegex(seccion_, r"`git stash (?:push|pop|apply)")
+        self.assertRegex(seccion_, r"Di dónde quedó lo anterior: en las ramas de `apartado`")
+        # M9: con más de una rama viva del trabajo, pregunta y vuelve a la elegida.
+        self.assertRegex(seccion_, r"Con `elegir`, [^\n]*?pregunta en cuál guardar y corre otra vez `apartar` con "
+                                   r"`--rama <la elegida>`\.")
+
+    def test_la_logica_de_git_vive_en_rama_py(self):
+        """Q159: la prosa llama a `rama.py` y lee su JSON; no da órdenes de git para apartar, volver ni hacer el
+        commit, que es donde tres revisiones seguidas encontraron casos nuevos."""
+        antes = self.texto.split("## Push sin credenciales")[0]
+        # `git add` de lo que escribió la skill sigue en la prosa; `git add -u` y `git add -A` los corre `apartar`.
+        for orden in ("git switch", "git add -u", "git add -A", "git commit", "git status", "git diff", "git rev-list", "git branch",
+                      "git pull", "git symbolic-ref", "git remote", "git stash push", "git reset"):
+            with self.subTest(orden=orden):
+                self.assertNotIn(f"`{orden}", antes.replace("no corras `git switch`, `git stash`, `git reset` ni "
+                                                           "`git commit` por tu cuenta", ""))
+                self.assertFalse([l for b in re.findall(r"```\n(.*?)```", antes, re.S) for l in b.splitlines()
+                                  if l.startswith(orden)], orden)
+        self.assertRegex(seccion(self.texto, "Antes de proponer", 2),
+                         r"`apartar` y `volver` van con los mismos argumentos que la orden de `revisar` que corriste")
 
     def test_sin_servidor_ni_principal_redacta_el_pedido_al_tl(self):
         """Q144."""
@@ -608,26 +611,23 @@ class ReferenciaDeRama(unittest.TestCase):
         self.assertIn("La skill propone instalarlo", fila)
         self.assertNotIn("No hay commit ni push: los archivos quedan solo en la máquina.", fila)
 
-    def test_antes_de_guardar_mira_el_trabajo_ajeno_y_la_principal_adelantada(self):
-        """A1 y M1; la conducta la prueban tests/rama/test_referencia.py contra repositorios reales."""
-        antes = seccion(self.texto, "Antes de guardar", 2)
-        self.assertIn("git status --porcelain --ignore-submodules=dirty -- <rutas>", antes)
-        self.assertIn("git diff --cached --name-only", antes)
-        self.assertIn("git rev-list --count origin/<principal>..<principal>", antes)
-        adelantada = seccion(self.texto, "Principal adelantada", 2)
-        self.assertIn("git branch apartado/<principal>", adelantada)
+    def test_el_commit_de_la_skill_lo_hace_rama_py_con_sus_rutas(self):
+        """A3 y Q159; la conducta la prueba tests/rama/test_proteccion.py contra repositorios reales."""
+        commit = seccion(self.texto, "El commit de la skill", 2)
+        self.assertIn('<intérprete> -B <ruta-de-esta-skill>/scripts/rama.py commit -m "<mensaje>" -- <agregadas>', commit)
+        self.assertRegex(commit, r"Con `empujar`, los `archivos` son los del commit[^\n]*?sigue con el push\.")
+        self.assertRegex(commit, r"Con `sin-cambios`, no hubo nada que guardar: no hay commit ni push")
         for skill in self.CON_REFERENCIA:
             with self.subTest(skill=skill):
                 skill_md = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
                 guardar = next(l for l in skill_md.splitlines() if l.startswith("- `guardar`: "))
-                self.assertIn('sección "Antes de guardar"', guardar)
+                self.assertIn('sección "El commit de la skill"', guardar)
 
-    def test_ofrecer_dice_que_hacer_si_cada_comando_falla(self):
-        """B3."""
+    def test_ofrecer_con_otro_nombre_libre_lo_ofrece_de_nuevo(self):
+        """B3: si la rama nueva ya existe, `rama.py` da el primer nombre libre y la skill lo ofrece."""
         texto = (SKILLS / "html-a-vista" / "SKILL.md").read_text(encoding="utf-8")
         ofrecer = next(l for l in texto.splitlines() if l.startswith("- `ofrecer`: "))
-        self.assertRegex(ofrecer, r"si falla `git switch -c <rama_nueva>` porque esa rama ya existe en esta copia, vuelve "
-                                  r"a correr la misma orden de `rama\.py`")
+        self.assertIn("Si devuelve `ofrecer` con otra `rama_nueva`, porque esa ya existe, ofrécela de nuevo.", ofrecer)
 
     def test_la_rama_nueva_va_con_el_si(self):
         nueva = seccion(self.texto, "Rama nueva", 2)
