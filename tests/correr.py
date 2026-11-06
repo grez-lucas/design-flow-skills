@@ -1,10 +1,18 @@
-"""Corre todo lo que corre CI: los tests de cada carpeta de tests/, `claude plugin validate . --strict` y `actionlint`.
+"""Corre todo lo que corre CI: los tests de cada carpeta de tests/, lo de Go, `claude plugin validate . --strict` y
+`actionlint`.
 
 Uso: python3 tests/correr.py
+     python3 tests/correr.py --rama <orden>
+
+Con `--rama`, corre solo tests/rama con `RAMA=<orden>`, como el job de CI que prueba los lanzadores de bin/ en Linux,
+macOS y Windows; `<orden>` se parte como en sh, así que una ruta con espacios va entre comillas.
 
 Descubre las carpetas de tests/, todas salvo las ocultas y `__pycache__`, y corre cada una con
 `python -m unittest discover -s tests/<carpeta>`, sin escribir bytecode. Una carpeta sin `test*.py`, como una de
-fixtures o la que dejó solo su `__pycache__` al borrarse, se salta y se lista. `claude plugin validate . --strict` corre si `claude` está en el PATH, y
+fixtures o la que dejó solo su `__pycache__` al borrarse, se salta y se lista. Si la raíz tiene `go.mod`, corre además
+`go vet ./...`, `go test ./...` y `scripts/compilar --verificar`, que falla si un ejecutable de bin/ no es el que sale
+de la fuente, si `go` está en el PATH, y tests/rama otra vez con `RAMA` en el lanzador de bin/ (`bin/rama`, o
+`bin/rama.cmd` en Windows). `claude plugin validate . --strict` corre si `claude` está en el PATH, y
 `actionlint` si está en el PATH o en `$(go env GOPATH)/bin`. Al final lista lo que pasó, lo que falló y lo que se saltó,
 con cuántos tests se saltaron en cada carpeta, y sale con 1 si algo falló. Una herramienta que no está instalada se
 salta sin fallar.
@@ -16,6 +24,7 @@ escribiría en él. `claude` y `actionlint` corren sin esas variables.
 import hashlib
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -62,8 +71,8 @@ def senuelo(directorio, entorno):
     return {"GIT_DIR": str(git_dir), "GIT_WORK_TREE": str(directorio), "GIT_INDEX_FILE": str(git_dir / "index")}
 
 
-def correr_carpeta(carpeta, entorno):
-    nombre = carpeta.relative_to(RAIZ).as_posix()
+def correr_carpeta(carpeta, entorno, nombre=None, extra=None):
+    nombre = nombre or carpeta.relative_to(RAIZ).as_posix()
     if not tiene_tests(carpeta):
         return f"{nombre} (sin test*.py)", "saltado"
     print(f"\n== {nombre}", flush=True)
@@ -72,8 +81,9 @@ def correr_carpeta(carpeta, entorno):
         variables = senuelo(repositorio, entorno)
         antes = huella(repositorio)
         # unittest escribe su informe en stderr: se copia a la consola línea a línea y se guarda para el resumen.
-        proceso = subprocess.Popen([sys.executable, "-m", "unittest", "discover", "-s", nombre], cwd=RAIZ,
-                                   env={**entorno, **variables, "PYTHONDONTWRITEBYTECODE": "1"},
+        proceso = subprocess.Popen([sys.executable, "-m", "unittest", "discover", "-s",
+                                    carpeta.relative_to(RAIZ).as_posix()], cwd=RAIZ,
+                                   env={**entorno, **(extra or {}), **variables, "PYTHONDONTWRITEBYTECODE": "1"},
                                    stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
         lineas = []
         for linea in proceso.stderr:
@@ -106,28 +116,57 @@ def buscar_actionlint(entorno):
     return None
 
 
-def correr_herramienta(paso, orden, entorno):
+def correr_herramienta(paso, orden, entorno, falta="no está instalado"):
     if orden[0] is None:
-        return f"{paso} (no está instalado)", "saltado"
+        return f"{paso} ({falta})", "saltado"
     print(f"\n== {paso}", flush=True)
     rc = subprocess.run(orden, cwd=RAIZ, env=entorno).returncode
     return paso, "ok" if rc == 0 else "falló"
 
 
-def main():
-    if len(sys.argv) != 1:
-        print(__doc__, file=sys.stderr)
-        return 2
-    entorno = aislar_git.sin_repositorio(os.environ)
-    resultados = [correr_carpeta(carpeta, entorno) for carpeta in carpetas()]
-    claude = shutil.which("claude", path=entorno.get("PATH"))
-    resultados.append(correr_herramienta("claude plugin validate . --strict",
-                                         [claude, "plugin", "validate", ".", "--strict"], entorno))
-    resultados.append(correr_herramienta("actionlint", [buscar_actionlint(entorno)], entorno))
+def lanzador():
+    """El lanzador de bin/ que corre este sistema, como orden para `RAMA`."""
+    ruta = RAIZ / "bin" / ("rama.cmd" if os.name == "nt" else "rama")
+    return shlex.quote(ruta.as_posix())
+
+
+def pasos_de_go(entorno):
+    go = shutil.which("go", path=entorno.get("PATH"))
+    sh = shutil.which("sh", path=entorno.get("PATH"))
+    resultados = [correr_herramienta("go vet ./...", [go, "vet", "./..."], entorno),
+                  correr_herramienta("go test ./...", [go, "test", "./..."], entorno),
+                  correr_herramienta("scripts/compilar --verificar", [go and sh, "scripts/compilar", "--verificar"],
+                                     entorno, "go o sh no están instalados")]
+    rama = TESTS / "rama"
+    if rama.is_dir():
+        orden = lanzador()
+        resultados.append(correr_carpeta(rama, entorno, f"tests/rama con RAMA={orden}", {"RAMA": orden}))
+    return resultados
+
+
+def resumir(resultados):
     print("\n== Resumen")
     for paso, estado in resultados:
         print(f"{estado}: {paso}")
     return 1 if any(estado == "falló" for _, estado in resultados) else 0
+
+
+def main():
+    entorno = aislar_git.sin_repositorio(os.environ)
+    if len(sys.argv) == 3 and sys.argv[1] == "--rama":
+        orden = sys.argv[2]
+        return resumir([correr_carpeta(TESTS / "rama", entorno, f"tests/rama con RAMA={orden}", {"RAMA": orden})])
+    if len(sys.argv) != 1:
+        print(__doc__, file=sys.stderr)
+        return 2
+    resultados = [correr_carpeta(carpeta, entorno) for carpeta in carpetas()]
+    if (RAIZ / "go.mod").is_file():
+        resultados += pasos_de_go(entorno)
+    claude = shutil.which("claude", path=entorno.get("PATH"))
+    resultados.append(correr_herramienta("claude plugin validate . --strict",
+                                         [claude, "plugin", "validate", ".", "--strict"], entorno))
+    resultados.append(correr_herramienta("actionlint", [buscar_actionlint(entorno)], entorno))
+    return resumir(resultados)
 
 
 if __name__ == "__main__":

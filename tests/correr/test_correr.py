@@ -1,7 +1,7 @@
 """Pruebas de tests/correr.py, el comando que corre todo lo de CI, sobre repositorios armados para cada prueba.
 
 Cada prueba copia correr.py y aislar_git.py a un repositorio temporal con sus propias carpetas de tests/, y lo corre con
-un PATH que solo tiene git y los `claude`, `go` y `actionlint` falsos que la prueba pone.
+un PATH que solo tiene git y los `claude`, `go`, `sh` y `actionlint` falsos o reales que la prueba pone.
 Uso: python3 -m unittest discover -s tests/correr -v
 """
 import importlib.util
@@ -93,6 +93,31 @@ if sys.argv[1:] == ["env", "GOPATH"]:
     print({gopath!r})
 """
 
+# `go` falso que anota cada llamada en una línea de go.jsonl y sale con el código de SALIDA_go.
+GO_REGISTRA = """#!{python}
+import json, os, sys
+with open(os.path.join({registro!r}, "go.jsonl"), "a") as f:
+    f.write(json.dumps({{"args": sys.argv[1:], "cwd": os.getcwd()}}) + "\\n")
+sys.exit(int(os.environ.get("SALIDA_go", "0")))
+"""
+
+# `scripts/compilar` falso: anota sus argumentos y sale con el código de SALIDA_compilar.
+COMPILAR = """#!/bin/sh
+echo "$@" >> "$REGISTRO/compilar"
+exit "${{SALIDA_compilar:-0}}"
+"""
+
+# Un test de tests/rama que anota el RAMA con que corrió.
+VE_RAMA = """import os
+import unittest
+
+
+class VeRama(unittest.TestCase):
+    def test_anota(self):
+        with open(os.path.join({registro!r}, "rama.jsonl"), "a") as f:
+            f.write(repr(os.environ.get("RAMA")) + "\\n")
+"""
+
 
 def git(*args, cwd):
     subprocess.run(["git", "-c", "user.name=p", "-c", "user.email=p@example.com", "-c", "commit.gpgsign=false", *args],
@@ -133,9 +158,9 @@ class Base(unittest.TestCase):
         archivo = self.registro / f"{nombre}.json"
         return json.loads(archivo.read_text()) if archivo.exists() else None
 
-    def correr(self, cwd=None, **entorno):
+    def correr(self, cwd=None, args=(), **entorno):
         env = {**os.environ, "PATH": str(self.bin), **entorno}
-        r = subprocess.run([sys.executable, str(self.raiz / "tests" / "correr.py")], cwd=cwd or self.raiz, env=env,
+        r = subprocess.run([sys.executable, str(self.raiz / "tests" / "correr.py"), *args], cwd=cwd or self.raiz, env=env,
                            capture_output=True, text=True, timeout=300)
         return r, r.stdout + r.stderr
 
@@ -281,6 +306,88 @@ class Herramientas(Base):
                 r, salida = self.correr(**{f"SALIDA_{nombre}": "1"})
                 self.assertEqual(r.returncode, 1, salida)
                 self.assertEqual(self.resumen(salida).get(paso), "falló", salida)
+
+
+class Go(Base):
+    """Con `go.mod` en la raíz: `go vet`, `go test`, la verificación de los ejecutables de bin/ y tests/rama contra el
+    lanzador de bin/."""
+
+    def setUp(self):
+        super().setUp()
+        (self.raiz / "go.mod").write_text("module prueba\n\ngo 1.27.3\n")
+        os.symlink(shutil.which("sh"), self.bin / "sh")
+        compilar = self.raiz / "scripts" / "compilar"
+        compilar.parent.mkdir()
+        compilar.write_text(COMPILAR.format())
+        compilar.chmod(0o755)
+        self.carpeta("uno", PASA)
+
+    def go_falso(self):
+        go = self.bin / "go"
+        go.write_text(GO_REGISTRA.format(python=sys.executable, registro=str(self.registro)))
+        go.chmod(0o755)
+
+    def llamadas_a_go(self):
+        archivo = self.registro / "go.jsonl"
+        return [json.loads(l) for l in archivo.read_text().splitlines()] if archivo.exists() else []
+
+    def test_corre_vet_test_y_la_verificacion_de_bin_en_la_raiz(self):
+        self.go_falso()
+        r, salida = self.correr(REGISTRO=str(self.registro))
+        self.assertEqual(r.returncode, 0, salida)
+        llamadas = [l for l in self.llamadas_a_go() if l["args"] != ["env", "GOPATH"]]
+        self.assertEqual([l["args"] for l in llamadas], [["vet", "./..."], ["test", "./..."]], salida)
+        self.assertTrue(all(Path(l["cwd"]).resolve() == self.raiz.resolve() for l in llamadas), llamadas)
+        self.assertEqual((self.registro / "compilar").read_text(), "--verificar\n")
+        resumen = self.resumen(salida)
+        for paso in ("go vet ./...", "go test ./...", "scripts/compilar --verificar"):
+            self.assertEqual(resumen.get(paso), "ok", salida)
+
+    def test_falla_si_falla_go_o_la_verificacion(self):
+        self.go_falso()
+        for variable, paso in (("SALIDA_go", "go test ./..."), ("SALIDA_compilar", "scripts/compilar --verificar")):
+            with self.subTest(paso=paso):
+                r, salida = self.correr(REGISTRO=str(self.registro), **{variable: "1"})
+                self.assertEqual(r.returncode, 1, salida)
+                self.assertEqual(self.resumen(salida).get(paso), "falló", salida)
+
+    def test_sin_go_salta_lo_de_go(self):
+        r, salida = self.correr(REGISTRO=str(self.registro))
+        self.assertEqual(r.returncode, 0, salida)
+        resumen = self.resumen(salida)
+        self.assertEqual(resumen.get("go vet ./... (no está instalado)"), "saltado", salida)
+        self.assertEqual(resumen.get("go test ./... (no está instalado)"), "saltado", salida)
+        self.assertEqual(resumen.get("scripts/compilar --verificar (go o sh no están instalados)"), "saltado", salida)
+        self.assertFalse((self.registro / "compilar").exists())
+
+    def test_corre_tests_rama_tambien_contra_el_lanzador_de_bin(self):
+        self.carpeta("rama", VE_RAMA.format(registro=str(self.registro)))
+        r, salida = self.correr(REGISTRO=str(self.registro))
+        self.assertEqual(r.returncode, 0, salida)
+        lanzador = (self.raiz / "bin" / "rama").as_posix()
+        self.assertEqual((self.registro / "rama.jsonl").read_text().splitlines(), ["None", repr(lanzador)])
+        resumen = self.resumen(salida)
+        self.assertEqual(resumen.get("tests/rama"), "ok", salida)
+        self.assertEqual(resumen.get(f"tests/rama con RAMA={lanzador}"), "ok", salida)
+
+
+class SoloRama(Base):
+    """`--rama <orden>`: lo que corre el job de CI de cada sistema, solo tests/rama con ese `RAMA`."""
+
+    def test_corre_solo_tests_rama_con_esa_orden(self):
+        self.carpeta("rama", VE_RAMA.format(registro=str(self.registro)))
+        self.carpeta("otra", FALLA)
+        orden = "'/ruta con espacio/bash' /repo/bin/rama"
+        r, salida = self.correr(args=("--rama", orden))
+        self.assertEqual(r.returncode, 0, salida)
+        self.assertEqual((self.registro / "rama.jsonl").read_text().splitlines(), [repr(orden)])
+        self.assertEqual(self.resumen(salida), {f"tests/rama con RAMA={orden}": "ok"}, salida)
+
+    def test_falla_si_falla_tests_rama(self):
+        self.carpeta("rama", FALLA)
+        r, salida = self.correr(args=("--rama", "rama"))
+        self.assertEqual(r.returncode, 1, salida)
+        self.assertEqual(self.resumen(salida), {"tests/rama con RAMA=rama": "falló"}, salida)
 
 
 # Una orden de unittest para una carpeta concreta de tests/, como las de la lista que el comando reemplaza.
