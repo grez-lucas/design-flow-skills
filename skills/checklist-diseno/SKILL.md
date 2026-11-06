@@ -15,13 +15,17 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ## Skills hermanas
 
-Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar. Si falta, detente y propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar.
+
+Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
 
 ## Pasos
 
 ### 1. Qué revisar
 
-Trabaja en el repositorio de diseño (tiene `design/` en la raíz). Si el directorio actual no lo es, pregunta dónde está. Si el producto no tiene repositorio de diseño, detente: no hay vistas que revisar, y crearlo lo decide el TL, así que no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: no se revisó nada. Cuando exista, vuelve a correr este paso.
+Trabaja en el repositorio de diseño (tiene `design/` en la raíz). Si el directorio actual no lo es, pregunta dónde está.
+
+Detente. Si el producto no tiene repositorio de diseño, no hay vistas que revisar, y crearlo lo decide el TL, así que no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: no se revisó nada. Cuando exista, vuelve a correr este paso.
 
 Si la persona nombra una épica o una vista, revisa esas; si no, pregunta si revisas todo `design/vistas/` o solo lo que cambió desde la última planificación. Para lo que cambió, `git log` y `git diff` del repositorio de diseño lo muestran.
 
@@ -33,7 +37,7 @@ Corre el script incluido:
 <intérprete> -B <ruta-de-esta-skill>/scripts/revisar.py <repo-de-diseño> [vistas...]
 ```
 
-Si `revisar.py` dice que no hay vistas en `design/vistas/<épica>/`, detente: no hay qué revisar. Si hay archivos HTML sueltos en `design/` o en la raíz del repositorio, propón moverlos a `design/vistas/<épica>/`; con el sí, muévelos y vuelve a correr `revisar.py`. Si no hay ninguno, propón dibujarlas con `spec-a-html`, si la épica tiene spec, o convertirlas con `html-a-vista`, si hay un mockup; con el sí, sigue con esa skill, o con "Skills hermanas" si no está, y vuelve a este paso. Sin el sí, queda detenida y di qué quedó sin hacer: no se revisó ninguna vista.
+Detente. Si `revisar.py` dice que no hay vistas en `design/vistas/<épica>/`, no hay qué revisar. Si hay archivos HTML sueltos en `design/` o en la raíz del repositorio, propón moverlos a `design/vistas/<épica>/`; con el sí, muévelos y vuelve a correr `revisar.py`. Si no hay ninguno, propón dibujarlas con `spec-a-html`, si la épica tiene spec, o convertirlas con `html-a-vista`, si hay un mockup; con el sí, sigue con esa skill, o con "Skills hermanas" si no está, y vuelve a este paso. Sin el sí, queda detenida y di qué quedó sin hacer: no se revisó ninguna vista.
 
 Si `revisar.py` lista vistas fuera del repositorio, no las revisa: propón la ruta equivalente dentro del repositorio de diseño, la misma `design/vistas/<épica>/<vista>.html`, o abrir el repositorio correcto. Con el sí, vuelve a correr `revisar.py` con esa ruta. Sin el sí, el informe las nombra como no revisadas.
 
@@ -80,13 +84,13 @@ Antes de escribir la primera corrección, decide la rama: el paso 5 guarda en la
 
 Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
 
-Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
+Detente. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, no escribas en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
 
 El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: antes de escribir, sigue `references/rama.md`, sección "Antes de guardar": el trabajo sin guardar de otra persona, lo que dejó preparado en el índice y una principal adelantada entrarían en tu commit. Si pasa, guarda en la rama actual, con el commit de "El commit de la skill".
 - `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí, después de "Antes de guardar". Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
-- `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
+- `parar`: Detente. Todavía no escribas en el repositorio: explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`. Con `otra-rama`, `sin-rama`, `commits-sin-empujar` o `cambios-sin-guardar`, propón apartar lo que había en una rama propia y, con el sí, apártalo y vuelve a correr la misma orden de `rama.py`; cuando falta el servidor, eso no se arregla desde la sesión y va el pedido al TL. Sin el sí, di qué quedó sin hacer.
 
 Sin Python no hay cómo guardar: las correcciones van al informe como bloqueos, cada una con el arreglo que propones.
 
@@ -110,7 +114,7 @@ La puesta al día de los compartidos:
 
 Si `../spec-a-html/` no está junto a esta skill, sigue "Skills hermanas"; sin el sí, esas clases van al informe.
 
-Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el sí, escríbelo y vuelve a correr `revisar.py` sobre las vistas que tocaste; lo que siga bloqueando va al informe. Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste.
+Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí. Con el sí, escríbelo y vuelve a correr `revisar.py` sobre las vistas que tocaste; lo que siga bloqueando va al informe. Sin el sí, el cambio queda en el informe como bloqueo, con el arreglo que propusiste.
 
 ### 5. Guardar
 

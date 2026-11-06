@@ -17,13 +17,17 @@ Al empezar, una sola vez, busca el intérprete: prueba `python3`, `python` y `py
 
 ## Skills hermanas
 
-Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar. Si falta, detente y propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
+Esta skill es parte de un flujo de cinco: `grilling-es`, `spec-a-tickets`, `spec-a-html`, `html-a-vista` y `checklist-diseno`. Antes de seguir con una, comprueba que esté instalada: que figure en tu lista de skills, o que exista `../<hermana>/SKILL.md` junto a esta skill. Con `npx skills` se instalan de a una, y una puede faltar.
+
+Detente. Si falta una hermana, propón instalar el plugin completo, que trae las cinco juntas. Con el sí, si esta skill está bajo `.claude/plugins/`, corre `claude plugin marketplace add grez-lucas/design-flow-skills` y `claude plugin install flujo-diseno@design-flow-skills`; si vino con `npx skills`, corre `npx skills@latest add grez-lucas/design-flow-skills -a <agente>` desde la carpeta donde se instaló, con `-g` si está a nivel de usuario. Las skills nuevas se cargan al abrir una sesión: pide reiniciar la sesión y, en la nueva, vuelve a probar que la hermana esté antes de seguir. Sin el sí, o si la instalación falla, queda detenida y di qué quedó sin hacer.
 
 ## Pasos
 
 ### 1. Conseguir el spec
 
-El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets, y no se reconstruye el requerimiento de memoria: búscalo antes en `specs/*/spec.md` del repositorio de diseño y en el tracker. Si no existe, detente y propón armarlo con `grilling-es` en esta sesión (`flujo-diseno:grilling-es` si está instalada como plugin de Claude Code). Con el sí, sigue con `grilling-es`, o con "Skills hermanas" si no está, y vuelve a este paso con el spec que deje. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket.
+El spec llega por enlace al tracker, adjunto o pegado en el chat, o como `specs/<épica>/spec.md` en el repositorio de diseño. Si la sesión no puede leer el enlace, pide que lo peguen. Sin spec no hay tickets, y no se reconstruye el requerimiento de memoria: búscalo antes en `specs/*/spec.md` del repositorio de diseño y en el tracker.
+
+Detente. Si el spec no existe, propón armarlo con `grilling-es` en esta sesión (`flujo-diseno:grilling-es` si está instalada como plugin de Claude Code). Con el sí, sigue con `grilling-es`, o con "Skills hermanas" si no está, y vuelve a este paso con el spec que deje. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket.
 
 El spec sigue una plantilla con contexto, historias COMO, QUIERO, PARA con sus escenarios `### Escenario N: <nombre>` en un bloque `gherkin`, estados por vista, reglas, decisiones, fuera de alcance, enlaces y la tabla `## Escenarios en pantalla`. La tabla es para las vistas: no pasa a los tickets, que ya llevan cada escenario con su nombre.
 
@@ -36,7 +40,11 @@ Un spec blando produce tickets prolijos y equivocados, y publicados se ven ofici
 - Las reglas que cambian el comportamiento tienen respuesta, o están marcadas como pendientes con quién decide.
 - Está claro qué queda fuera de alcance.
 
-Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda. Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con `grilling-es` en esta sesión, sobre esos huecos. Con el sí, sigue con `grilling-es`, o con "Skills hermanas" si no está, y, con el spec que deje, vuelve a correr los cuatro controles. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket. No rellenes un criterio con una suposición: una suposición publicada como criterio de aceptación es exactamente la falla que este paso evita.
+Si falla uno, sigue y llévalo a "Open Questions" del ticket que corresponda.
+
+Detente. Si fallan dos o más, di qué falta y por qué importa, y propón cerrarlo con `grilling-es` en esta sesión, sobre esos huecos. Con el sí, sigue con `grilling-es`, o con "Skills hermanas" si no está, y, con el spec que deje, vuelve a correr los cuatro controles. Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket.
+
+No rellenes un criterio con una suposición: una suposición publicada como criterio de aceptación es exactamente la falla que este paso evita.
 
 ### 3. Leer las convenciones del proyecto
 
@@ -52,9 +60,13 @@ Las convenciones de gestión de este proyecto están en <ruta o URL>.
 
 Una ruta local solo existe en las máquinas que la tienen: si las convenciones están en un repositorio con URL, guarda la URL. El puntero entra en el commit de los tickets (paso 9).
 
-Si la persona dice que no hay convenciones, no escribas el puntero: usa la plantilla de `references/plantilla-story.md` y pregunta solo lo que no puedes ver: si hay tracker y cuál. Sin tracker, los tickets van como archivos markdown.
+Si la persona dice que no hay convenciones, el puntero no va: usa la plantilla de `references/plantilla-story.md` y pregunta solo lo que no puedes ver: si hay tracker y cuál. Sin tracker, los tickets van como archivos markdown.
 
-Si la sesión va a escribir en el repositorio de diseño (el puntero de este paso, los tickets como archivos del paso 7 o el spec congelado del paso 8), antes del primer archivo decide la rama: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar. Si la sesión tiene que escribir en el repositorio de diseño y el producto no tiene uno, detente: no lo crees tú, porque el TL decide el host y los accesos, y eso no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: lo que iba al repositorio (el puntero, los tickets como archivos o el spec congelado) no se escribió. Cuando el TL lo cree, vuelve a correr este paso. Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
+Si la sesión va a escribir en el repositorio de diseño (el puntero de este paso, los tickets como archivos del paso 7 o el spec congelado del paso 8), antes del primer archivo decide la rama: el paso 9 guarda en la rama actual, y cambiar de rama con archivos sin guardar puede fallar.
+
+Detente. Si la sesión tiene que escribir en el repositorio de diseño y el producto no tiene uno, no lo crees tú, porque el TL decide el host y los accesos, y eso no se hace desde la sesión. Redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: lo que iba al repositorio (el puntero, los tickets como archivos o el spec congelado) no se escribió. Cuando el TL lo cree, vuelve a correr este paso.
+
+Corre, con la ruta absoluta de esta skill en lugar de `<ruta-de-esta-skill>` y desde el repositorio de diseño:
 
 ```
 <intérprete> -B <ruta-de-esta-skill>/scripts/rama.py revisar --tipo tickets --epica <épica>
@@ -62,13 +74,13 @@ Si la sesión va a escribir en el repositorio de diseño (el puntero de este pas
 
 Si no encontraste intérprete, para y no guardes: explica en simple que falta Python 3.9 o superior y que se instala desde https://www.python.org/downloads/.
 
-Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, detente sin escribir en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
+Detente. Si `rama.py` sale con error o no devuelve un JSON, aquí o tras un rechazo, no escribas en el repositorio y sigue `references/rama.md`, sección "Error de rama.py": si el nombre termina en guion y número, propón otro, por ejemplo `fase-dos` en lugar de `fase-2`, y con el sí vuelve a correrlo; sin el sí, queda detenida y di qué quedó sin hacer.
 
 El script trae lo nuevo del servidor, no cambia de rama y devuelve un JSON con una `accion`:
 
 - `guardar`: antes de escribir, sigue `references/rama.md`, sección "Antes de guardar": el trabajo sin guardar de otra persona, lo que dejó preparado en el índice y una principal adelantada entrarían en tu commit. Si pasa, guarda en la rama actual, con el commit de "El commit de la skill".
 - `volver`: la rama ya no está en el servidor, por ejemplo porque el TL hizo el merge y la borró, y lo que tenía ya está en la principal. Corre `git switch <principal>`, con la `principal` del JSON, y `git pull --ff-only`, y guarda ahí, después de "Antes de guardar". Si uno falla, sigue `references/rama.md`, sección "Volver que falla".
-- `parar`: no escribas todavía en el repositorio. Explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`: apartar lo que había en una rama propia y guardar desde la principal, o redactar el pedido al TL cuando falta el servidor.
+- `parar`: Detente. Todavía no escribas en el repositorio: explica en simple el `detalle` y en qué rama estás, y sigue `references/rama.md`, que da el arreglo de cada `motivo`. Con `otra-rama`, `sin-rama`, `commits-sin-empujar` o `cambios-sin-guardar`, propón apartar lo que había en una rama propia y, con el sí, apártalo y vuelve a correr la misma orden de `rama.py`; cuando falta el servidor, eso no se arregla desde la sesión y va el pedido al TL. Sin el sí, di qué quedó sin hacer.
 
 ### 4. Cortar
 
@@ -114,7 +126,7 @@ Sigue `references/trackers.md` según dónde van los tickets. En todos los casos
 1. Verifica el acceso con una lectura antes de escribir.
 2. Busca tickets que ya cubran estas historias. Si el spec reemplaza a uno anterior (lo dice su sección "Enlaces"), los tickets que llevan el mismo identificador del spec, en el título o en el cuerpo, son de este spec: muestra qué cambia en cada uno y actualízalos con aprobación explícita; las historias que el spec retira se informan, no se cierran. Cualquier otro ticket que encuentres es ajeno: muéstralo y pregunta si se extiende, se reemplaza o se omite, y nunca lo edites ni lo cierres.
 3. Crea los tickets en orden de dependencias, para que cada uno cite identificadores reales.
-4. Si la creación de un ticket falla a mitad de camino, detente y di qué quedó creado y qué no. Busca el que falló por su identificador, para no duplicarlo, y propón reintentarlo. Con el sí, reintenta, vuelve a leerlo para confirmar que quedó y sigue con los demás. Si falla de nuevo o la sesión perdió el acceso al tracker, eso no se arregla desde la sesión: deja los que faltan como archivos, como dice `references/trackers.md`, sección "Acceso", y di qué quedó sin hacer. Sin el sí, queda detenida y di qué quedó sin hacer.
+4. Detente. Si la creación de un ticket falla a mitad de camino, di qué quedó creado y qué no. Busca el que falló por su identificador, para no duplicarlo, y propón reintentarlo. Con el sí, reintenta, vuelve a leerlo para confirmar que quedó y sigue con los demás. Si falla de nuevo o la sesión perdió el acceso al tracker, eso no se arregla desde la sesión: deja los que faltan como archivos, como dice `references/trackers.md`, sección "Acceso", y di qué quedó sin hacer. Sin el sí, queda detenida y di qué quedó sin hacer.
 
 ### 8. Congelar el spec
 
@@ -148,7 +160,7 @@ Si git responde que `.claude/pm-conventions.md` está ignorada, no la fuerces co
 
 Muestra el cambio y, con el sí, escríbelo, vuelve a correr `git check-ignore .claude/pm-conventions.md`, sin `-v`, que ya no debe responder nada, y agrégalo con `git add .claude/pm-conventions.md` y `git add .gitignore`. El cuerpo del mensaje del commit lo dice: `Excepción en .gitignore para .claude/pm-conventions.md.` Sin el sí, el puntero queda solo en esta máquina: dilo en el resumen.
 
-Si `git check-ignore .claude/pm-conventions.md` sigue respondiendo, la regla está fuera del `.gitignore` de la raíz: detente, muestra la línea que da `git check-ignore -v .claude/pm-conventions.md`, y como eso no se arregla desde la sesión, redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: el puntero queda solo en esta máquina y lo demás se guarda. Cuando el TL cambie la regla, vuelve a correr `git check-ignore`.
+Detente. Si `git check-ignore .claude/pm-conventions.md` sigue respondiendo, la regla está fuera del `.gitignore` de la raíz: muestra la línea que da `git check-ignore -v .claude/pm-conventions.md`, y como eso no se arregla desde la sesión, redacta el pedido al TL con `references/rama.md`, sección "Pedido al TL", y di qué quedó sin hacer: el puntero queda solo en esta máquina y lo demás se guarda. Cuando el TL cambie la regla, vuelve a correr `git check-ignore`.
 
 Nunca `git add -A` ni `git add .`: si las skills se instalaron en el proyecto con `npx skills`, `.agents/`, `.claude/skills/` y `skills-lock.json` quedan sin seguimiento y no van en el commit.
 

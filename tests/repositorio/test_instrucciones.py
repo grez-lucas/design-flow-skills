@@ -230,7 +230,9 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
 
     def test_sin_el_si_se_detiene_por_el_proto_js_viejo_y_las_reglas_que_cambian_lo_propio(self):
         """Q128, que supersede el motivo de Q124: la ola 1 ya copia `.modal`, así que el motivo no es el bloqueo."""
-        self.assertRegex(self.paso, r"Sin el sí, detente antes de la ola 1 y no escribas en el repositorio: explica en "
+        self.assertRegex(self.paso, r"Detente\. Sin el sí a la puesta al día, no empieces la ola 1 ni escribas en el repositorio: "
+                                    r"propón de nuevo la puesta al día cuando la persona quiera, y con el sí vuelve a correr `comparar`\. "
+                                    r"Explica en "
                                     r"simple que sin la puesta al día queda un `proto.js` viejo y entran reglas que cambian "
                                     r"cómo se ven las vistas que el repositorio ya tiene, como `:where\(\[data-frame\]\)`, "
                                     r"sin que la persona las vea antes\.")
@@ -246,7 +248,7 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
     def test_design_a_medias_arma_tokens_css_desde_el_mockup_y_sigue(self):
         """Q132, que supersede Q129: `design/` con `components.css` o `proto.js` pero sin `tokens.css`."""
         self.assertRegex(self.paso, r"Si `design/` tiene `components.css` o `proto.js` pero no `tokens.css`, el repositorio "
-                                    r"quedó a medias:[^\n]*? Detente antes de la ola 1, explícalo en simple y propón armar "
+                                    r"quedó a medias:[^\n]*?\n\nDetente\. Con un `design/` a medias, no empieces la ola 1: explícalo en simple y propón armar "
                                     r"`tokens.css` ahora desde el mockup")
         self.assertRegex(self.paso, r"(?m)^<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py consolidar "
                                     r"<trabajo>/trozos/\*/estilos\*\.css --roles <repo-de-diseño>/design/components\.css$")
@@ -259,8 +261,8 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
                                     r"con `<intérprete> -B <ruta-de-esta-skill>/scripts/tokens\.py mapear`, no se consolidan otra vez\.")
         # Hallazgo 8 de la tercera revisión: el sí de esta detención es el de la tabla, y va junto a él.
         self.assertRegex(self.paso, r"Con el sí a la tabla, escribe `tokens.css` en `design/` del repositorio, corre "
-                                    r"`comparar` y sigue con la puesta al día desde ahí\. Sin el sí a la tabla, queda detenida "
-                                    r"sin escribir en el repositorio y di qué quedó sin hacer: falta `tokens.css`[^\n]*? y la "
+                                    r"`comparar` y sigue con la puesta al día desde ahí\. Sin el sí a la tabla, el repositorio queda "
+                                    r"como estaba; di qué quedó sin hacer: falta `tokens.css`[^\n]*? y la "
                                     r"conversión no empezó\.")
         # Hallazgo 7: Q136 por propiedad, todos los candidatos y un valor por tema.
         self.assertRegex(self.paso, r"Un rol para el que el mockup no tiene valor se propone con el valor por defecto del "
@@ -303,7 +305,7 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
     def test_si_el_script_sale_con_error_propone_el_arreglo_y_vuelve_a_comparar(self):
         """Q125 con Q131: se detiene, propone corregir lo que el mensaje señala, lo aplica con el sí, vuelve a correr
         `comparar` y sigue; sin el sí queda detenida y dice qué quedó sin hacer."""
-        self.assertRegex(self.paso, r"Si el script sale con error, detente antes de la ola 1: explica en simple qué dice el "
+        self.assertRegex(self.paso, r"Detente\. Si el script sale con error, no empieces la ola 1: explica en simple qué dice el "
                                     r"error y propón corregirlo tú")
         self.assertRegex(self.paso, r"Muestra el cambio antes de escribirlo y, con el sí, corrígelo, vuelve a correr "
                                     r"`comparar` y sigue con la puesta al día desde ahí\.")
@@ -328,7 +330,7 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         olas = (SKILLS / "html-a-vista" / "references" / "olas.md").read_text(encoding="utf-8")
         integracion = olas.split("## Ola 3")[1].split("**Revisor**")[0]
         self.assertRegex(integracion, r"Lo que bloquea en las vistas convertidas lo corriges tú antes de lanzar al revisor")
-        self.assertRegex(integracion, r"puesta al día que aprobó la persona, detente antes de agregarlos: muéstraselos[^.]*\.")
+        self.assertRegex(integracion, r"puesta al día que aprobó la persona, no los agregues todavía: muéstraselos[^.]*\.")
         self.assertRegex(integracion, r"Con el sí, agrégalos a la copia, vuelve a correr `revisar.py` y sigue desde ahí\.")
         self.assertRegex(integracion, r"Sin el sí, queda detenida antes del revisor y di qué vistas quedaron sin integrar "
                                       r"y por qué[^.]*\.")
@@ -343,7 +345,7 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
         self.assertRegex(integracion, r"Las reglas nuevas que piden los contratos de las olas 1 y 2 entran sin un sí aparte: "
                                       r"son parte de la conversión que la persona aprobó en el plan\.")
         self.assertRegex(integracion, r"Si para eso hacen falta reglas o tokens compartidos que no vienen de la ola 1, de los "
-                                      r"contratos de la ola 2 ni de la puesta al día que aprobó la persona, detente")
+                                      r"contratos de la ola 2 ni de la puesta al día que aprobó la persona, no los agregues todavía")
 
     def test_el_informe_nombra_el_tokens_css_que_armo_el_paso_6(self):
         """Hallazgo 6: el informe dice cuándo el paso 6 armó `tokens.css` desde el mockup."""
@@ -355,30 +357,33 @@ class CompartidosAlDiaEnHtmlAVista(unittest.TestCase):
 
 
 class DetencionesConArreglo(unittest.TestCase):
-    """Issue 42, criterio 4, con Q131: cada detención que escribe el README o un `.md` bajo `skills/` trae su arreglo.
+    """Issue 42, criterio 4, con Q131: cada detención del README y de todo `.md` bajo `skills/` trae su arreglo.
 
-    Cómo se verifica, sobre el texto y unidad por unidad (un párrafo, una viñeta, un paso numerado o una fila de tabla,
-    fuera de los bloques de código):
-    - Una detención se escribe con "detente", "queda detenida" o "se detiene". Las otras formas ("para y", "no guardes",
-      "termina aquí", "debe detenerse", "te detienes", "no continúes" y las demás de `FORMA_VIEJA`) no pasan, para que
-      una detención nueva no quede fuera del chequeo por estar escrita de otra forma.
-    - La unidad con una detención dice qué quedó sin hacer ("di qué quedó sin hacer", no "no digas qué quedó...").
-    - Y, en la misma unidad, una de tres: propone un arreglo, dice qué pasa con el sí y vuelve a correr el chequeo; o
-      dice que el arreglo no se puede hacer desde la sesión y cuándo vuelve a correr el chequeo; o es la rama del "sin
-      el sí" de la unidad que la precede, que propone el arreglo.
-    Que otra unidad de la misma sección cumpla no alcanza. La excepción es Python ausente, que resuelve el issue 45: esas
-    oraciones y filas quedan como están, y el test las nombra una por una."""
+    Cómo se verifica, unidad por unidad (un párrafo, una viñeta, un paso numerado o una fila de tabla, fuera de los
+    bloques de código y sin contar lo que va entre comillas invertidas):
+    - En `skills/`, una detención empieza con la marca fija "Detente.", después del guion o el número si es una viñeta o
+      un paso, o después de su etiqueta (`- parar: Detente.`, `- **Sin spec**: Detente.`). En el README, que describe a las skills en tercera persona, la marca es "se detiene".
+    - Una unidad con cualquiera de las raíces de `RAICES` ("deten", "detien", "para" como verbo, "abort", "no sigas",
+      "no continúes", "no escribas", "no avances" y las demás) y sin la marca falla: así no hay otra forma de escribir
+      una detención que pase sin el chequeo.
+    - La unidad marcada dice qué quedó sin hacer ("di qué quedó sin hacer", no "no digas qué quedó...") y, en la misma
+      unidad, propone el arreglo, dice qué pasa con el sí y vuelve a correr el chequeo, o dice que el arreglo no se
+      puede hacer desde la sesión y cuándo vuelve a correr el chequeo.
+    - Un bloque de código sin cerrar falla, porque escondería todo lo que sigue.
+    La excepción es Python ausente, que resuelve el issue 45: esas oraciones y filas quedan como están."""
 
-    DETENCION = re.compile(r"\b(?:detente|detenerte|queda detenida|se detiene)\b", re.I)
-    FORMA_VIEJA = re.compile(r"\by para\.|\b(?:para y|para aquí|para:|paran? antes de|no sigas|no sigue|no avances|"
-                             r"no avanza|no conviertas|no guardes|no contin[uú]es?|termina aquí|debe detenerse|"
-                             r"detenerse|deténgase|te detienes|se para|abort[a-z]*)\b", re.I)
+    MARCA = re.compile(r"^(?:- |\d+\. )?(?:`[^`]+`: |\*\*[^*]+\*\*: )?Detente\. ")
+    MARCA_README = re.compile(r"\bse detiene\b", re.I)
+    RAICES = re.compile(
+        r"deten|detien|detén|\bpar(?:ar|en|ó|ará|aría|amos)\b"
+        r"|(?-i:\bparan?\b)(?=\s*(?:[.,;:)]|y\b|aquí\b|ahí\b|antes\b|$))"
+        r"|abort|no sigas|no continúes|no continues|no escribas|no avances|no guardes|no conviertas|no lances"
+        r"|termina aquí|frena", re.I)
     SIN_HACER = re.compile(r"\b(?:di|dice|dicen|dices|decir|dilo)\b[^.]{0,80}?\bqu[ée]\b[^.]{0,40}?\bqued(?:ó|aron)\b"
                            r"[^.]{0,20}?\bsin\b", re.I)
     CON_SI = re.compile(r"\bcon el sí\b", re.I)
-    SIN_SI = re.compile(r"\bsin el sí\b", re.I)
     DESDE_LA_SESION = re.compile(r"\bno se (?:puede (?:hacer|arreglar|corregir)|arregla|hace|corrige) desde la sesión", re.I)
-    PROPONE = re.compile(r"\b(?:propón|propone|proponle|ofrece|ofrécele)\b", re.I)
+    PROPONE = re.compile(r"\b(?:propón|propone|proponen|proponle|ofrece|ofrécele)\b", re.I)
     REPITE = re.compile(r"\bvuelven? a (?:correr|probar|leer|mirar|este paso)|\bvuelves a correr|\brepiten?\b", re.I)
     # Issue 45: sin Python, cada skill sigue como hoy hasta que los scripts pasen a Go (Q151, Q152).
     SIN_PYTHON = {
@@ -391,7 +396,8 @@ class DetencionesConArreglo(unittest.TestCase):
 
     @staticmethod
     def unidades(texto):
-        """Cada párrafo, viñeta, paso numerado o fila de tabla fuera de los bloques de código, en orden."""
+        """Cada párrafo, viñeta, paso numerado o fila de tabla fuera de los bloques de código, en orden. Un bloque sin
+        cerrar deja una unidad `None` al final."""
         unidades, actual, bloque = [], [], False
 
         def cerrar():
@@ -414,35 +420,37 @@ class DetencionesConArreglo(unittest.TestCase):
             else:
                 actual.append(limpia)
         cerrar()
+        if bloque:
+            unidades.append(None)
         return unidades
-
-    @classmethod
-    def propone(cls, unidad):
-        return bool(cls.CON_SI.search(unidad) and cls.PROPONE.search(unidad) and cls.REPITE.search(unidad))
 
     @classmethod
     def exenta(cls, unidad):
         return unidad in cls.SIN_PYTHON or unidad.startswith(cls.SIN_PYTHON_EN_EL_README)
 
     @classmethod
-    def hallazgos(cls, texto):
-        hallazgos, anterior = [], ""
+    def hallazgos(cls, texto, readme=False):
+        hallazgos = []
         for unidad in cls.unidades(texto):
-            corta = unidad[:90]
-            if cls.exenta(unidad):
-                anterior = unidad
+            if unidad is None:
+                hallazgos.append("un bloque de código sin cerrar")
                 continue
-            if cls.FORMA_VIEJA.search(unidad):
-                hallazgos.append(f"detención escrita de otra forma, usa detente o queda detenida: {corta}")
-            if cls.DETENCION.search(unidad):
-                if not cls.SIN_HACER.search(unidad):
-                    hallazgos.append(f"no dice qué quedó sin hacer: {corta}")
-                sin_arreglo_posible = cls.DESDE_LA_SESION.search(unidad) and cls.REPITE.search(unidad)
-                rama_del_no = cls.SIN_SI.search(unidad) and cls.propone(anterior)
-                if not (cls.propone(unidad) or sin_arreglo_posible or rama_del_no):
-                    hallazgos.append("no propone un arreglo con el sí que vuelva a correr el chequeo, ni dice que no se "
-                                     f"arregla desde la sesión, ni es el sin el sí de la unidad anterior: {corta}")
-            anterior = unidad
+            if cls.exenta(unidad):
+                continue
+            corta = unidad[:90]
+            prosa = re.sub(r"`[^`]*`", "código", unidad)
+            marcada = bool(cls.MARCA_README.search(prosa) if readme else cls.MARCA.match(unidad))
+            if cls.RAICES.search(prosa) and not marcada:
+                hallazgos.append(f"detención sin la marca {'se detiene' if readme else 'Detente.'}: {corta}")
+            if not marcada:
+                continue
+            if not cls.SIN_HACER.search(unidad):
+                hallazgos.append(f"no dice qué quedó sin hacer: {corta}")
+            propone = cls.CON_SI.search(unidad) and cls.PROPONE.search(unidad) and cls.REPITE.search(unidad)
+            sin_arreglo_posible = cls.DESDE_LA_SESION.search(unidad) and cls.REPITE.search(unidad)
+            if not (propone or sin_arreglo_posible):
+                hallazgos.append("no propone un arreglo con el sí que vuelva a correr el chequeo, ni dice que no se "
+                                 f"arregla desde la sesión: {corta}")
         return hallazgos
 
     @staticmethod
@@ -451,18 +459,21 @@ class DetencionesConArreglo(unittest.TestCase):
 
     def test_el_chequeo_encuentra_una_detencion_sin_arreglo(self):
         malas = {
-            "sin arreglo": "Si falta el archivo, detente y explica qué falta.",
+            "sin arreglo": "Detente. Falta el archivo: explica qué falta.",
+            "sin la marca": "Si falta el archivo, detente y propón crearlo. Con el sí, créalo, vuelve a correr el "
+                            "chequeo y di qué quedó sin hacer.",
+            "marca a mitad": "Si falta el archivo, Detente. Propón crearlo. Con el sí, créalo, vuelve a correr el "
+                             "chequeo y di qué quedó sin hacer.",
             "forma vieja": "Si falta el archivo, para y explica qué falta.",
-            "no sigas": "Si falta, no sigas: di qué quedó sin hacer.",
-            "no repite": "Si falta, detente y propón crearlo. Con el sí, créalo y sigue. Sin el sí, di qué quedó sin hacer.",
-            "negada": "Si falta, detente y no digas qué quedó sin hacer ni si se arregla desde la sesión.",
-            "con el sí vacío": "Si falta, detente. Con el sí, sigue igual y di qué quedó sin hacer.",
-            "otras formas": "Si falta, no guardes nada y explica. Termina aquí. Te detienes. No continúes. Debe detenerse.",
             "y para": "Si falta, explica que falta y para.",
-            "sin arreglo junto a una que sí": ("Si falta, detente y propón crearlo. Con el sí, créalo y vuelve a correr "
-                                               "el chequeo; sin el sí, di qué quedó sin hacer.\n\nSi sobra, detente y di "
-                                               "qué quedó sin hacer."),
-            "en una fila de tabla": "| Algo | Para qué | La skill se detiene. |",
+            "no sigas": "Si falta, no sigas: di qué quedó sin hacer.",
+            "otras raíces": "Si falta, no continúes. Te detienes. No escribas nada. No avances. Debe detenerse. Aborta.",
+            "detención en tercera persona": "Si falta, la skill se detiene y lo dice.",
+            "no repite": "Detente. Propón crearlo. Con el sí, créalo y sigue. Sin el sí, di qué quedó sin hacer.",
+            "negada": "Detente. No digas qué quedó sin hacer ni si se arregla desde la sesión. Propón algo y vuelve a correr.",
+            "con el sí vacío": "Detente. Con el sí, sigue igual y di qué quedó sin hacer.",
+            "en una fila de tabla": "| Algo | Para qué | Se detiene. |",
+            "bloque sin cerrar": "Detente. Propón crearlo. Con el sí, vuelve a correr y di qué quedó sin hacer.\n\n```\nx\n",
         }
         for nombre, texto in malas.items():
             with self.subTest(caso=nombre):
@@ -470,16 +481,26 @@ class DetencionesConArreglo(unittest.TestCase):
 
     def test_el_chequeo_acepta_una_detencion_con_arreglo(self):
         buenas = {
-            "propone": ("Si falta el archivo, detente y propón crearlo. Con el sí, créalo, vuelve a correr el chequeo y "
+            "propone": ("Detente. Falta el archivo: propón crearlo. Con el sí, créalo, vuelve a correr el chequeo y "
                         "sigue. Sin el sí, queda detenida y di qué quedó sin hacer."),
-            "no se arregla desde la sesión": ("Si el servidor no responde, el arreglo no se puede hacer desde la sesión: "
-                                              "detente y di qué quedó sin hacer. Cuando vuelva, vuelve a correr la orden."),
-            "rama del no": ("Si falta, propón crearlo. Con el sí, créalo y vuelve a correr el chequeo.\n\n- Sin el sí, "
-                            "queda detenida y di qué vistas quedaron sin integrar."),
+            "en una viñeta": ("- Detente. Falta el archivo: propón crearlo. Con el sí, créalo y vuelve a correr el "
+                              "chequeo; sin el sí, di qué quedó sin hacer."),
+            "no se arregla desde la sesión": ("Detente. El servidor no responde y eso no se puede hacer desde la sesión: "
+                                              "di qué quedó sin hacer y, cuando vuelva, vuelve a correr la orden."),
+            "para como preposición": "Sirve para que la persona vea el cambio, para la ola 1 y para el informe.",
+            "parar entre comillas invertidas": "- `parar`: explica el `detalle`.",
+            "para antes de código": "Plantilla y reglas para `design/vistas/<épica>/<vista>.html`.",
+            "después de una etiqueta": ("- `parar`: Detente. Propón apartarlo. Con el sí, apártalo y vuelve a correr la "
+                                        "orden; sin el sí, di qué quedó sin hacer."),
         }
         for nombre, texto in buenas.items():
             with self.subTest(caso=nombre):
                 self.assertEqual(self.hallazgos(texto), [])
+
+    def test_el_readme_usa_su_propia_marca(self):
+        self.assertEqual(self.hallazgos("| Algo | Para qué | Se detiene, porque no se arregla desde la sesión: dice "
+                                        "qué quedó sin hacer y vuelve a probar. |", readme=True), [])
+        self.assertTrue(self.hallazgos("Si falta, la skill para y lo dice.", readme=True))
 
     def test_el_chequeo_no_cuenta_los_bloques_de_codigo(self):
         self.assertEqual(self.hallazgos("```\ndetente\n```"), [])
@@ -495,7 +516,8 @@ class DetencionesConArreglo(unittest.TestCase):
     def test_cada_detencion_trae_su_arreglo(self):
         for ruta in self.archivos():
             with self.subTest(archivo=str(ruta.relative_to(RAIZ))):
-                self.assertEqual(self.hallazgos(ruta.read_text(encoding="utf-8")), [])
+                self.assertEqual(self.hallazgos(ruta.read_text(encoding="utf-8"), readme=ruta.name == "README.md"
+                                                and ruta.parent == RAIZ), [])
 
 
 class ReferenciaDeRama(unittest.TestCase):
@@ -557,9 +579,9 @@ class ReferenciaDeRama(unittest.TestCase):
     def test_sin_servidor_ni_principal_redacta_el_pedido_al_tl(self):
         """Q144."""
         sin_servidor = seccion(self.texto, "Sin servidor", 2)
-        self.assertRegex(sin_servidor, r"Detente, redacta el pedido al TL \(sección \"Pedido al TL\"\) y di qué quedó sin hacer\.")
+        self.assertRegex(sin_servidor, r"Redacta el pedido al TL \(sección \"Pedido al TL\"\) y di qué quedó sin hacer\.")
         self.assertRegex(sin_servidor, r"Propón probar de nuevo, y con el sí vuelve a correr la misma orden de `rama\.py`\.")
-        self.assertIn("redacta el pedido al TL", seccion(self.texto, "Sin rama principal", 2))
+        self.assertIn("Redacta el pedido al TL", seccion(self.texto, "Sin rama principal", 2))
         pedido = seccion(self.texto, "Pedido al TL", 2)
         self.assertRegex(pedido, r"Redáctalo listo para copiar")
         self.assertRegex(pedido, r"No propongas host ni permisos: los decide el TL\.")
@@ -576,7 +598,7 @@ class ReferenciaDeRama(unittest.TestCase):
         """Q156, como Q153."""
         error = seccion(self.texto, "Error de rama.py", 2)
         # B2: ante cualquier error, primero `git --version`, porque en Windows el error no nombra a git.
-        self.assertRegex(error, r"corre primero `git --version`: el error de un `git` que falta no siempre lo nombra")
+        self.assertRegex(error, r"antes de escribir nada en el repositorio corre `git --version`: el error de un `git` que falta no siempre lo nombra")
         self.assertRegex(error, r"Si `git --version` no responde, falta git: propón instalarlo")
         for orden in ("`winget install Git.Git`", "`brew install git`", "`sudo apt install git`", "`sudo dnf install git`"):
             self.assertIn(orden, error)
@@ -609,7 +631,7 @@ class ReferenciaDeRama(unittest.TestCase):
 
     def test_la_rama_nueva_va_con_el_si(self):
         nueva = seccion(self.texto, "Rama nueva", 2)
-        self.assertRegex(nueva, r"Sin el sí a la rama nueva, queda detenida y di qué quedó sin hacer")
+        self.assertRegex(nueva, r"Sin el sí a la rama nueva, di qué quedó sin hacer")
 
 
 class DetencionesDeGrilling(unittest.TestCase):
@@ -621,7 +643,7 @@ class DetencionesDeGrilling(unittest.TestCase):
 
     def test_sin_acceso_al_tracker_guarda_el_spec_en_el_repositorio(self):
         """Q158, como Q145: la persona no queda bloqueada."""
-        self.assertRegex(self.guardar, r"Si la lectura falla, la sesión no llega al tracker, y eso no detiene el guardado: "
+        self.assertRegex(self.guardar, r"Si la lectura falla, la sesión no llega al tracker, y el guardado sigue igual: "
                                        r"guarda el spec en `specs/<épica>/spec\.md` del repositorio de diseño por el camino "
                                        r"sin tracker de la viñeta siguiente")
         self.assertRegex(self.guardar, r"entrega su texto para que el TL lo suba al tracker, y di al cerrar que el documento "
@@ -629,7 +651,7 @@ class DetencionesDeGrilling(unittest.TestCase):
 
     def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
         """Q144."""
-        self.assertRegex(self.guardar, r"Si el producto no tiene repositorio de diseño, detente: no lo crees tú, porque el TL "
+        self.assertRegex(self.guardar, r"Detente\. Si el producto no tiene repositorio de diseño, no lo crees tú, porque el TL "
                                        r"decide el host y los accesos, y eso no se hace desde la sesión\.")
         self.assertRegex(self.guardar, r"Redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
 
@@ -650,13 +672,13 @@ class DetencionesDeSpecATickets(unittest.TestCase):
 
     def test_sin_spec_propone_armarlo_con_grilling_y_vuelve(self):
         paso = seccion(self.texto, "1. Conseguir el spec", 3)
-        self.assertRegex(paso, r"Si no existe, detente y propón armarlo con `grilling-es` en esta sesión")
+        self.assertRegex(paso, r"Detente\. Si el spec no existe, propón armarlo con `grilling-es` en esta sesión")
         self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`, o con \"Skills hermanas\" si no está, y vuelve a este paso con el spec que deje\.")
         self.assertRegex(paso, r"Sin el sí, queda detenida y di qué quedó sin hacer: no se escribió ningún ticket\.")
 
     def test_un_spec_blando_vuelve_a_grilling_con_el_si_y_repite_los_controles(self):
         paso = seccion(self.texto, "2. Revisar que el spec alcance", 3)
-        self.assertRegex(paso, r"Si fallan dos o más, detente: di qué falta y por qué importa, y propón cerrarlo con "
+        self.assertRegex(paso, r"Detente\. Si fallan dos o más, di qué falta y por qué importa, y propón cerrarlo con "
                                r"`grilling-es` en esta sesión, sobre esos huecos\.")
         self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`, o con \"Skills hermanas\" si no está, y, con el spec que deje, vuelve "
                                r"a correr los cuatro controles\.")
@@ -666,12 +688,12 @@ class DetencionesDeSpecATickets(unittest.TestCase):
         """Q144. El paso 3 trae un bloque con `# Convenciones de gestión`, que corta `seccion`: se busca en el archivo."""
         paso = self.texto
         self.assertRegex(paso, r"Si la sesión tiene que escribir en el repositorio de diseño y el producto no tiene uno, "
-                               r"detente: no lo crees tú, porque el TL decide el host y los accesos")
+                               r"no lo crees tú, porque el TL decide el host y los accesos")
         self.assertRegex(paso, r"Redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
 
     def test_una_publicacion_a_medias_reintenta_sin_duplicar(self):
         paso = seccion(self.texto, "7. Publicar", 3)
-        self.assertRegex(paso, r"Si la creación de un ticket falla a mitad de camino, detente y di qué quedó creado y qué no\.")
+        self.assertRegex(paso, r"Detente\. Si la creación de un ticket falla a mitad de camino, di qué quedó creado y qué no\.")
         self.assertRegex(paso, r"Busca el que falló por su identificador, para no duplicarlo, y propón reintentarlo\.")
         self.assertRegex(paso, r"Con el sí, reintenta, vuelve a leerlo para confirmar que quedó y sigue con los demás\.")
         self.assertNotIn("para y di qué quedó creado", paso)
@@ -725,20 +747,21 @@ class DetencionesDeSpecAHtml(unittest.TestCase):
 
     def test_sin_spec_propone_armarlo_con_grilling_y_vuelve(self):
         paso = seccion(self.texto, "1. Conseguir el spec", 3)
-        self.assertRegex(paso, r"Si no existe, detente y propón armarlo con `grilling-es` en esta sesión")
+        self.assertRegex(paso, r"Detente\. Si el spec no existe, propón armarlo con `grilling-es` en esta sesión")
         self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`, o con \"Skills hermanas\" si no está, y vuelve a este paso con el spec que deje\.")
         self.assertNotIn("Sin spec no avances", paso)
 
     def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
         """Q144."""
         paso = seccion(self.texto, "2. Ubicar el repositorio de diseño", 3)
-        self.assertRegex(paso, r"Si el producto todavía no tiene repositorio de diseño, detente: no lo crees tú, porque el "
+        self.assertRegex(paso, r"Detente\. Si el producto todavía no tiene repositorio de diseño, no lo crees tú, porque el "
                                r"TL decide el host y los accesos, y eso no se hace desde la sesión\.")
         self.assertRegex(paso, r"Redacta el pedido al TL con `references/rama\.md`, sección \"Pedido al TL\"")
 
     def test_un_cambio_de_comportamiento_sigue_con_grilling_y_tickets_con_el_si(self):
         paso = seccion(self.texto, "3. Crear o editar", 3)
-        self.assertRegex(paso, r"Detente antes de editar y propón seguir en esta sesión con `grilling-es` y después con "
+        self.assertRegex(paso, r"Detente\. Con un cambio de comportamiento, no edites todavía: propón seguir en esta sesión con "
+                               r"`grilling-es` y después con "
                                r"`spec-a-tickets`")
         self.assertRegex(paso, r"Con el sí, síguelas, o sigue \"Skills hermanas\" si falta alguna, y vuelve a este paso cuando el spec o los "
                                r"tickets digan el cambio\.")
@@ -752,7 +775,8 @@ class DetencionesDeSpecAHtml(unittest.TestCase):
     def test_sin_el_si_a_la_puesta_al_dia_queda_detenida(self):
         """Q147, como `html-a-vista` por Q128."""
         paso = seccion(self.texto, "4. Design system", 3)
-        self.assertRegex(paso, r"Sin el sí, detente antes del plan de vistas y no escribas vistas: explica en simple que "
+        self.assertRegex(paso, r"Detente\. Sin el sí a la puesta al día, no pases al plan de vistas ni escribas vistas: propón de "
+                               r"nuevo la puesta al día cuando la persona quiera, y con el sí vuelve a correr `comparar`\. Explica en simple que "
                                r"las vistas que usen lo que falta se verían sin estilo y `checklist-diseno` las bloquearía\.")
         self.assertRegex(paso, r"Di qué quedó sin hacer: nombra los compartidos que siguen viejos[^\n]*? y que no se "
                                r"escribió ninguna vista\.")
@@ -760,7 +784,7 @@ class DetencionesDeSpecAHtml(unittest.TestCase):
 
     def test_si_el_script_sale_con_error_propone_el_arreglo_y_vuelve_a_comparar(self):
         paso = seccion(self.texto, "4. Design system", 3)
-        self.assertRegex(paso, r"Si el script sale con error, detente: explica en simple qué dice el error y propón corregirlo tú\.")
+        self.assertRegex(paso, r"Detente\. Si el script sale con error, explica en simple qué dice el error y propón corregirlo tú\.")
         self.assertRegex(paso, r"Muestra el cambio antes de escribirlo y, con el sí, corrígelo, vuelve a correr `comparar` "
                                r"y sigue con la puesta al día desde ahí\.")
         self.assertNotIn("sigue sin tocar los compartidos", paso)
@@ -791,14 +815,14 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
 
     def test_sin_subagentes_explica_en_que_cliente_si_los_hay(self):
         """Q148: no deriva a `spec-a-html`."""
-        self.assertRegex(self.requisitos, r"detente antes de leer el mockup: la herramienta de subagentes es del cliente, así "
+        self.assertRegex(self.requisitos, r"no leas el mockup: la herramienta de subagentes es del cliente, así "
                                           r"que no se arregla desde la sesión\.")
         self.assertRegex(self.requisitos, r"Claude Code, en la terminal o en la app de escritorio, lanza subagentes")
         self.assertRegex(self.requisitos, r"No derives a `spec-a-html`")
 
     def test_sin_repositorio_de_diseno_redacta_el_pedido_al_tl(self):
         """Q144."""
-        self.assertRegex(self.requisitos, r"Si el producto no tiene repositorio de diseño, detente: no lo crees tú, porque el "
+        self.assertRegex(self.requisitos, r"Detente\. Si el producto no tiene repositorio de diseño, no lo crees tú, porque el "
                                           r"TL decide el host y los accesos, y eso no se hace desde la sesión\.")
         self.assertIn("`references/rama.md`, sección \"Pedido al TL\"", self.requisitos)
 
@@ -815,7 +839,7 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
     def test_sin_navegador_propone_instalarlo_y_con_framework_sin_el_si_se_detiene(self):
         """Q153."""
         paso = seccion(self.texto, "3. Framework por CDN", 3)
-        self.assertRegex(paso, r"Sin navegador en la sesión, detente antes de lanzar subagentes: este mockup no se "
+        self.assertRegex(paso, r"Detente\. Sin navegador en la sesión, no lances subagentes: este mockup no se "
                                r"convierte sin render\. Propón instalarlo como dice `references/navegador\.md`, sección "
                                r"\"Instalar\": con el sí, instálalo y repite la prueba")
         self.assertRegex(paso, r"Sin el sí, o si la prueba sigue fallando, queda detenida sin escribir en el repositorio y "
@@ -846,7 +870,7 @@ class DetencionesDeHtmlAVista(unittest.TestCase):
 
     def test_sin_spec_propone_cerrarlo_con_grilling_desde_el_borrador(self):
         paso = seccion(self.texto, "4. Spec y tickets", 3)
-        self.assertRegex(paso, r"\*\*Sin spec\*\*: detente antes de convertir\.")
+        self.assertRegex(paso, r"\*\*Sin spec\*\*: Detente\. No conviertas todavía\.")
         self.assertRegex(paso, r"propón cerrarlo con `grilling-es` en esta sesión, con el borrador como punto de partida\.")
         self.assertRegex(paso, r"Con el sí, sigue con `grilling-es`[^.]*? y, cuando exista `specs/<épica>/spec\.md`, vuelve a este paso\.")
         self.assertNotIn("no conviertas", paso)
@@ -905,7 +929,7 @@ class CorreccionesDelChecklist(unittest.TestCase):
     def test_corrige_con_el_si_y_vuelve_a_correr_revisar(self):
         self.assertRegex(self.paso, r"Muestra cada cambio antes de escribirlo, vista por vista, y pide el sí\. Con el sí, "
                                     r"escríbelo y vuelve a correr `revisar\.py` sobre las vistas que tocaste")
-        self.assertRegex(self.paso, r"Sin el sí, no escribas nada: queda en el informe como bloqueo, con el arreglo que propusiste\.")
+        self.assertRegex(self.paso, r"Sin el sí, el cambio queda en el informe como bloqueo, con el arreglo que propusiste\.")
 
     def test_la_tabla_de_un_spec_congelado_se_corrige_solo_en_el_formato(self):
         """Q154."""
@@ -920,11 +944,11 @@ class CorreccionesDelChecklist(unittest.TestCase):
     def test_sin_repositorio_sin_vistas_o_fuera_del_repositorio_propone_el_arreglo(self):
         """M4: Q144 y Q131 en `checklist-diseno`."""
         que = seccion(self.texto, "1. Qué revisar", 3)
-        self.assertRegex(que, r"Si el producto no tiene repositorio de diseño, detente: no hay vistas que revisar, y "
+        self.assertRegex(que, r"Detente\. Si el producto no tiene repositorio de diseño, no hay vistas que revisar, y "
                               r"crearlo lo decide el TL, así que no se hace desde la sesión\.")
         self.assertIn('`references/rama.md`, sección "Pedido al TL"', que)
         mecanica = seccion(self.texto, "2. Revisión mecánica", 3)
-        self.assertRegex(mecanica, r"Si `revisar\.py` dice que no hay vistas en `design/vistas/<épica>/`, detente: no hay "
+        self.assertRegex(mecanica, r"Detente\. Si `revisar\.py` dice que no hay vistas en `design/vistas/<épica>/`, no hay "
                                    r"qué revisar\.")
         self.assertRegex(mecanica, r"propón moverlos a `design/vistas/<épica>/`; con el sí, muévelos y vuelve a correr "
                                    r"`revisar\.py`")
