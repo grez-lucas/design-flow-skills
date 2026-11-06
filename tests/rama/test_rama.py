@@ -1,28 +1,17 @@
 """Pruebas de scripts/rama.py, la decisión de la rama antes de guardar, contra repositorios git reales.
 
 Cada prueba arma un servidor (repositorio bare con un hook `pre-receive` que simula la protección), una copia de quien
-usa la skill y, si hace falta, otra copia de alguien más. Las cuatro copias de rama.py son iguales (tests/repositorio).
+usa la skill y, si hace falta, otra copia de alguien más. Las cinco copias de rama.py son iguales (tests/repositorio), y
+`RAMA` en el entorno prueba otro ejecutable (`repos.py`).
 Uso: python3 -m unittest discover -s tests/rama -v
 """
-import importlib.util
 import json
-import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[2]
-SCRIPT = RAIZ / "skills" / "grilling-es" / "scripts" / "rama.py"
-
-spec = importlib.util.spec_from_file_location("aislar_git", Path(__file__).resolve().parents[1] / "aislar_git.py")
-aislar_git = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(aislar_git)
-
-# Sin la configuración global ni la del sistema, para que local y CI corran igual, y sin GIT_DIR ni las demás
-# variables del repositorio del entorno, como dentro de `git rebase --exec`.
-ENTORNO = {**aislar_git.sin_repositorio(os.environ), "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+from repos import ENTORNO, orden_de_rama
 
 # Rechaza cualquier ref listada en el archivo `protegidas` del servidor, como una rama protegida.
 HOOK = """#!/bin/sh
@@ -81,7 +70,7 @@ class Base(unittest.TestCase):
                 f.write(f"refs/heads/{rama}\n")
 
     def rama(self, *args, cwd=None):
-        resultado = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=cwd or self.copia, env=ENTORNO,
+        resultado = subprocess.run([*orden_de_rama(), *args], cwd=cwd or self.copia, env=ENTORNO,
                                    capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
         return json.loads(resultado.stdout)
@@ -104,20 +93,20 @@ class AntesDeEscribir(Base):
     commits pendientes, parar en cualquier otro caso."""
 
     def test_en_la_principal_guarda_ahi(self):
-        self.assertEqual(self.revisar("spec", "riego"), {"accion": "guardar", "rama": "main"})
+        self.assertEqual(self.revisar("spec", "riego"), {"accion": "guardar", "rama": "main", "principal": "main"})
 
     def test_la_principal_es_la_del_servidor_aunque_no_se_llame_main(self):
         git("push", "-q", "origin", "HEAD:refs/heads/trunk", cwd=self.otra)
         git("symbolic-ref", "HEAD", "refs/heads/trunk", cwd=self.servidor)
         git("fetch", "-q", cwd=self.copia)
         git("switch", "-q", "trunk", cwd=self.copia)
-        self.assertEqual(self.revisar("spec", "riego"), {"accion": "guardar", "rama": "trunk"})
+        self.assertEqual(self.revisar("spec", "riego"), {"accion": "guardar", "rama": "trunk", "principal": "trunk"})
         git("switch", "-q", "main", cwd=self.copia)
         self.assertEqual(self.revisar("spec", "riego")["motivo"], "otra-rama")
 
     def test_en_la_rama_viva_de_la_misma_epica_guarda_ahi(self):
         self.trabajar_en("spec/riego")
-        self.assertEqual(self.revisar("spec", "riego"), {"accion": "guardar", "rama": "spec/riego"})
+        self.assertEqual(self.revisar("spec", "riego"), {"accion": "guardar", "rama": "spec/riego", "principal": "main"})
 
     def test_rama_borrada_en_el_servidor_sin_commits_pendientes_vuelve_a_la_principal(self):
         self.trabajar_en("spec/riego")
@@ -226,7 +215,7 @@ class AntesDeEscribir(Base):
 
     def test_corre_desde_otra_carpeta_con_repo(self):
         resultado = self.rama("revisar", "--tipo", "spec", "--epica", "riego", "--repo", str(self.copia), cwd=self.tmp)
-        self.assertEqual(resultado, {"accion": "guardar", "rama": "main"})
+        self.assertEqual(resultado, {"accion": "guardar", "rama": "main", "principal": "main"})
 
 
 class RamaBorradaTrasElMerge:
@@ -295,7 +284,7 @@ class RamasDelFlujoDeLaMismaEpica(Base):
                     if not git("rev-parse", "--verify", "--quiet", rama, cwd=self.copia, check=False).stdout:
                         self.trabajar_en(rama)
                     git("switch", "-q", rama, cwd=self.copia)
-                    self.assertEqual(self.revisar(tipo, "riego"), {"accion": "guardar", "rama": rama})
+                    self.assertEqual(self.revisar(tipo, "riego"), {"accion": "guardar", "rama": rama, "principal": "main"})
 
     def test_un_prefijo_comun_no_es_la_misma_epica(self):
         for rama in ("diseno/riegos", "diseno/riego-norte", "diseno/riego-1", "diseno/riego-02", "riego", "spec/riego/x"):
@@ -312,7 +301,7 @@ class RamasDelFlujoDeLaMismaEpica(Base):
     def test_epica_con_tilde(self):
         self.trabajar_en("tickets/señales-de-riego")
         self.assertEqual(self.revisar("diseno", "señales-de-riego"),
-                         {"accion": "guardar", "rama": "tickets/señales-de-riego"})
+                         {"accion": "guardar", "rama": "tickets/señales-de-riego", "principal": "main"})
         self.assertEqual(self.revisar("diseno", "senales-de-riego")["motivo"], "otra-rama")
 
 
@@ -409,14 +398,14 @@ class VariasEpicas(Base):
         return self.rama("revisar", "--tipo", "diseno", "--mockup", mockup, "--epicas", epicas)
 
     def test_en_la_principal_guarda_ahi(self):
-        self.assertEqual(self.revisar_varias(), {"accion": "guardar", "rama": "main"})
+        self.assertEqual(self.revisar_varias(), {"accion": "guardar", "rama": "main", "principal": "main"})
 
     def test_en_diseno_mockup_vivo_guarda_ahi(self):
         for rama in ("diseno/panel-general", "diseno/panel-general-2"):
             with self.subTest(rama=rama):
                 git("switch", "-q", "main", cwd=self.copia)
                 self.trabajar_en(rama)
-                self.assertEqual(self.revisar_varias(), {"accion": "guardar", "rama": rama})
+                self.assertEqual(self.revisar_varias(), {"accion": "guardar", "rama": rama, "principal": "main"})
 
     def test_solo_diseno_mockup_es_la_rama_del_flujo_del_mockup(self):
         self.trabajar_en("spec/panel-general")
@@ -470,7 +459,7 @@ class VariasEpicas(Base):
 
     def test_con_una_sola_epica_guarda_en_su_rama(self):
         self.trabajar_en("spec/riego")
-        self.assertEqual(self.revisar("diseno", "riego"), {"accion": "guardar", "rama": "spec/riego"})
+        self.assertEqual(self.revisar("diseno", "riego"), {"accion": "guardar", "rama": "spec/riego", "principal": "main"})
 
     def test_el_rechazo_da_diseno_mockup(self):
         self.trabajar_en("diseno/panel-general")
@@ -531,7 +520,7 @@ class RechazoDeLaRamaNueva(Base):
 
 class Uso(Base):
     def falla(self, *args):
-        resultado = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=self.copia, env=ENTORNO,
+        resultado = subprocess.run([*orden_de_rama(), *args], cwd=self.copia, env=ENTORNO,
                                    capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(resultado.returncode, 2, resultado.stdout)
         self.assertEqual(resultado.stdout, "")
@@ -556,8 +545,8 @@ class Uso(Base):
                     self.falla(orden, "--tipo", "diseno", "--mockup", valor, *(("--epicas", "riego,cosechas")
                                                                               if orden == "revisar" else ()))
         self.falla("revisar", "--tipo", "diseno", "--mockup", "panel", "--epicas", "riego,fase-2")
-        self.assertEqual(self.revisar("spec", "fase2"), {"accion": "guardar", "rama": "main"})
-        self.assertEqual(self.revisar("spec", "fase-dos-b"), {"accion": "guardar", "rama": "main"})
+        self.assertEqual(self.revisar("spec", "fase2"), {"accion": "guardar", "rama": "main", "principal": "main"})
+        self.assertEqual(self.revisar("spec", "fase-dos-b"), {"accion": "guardar", "rama": "main", "principal": "main"})
 
     def test_epica_o_mockup_con_mayusculas(self):
         for valor in ("Riego", "RIEGO", "Señales", "riego-Norte"):

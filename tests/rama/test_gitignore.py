@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from test_referencia import ENTORNO, SKILLS, Repositorio, bloque_con, git
+from repos import ENTORNO, SKILLS, Repositorio, bloque_con, git
 
 
 class ExcepcionDelGitignore(unittest.TestCase):
