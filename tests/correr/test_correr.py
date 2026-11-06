@@ -364,7 +364,7 @@ class Go(Base):
         self.carpeta("rama", VE_RAMA.format(registro=str(self.registro)))
         r, salida = self.correr(REGISTRO=str(self.registro))
         self.assertEqual(r.returncode, 0, salida)
-        lanzador = (self.raiz / "bin" / "rama").as_posix()
+        lanzador = (self.raiz / "bin" / "flujo").as_posix() + " rama"
         self.assertEqual((self.registro / "rama.jsonl").read_text().splitlines(), ["None", repr(lanzador)])
         resumen = self.resumen(salida)
         self.assertEqual(resumen.get("tests/rama"), "ok", salida)
