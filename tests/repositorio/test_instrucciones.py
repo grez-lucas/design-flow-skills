@@ -554,6 +554,20 @@ class ReferenciaDeRama(unittest.TestCase):
         self.assertIn("una línea `??` o `!!` es un archivo sin seguimiento, o ignorado, que el cambio de rama, o igualar "
                       "la principal al servidor, pisaría o que lo bloquea", seccion_)
 
+    def test_una_copia_que_quedo_en_el_apartado(self):
+        """Q172: si `apartar` para con `error-de-git` en el `git switch`, la copia queda en `apartado/<rama>` con lo de
+        la persona guardado ahí; `revisar` la da como `otra-rama`, y otra corrida de `apartar` solo vuelve a cambiar
+        de rama. La prosa lo dice en los dos lugares donde la persona lo ve."""
+        error = seccion(self.texto, "Error de rama.py", 2)
+        self.assertIn("Si `apartar` paró con `error-de-git` y quedaste en una rama `apartado/...`, lo de la persona ya "
+                      "está guardado ahí y la carpeta no tiene cambios sin guardar: dilo así y, cuando el error esté "
+                      "resuelto, vuelve a correr la misma orden de `apartar`, que no guarda nada nuevo y solo vuelve "
+                      "a la rama del flujo.", error)
+        apartar = seccion(self.texto, "Trabajo por apartar", 2)
+        self.assertIn("Con `otra-rama` en una rama `apartado/...`, un `apartar` anterior ya guardó ahí lo de la persona "
+                      "y no alcanzó a volver a la rama del flujo: no hay nada nuevo que apartar, y `apartar` solo "
+                      "vuelve a la rama del flujo, sin crear otra rama.", apartar)
+
     def test_con_la_principal_adelantada_no_hay_cambio_de_rama(self):
         """H6 de la revisión 3: con `principal-adelantada` la copia se queda en la principal y la iguala al servidor, y
         lo que listan los `archivos`, también un cambio fuera de las rutas de la skill, sale de la carpeta al apartar."""
