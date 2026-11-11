@@ -1,11 +1,13 @@
 #!/bin/sh
-# Compila flujo para cada plataforma en bin/, de forma reproducible, para el commit de la versión (Q152, Q162, Q163).
+# Compila flujo para cada plataforma en bin/, de forma reproducible (Q163, Q165, Q166). Lo corre quien cambia el código
+# Go, y los ejecutables van en el mismo commit; CI solo corre --verificar.
 #
 # Uso: scripts/compilar              escribe bin/flujo-<os>-<arch> para Linux y macOS y bin/flujo.exe para Windows
 #      scripts/compilar --verificar  compila en una carpeta temporal y sale con 1 si algún ejecutable de bin/ no es
 #                                    el que sale de la fuente, o si bin/ tiene un ejecutable que ya no se compila
 #
-# flujo.exe es el de windows/amd64: Windows 11 en ARM64 lo corre emulado, así que no hay uno para windows/arm64.
+# flujo.exe es el de windows/amd64 y es el ejecutable mismo, no un lanzador (Q165). Windows 11 en ARM64 lo corre emulado,
+# así que no hay uno para windows/arm64; Windows 10 en ARM64, sin soporte, no lo corre.
 #
 # El mismo commit da los mismos bytes en Linux, macOS y Windows: sin cgo, -trimpath, -buildvcs=false, sin build ID,
 # GOAMD64 y GOARM64 fijos y la versión de Go de go.mod, que GOTOOLCHAIN descarga si la instalada es otra.
