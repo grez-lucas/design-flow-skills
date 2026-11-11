@@ -249,8 +249,8 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 
 // sinGuardar es el trabajo sin guardar, en líneas de `git status --porcelain`: lo que entraría en el commit de la skill
 // o el cambio a `destino` pisaría, y lo que se aparta. Lo primero son las rutas de la skill, con sus archivos nuevos,
-// lo preparado en el índice, en cualquier ruta, y los archivos sin seguimiento, también los ignorados, que `destino`
-// tiene con otro contenido; lo segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
+// lo preparado en el índice, en cualquier ruta, y los archivos sin seguimiento que `destino` tiene, en `choques`; lo
+// segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
 // adentro no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí.
 func sinGuardar(g Git, destino string) (estrecho, amplio []string) {
 	enRutas := estado(g, append([]string{"--untracked-files=all", "--"}, rutasDeLaSkill...)...)
@@ -289,8 +289,9 @@ func lineasDeEstado(partes []string) []string {
 	return lineas
 }
 
-// choques son los archivos sin seguimiento que `destino` tiene con otro contenido, y que `git switch` pisaría o no
-// dejaría pasar: `?? <ruta>`, o `!! <ruta>` si está ignorado, porque git reemplaza un ignorado sin avisar.
+// choques son los archivos sin seguimiento que `destino` tiene y que `git switch` no dejaría pasar o pisaría:
+// `?? <ruta>` si no está ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si
+// está ignorado y tiene otro contenido, porque git reemplaza un ignorado sin avisar.
 func choques(g Git, destino string) []string {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" || !g.existe(destino) {
@@ -319,26 +320,32 @@ func choques(g Git, destino string) []string {
 		rutas = append(rutas, r)
 	}
 	slices.Sort(rutas)
-	locales := g.lineas(append([]string{"-C", raiz, "hash-object", "--"}, rutas...)...)
-	var distintas []string
-	for i := 0; i < min(len(rutas), len(locales)); i++ {
-		if locales[i] != enDestino[rutas[i]] {
-			distintas = append(distintas, rutas[i])
+	ignorados := map[string]bool{}
+	for _, r := range g.rutas(append([]string{"-C", raiz, "ls-files", "-z", "--others", "--ignored",
+		"--exclude-standard", "--"}, rutas...)...) {
+		ignorados[r] = true
+	}
+	var ignoradas []string
+	for _, r := range rutas {
+		if ignorados[r] {
+			ignoradas = append(ignoradas, r)
 		}
 	}
-	if len(distintas) == 0 {
-		return nil
+	pisadas := map[string]bool{}
+	if len(ignoradas) > 0 {
+		locales := g.lineas(append([]string{"-C", raiz, "hash-object", "--"}, ignoradas...)...)
+		for i := 0; i < min(len(ignoradas), len(locales)); i++ {
+			if locales[i] != enDestino[ignoradas[i]] {
+				pisadas[ignoradas[i]] = true
+			}
+		}
 	}
-	ignoradas := map[string]bool{}
-	for _, r := range g.rutas(append([]string{"-C", raiz, "ls-files", "-z", "--others", "--ignored",
-		"--exclude-standard", "--"}, distintas...)...) {
-		ignoradas[r] = true
-	}
-	lineas := make([]string, 0, len(distintas))
-	for _, r := range distintas {
-		if ignoradas[r] {
+	var lineas []string
+	for _, r := range rutas {
+		switch {
+		case pisadas[r]:
 			lineas = append(lineas, "!! "+r)
-		} else {
+		case !ignorados[r]:
 			lineas = append(lineas, "?? "+r)
 		}
 	}
