@@ -119,7 +119,11 @@ func esDelFlujo(rama, nombre string, tiposValidos ...string) bool {
 // ramaDelFlujo es lo que dice la rama actual, sin mirar el trabajo sin guardar: `guardar`, `ofrecer`, `volver` o
 // una parada.
 func ramaDelFlujo(g Git, a argumentos, s delServidor) (decision, *parada) {
-	actual := g.rama()
+	return ramaDelFlujoDe(g, a, s, g.rama())
+}
+
+// ramaDelFlujoDe es lo que diría `ramaDelFlujo` con la copia en `actual`.
+func ramaDelFlujoDe(g Git, a argumentos, s delServidor, actual string) (decision, *parada) {
 	if actual == "" {
 		return decision{}, nuevaParada("sin-rama", "La copia no está en ninguna rama.", "", par{"principal", s.principal})
 	}
@@ -140,7 +144,7 @@ func ramaDelFlujo(g Git, a argumentos, s delServidor) (decision, *parada) {
 		return decision{"guardar", actual, s.principal, ""}, nil
 	}
 	if conUpstream && !s.ramas[sigue] {
-		if trabajoEnLaPrincipal(g, s.principal) {
+		if trabajoEnLaPrincipal(g, s.principal, actual) {
 			return decision{"volver", actual, s.principal, ""}, nil
 		}
 		return decision{}, nuevaParada("commits-sin-empujar", fmt.Sprintf("La rama %s ya no está en el servidor y "+
@@ -482,21 +486,22 @@ func adelantada(g Git, principal string) []string {
 	return g.lineas("log", "--format=%h %s", "refs/remotes/origin/"+principal+"..refs/heads/"+principal)
 }
 
-// trabajoEnLaPrincipal dice si lo que la rama actual tiene y no está en ninguna rama del servidor ya entró a la
+// trabajoEnLaPrincipal dice si lo que `rama` tiene y no está en ninguna rama del servidor ya entró a la
 // principal: no hay commits así, o los archivos que tocan desde la base común con la principal están iguales en ella
 // (un squash merge).
-func trabajoEnLaPrincipal(g Git, principal string) bool {
-	pendientes, ok := g.salida("rev-list", "--count", "HEAD", "--not", "--remotes=origin")
+func trabajoEnLaPrincipal(g Git, principal, rama string) bool {
+	local := "refs/heads/" + rama
+	pendientes, ok := g.salida("rev-list", "--count", local, "--not", "--remotes=origin")
 	if ok && pendientes == "0" {
 		return true
 	}
 	remota := "refs/remotes/origin/" + principal
-	base, okBase := g.salida("merge-base", "HEAD", remota)
+	base, okBase := g.salida("merge-base", local, remota)
 	if !ok || pendientes == "" || !okBase || base == "" {
 		return false
 	}
-	tocados, okTocados := archivos(g, base, "HEAD")
-	distintos, okDistintos := archivos(g, "HEAD", remota)
+	tocados, okTocados := archivos(g, base, local)
+	distintos, okDistintos := archivos(g, local, remota)
 	if !okTocados || len(tocados) == 0 || !okDistintos {
 		return false
 	}
@@ -814,8 +819,9 @@ var formaDelApartado = regexp.MustCompile(`^Apartado: lo que (?:estaba preparado
 
 // destinoGuardado es, en el reintento desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:`
 // de su último commit, adonde iba la corrida que lo armó (Q173). Solo si ese commit tiene la forma de los de `apartar`,
-// con la rama del nombre del apartado en el asunto, y el destino es la principal o una rama viva de este trabajo para
-// el `--tipo` y la `--epica` de esta corrida (Q178); si no, "".
+// con la rama del nombre del apartado en el asunto (Q178), y si `revisar` podría mandar esta corrida a ese destino
+// (Q179): es una rama donde `ramaDelFlujo` da `guardar`, `ofrecer` o `volver`, como la principal, o una de las que
+// daría `destinoDelFlujo`; si no, "".
 func destinoGuardado(g Git, a argumentos, desde string, s delServidor) string {
 	if !strings.HasPrefix(desde, "apartado/") {
 		return ""
@@ -834,8 +840,13 @@ func destinoGuardado(g Git, a argumentos, desde string, s delServidor) string {
 		return ""
 	}
 	destino := forma[formaDelApartado.SubexpIndex("destino")]
-	if destino == s.principal || (s.ramas[destino] && esDelFlujo(destino, a.nombre(), a.tipo)) {
+	if _, candidatas := destinoDelFlujo(a, s, a.rama); slices.Contains(candidatas, destino) {
 		return destino
+	}
+	if destino == s.principal || g.existe("refs/heads/"+destino) {
+		if _, p := ramaDelFlujoDe(g, a, s, destino); p == nil {
+			return destino
+		}
 	}
 	return ""
 }
@@ -853,7 +864,7 @@ func destinoDeApartar(g Git, a argumentos, s delServidor, desde string) (string,
 	// En el reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
 	sigue, _ := upstream(g, destino)
 	nombre := regexp.MustCompile("^apartado/" + regexp.QuoteMeta(strings.ReplaceAll(destino, "/", "-")) + "(-[0-9]+)?$")
-	return destino, nil, destino != s.principal && sigue != destino && nombre.MatchString(desde)
+	return destino, nil, destino != s.principal && s.ramas[destino] && sigue != destino && nombre.MatchString(desde)
 }
 
 func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[]string) (*objeto, *parada) {
