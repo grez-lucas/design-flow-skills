@@ -55,8 +55,9 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
 
 apartar  con el sí de la persona, ante ` + "`otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar`" + ` o
          ` + "`principal-adelantada`" + `. Guarda en ` + "`apartado/<rama>`" + ` (cada ` + "`/`" + ` cambiada por ` + "`-`, `sin-rama`" + ` con HEAD separado,
-         con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo) lo que había, con un índice temporal y
-         sin correr hooks, antes de tocar la carpeta (Q171): primero lo que estaba preparado, tal cual, después los
+         con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo y que ninguna copia de ` + "`git worktree`" + `
+         tiene en uso) lo que había, con un índice temporal y sin correr hooks, antes de tocar la carpeta (Q171):
+         primero lo que estaba preparado, tal cual, después los
          cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados y los archivos
          sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se
          tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
