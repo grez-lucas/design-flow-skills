@@ -1,5 +1,5 @@
 // Flujo es el ejecutable único de las herramientas de las skills del flujo de diseño, con un subcomando por
-// herramienta (Q163). Va en `bin/` del plugin, uno por plataforma (Q152, Q162).
+// herramienta (Q163). Va en `bin/` del plugin, uno por plataforma (Q152, Q165).
 package main
 
 import (
