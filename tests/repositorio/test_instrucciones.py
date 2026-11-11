@@ -578,14 +578,17 @@ class ReferenciaDeRama(unittest.TestCase):
         error = seccion(self.texto, "Error de rama.py", 2)
         self.assertIn('Tres casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado.', error)
 
-    def test_un_submodulo_con_cambios_adentro(self):
-        """H3 de la revisión 4: `apartar` no guarda lo de adentro de un submódulo y para antes de guardar nada si el
-        cambio de rama lo movería; la prosa no le dice a la persona que lo suyo quedó guardado."""
-        error = seccion(self.texto, "Error de rama.py", 2)
-        self.assertIn("Si el `detalle` nombra un submódulo con cambios sin guardar adentro, `apartar` no guardó nada y "
-                      "la copia sigue como estaba: esos cambios son de la persona y se guardan dentro del submódulo, "
-                      "que `apartar` no toca. Dilo así y vuelve a correr la orden cuando la persona los haya guardado.",
-                      error)
+    def test_una_copia_no_soportada(self):
+        """Q177: con `copia-no-soportada`, `apartar` no hace nada y la persona lo resuelve a mano; la prosa de la parada
+        de Q176 con `error-de-git` ya no está."""
+        self.assertIn("- Copia no soportada\n", seccion(self.texto, "Contenido", 2))
+        self.assertIn("Detente. Con el motivo `copia-no-soportada`, la copia tiene en las `rutas` algo que `apartar` no "
+                      "sabe guardar sin riesgo de perder trabajo: un submódulo, un repositorio git anidado (otro "
+                      "repositorio clonado dentro de la carpeta, aunque esté ignorado) o un enlace simbólico en el "
+                      "camino del cambio de rama. Los repositorios de diseño que arman las skills no los tienen. "
+                      "`apartar` no hace nada en esa copia, así que no propongas apartar. Explica en simple qué hay en "
+                      "cada ruta y que se resuelve a mano", seccion(self.texto, "Copia no soportada", 2))
+        self.assertNotIn("nombra un submódulo con cambios sin guardar adentro", self.texto)
 
     def test_los_hooks_que_corren_al_apartar(self):
         """Q174: al guardar no corren los hooks de commit ni de checkout; `reference-transaction` y
