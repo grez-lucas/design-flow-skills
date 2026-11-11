@@ -2,13 +2,13 @@
 """Decide en qué rama guarda una skill del flujo y protege el trabajo que la persona tenía en la copia.
 
 Uso, desde el repositorio de diseño o con --repo:
-  python3 -B rama.py revisar --tipo <spec|tickets|diseno> --epica <épica>
-  python3 -B rama.py revisar --tipo diseno --mockup <mockup> --epicas <épica>,<épica>[,...]
-  python3 -B rama.py apartar <los mismos --tipo y --epica, o --mockup y --epicas> [--rama <rama>]
-  python3 -B rama.py volver <los mismos --tipo y --epica, o --mockup y --epicas> [--rama-nueva <rama>]
-  python3 -B rama.py commit (-F <archivo> | -m <mensaje> [-m <párrafo>...]) -- <ruta>...
-  python3 -B rama.py rechazo --tipo <spec|tickets|diseno> --epica <épica>
-  python3 -B rama.py rechazo --tipo diseno --mockup <mockup>
+  flujo rama revisar --tipo <spec|tickets|diseno> --epica <épica>
+  flujo rama revisar --tipo diseno --mockup <mockup> --epicas <épica>,<épica>[,...]
+  flujo rama apartar <los mismos --tipo y --epica, o --mockup y --epicas> [--rama <rama>]
+  flujo rama volver <los mismos --tipo y --epica, o --mockup y --epicas> [--rama-nueva <rama>]
+  flujo rama commit (-F <archivo> | -m <mensaje> [-m <párrafo>...]) -- <ruta>...
+  flujo rama rechazo --tipo <spec|tickets|diseno> --epica <épica>
+  flujo rama rechazo --tipo diseno --mockup <mockup>
 
 --mockup es de html-a-vista cuando las vistas quedan en más de una épica: el nombre del archivo del mockup sin
 extensión, en minúsculas y con guiones, reemplaza a la épica en la rama.
@@ -42,14 +42,15 @@ apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-em
          `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD
          separado, con el primer sufijo libre) lo que había: primero lo que estaba preparado en el índice, tal cual,
          después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados
-         y los archivos sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
+         y los archivos sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin
+         seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
          a guardar desde la principal y tiene commits que el servidor no tiene, los guarda en `apartado/<principal>`
          y la iguala al servidor. Vuelve después a la rama del flujo: la actual, si `revisar` daba `guardar`,
          `ofrecer` o `volver`; si no, la rama viva del servidor para este trabajo, `<tipo>/<nombre>` con sufijos
          exactos, o la principal. Si esa es la rama actual y no sigue a la del servidor, la iguala al servidor, con
-         sus commits propios antes en `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar` desde ahí, con `apartado` (las ramas que creó)
-         y `desde` (la rama donde estaba, o null). Con más de una rama viva para este trabajo devuelve `elegir`, con
-         `ramas`, y --rama <una de ellas> vuelve a esa.
+         sus commits propios antes en `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar`
+         desde ahí, con `apartado` (las ramas que creó) y `desde` (la rama donde estaba, o null). Con más de una rama
+         viva para este trabajo devuelve `elegir`, con `ramas`, y --rama <una de ellas> vuelve a esa.
 
 volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, que va en --rama-nueva. Corre `revisar`
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con `ofrecer`, crea
@@ -58,10 +59,11 @@ volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, qu
          cambia nada y para con `cambios-sin-guardar`.
 
 commit   después de `git add` de lo que escribió la skill. Hace el commit solo con las rutas dadas, que tienen que
-         estar dentro de las de la skill, con un -m por párrafo o con -F y el mensaje en un archivo UTF-8,
-         con o sin BOM, relativo a donde corre el script (Q162). Devuelve `empujar` con `rama` y `archivos` (estado
-         y ruta de cada uno, separados por un tab), o `sin-cambios` si esas rutas no cambiaron. Si una ruta no está
-         en la copia y no cambió, no hace el commit y para con `ruta-que-falta` y `rutas`.
+         estar dentro de las de la skill, con un -m por párrafo o con -F y el mensaje en un archivo UTF-8, con o sin
+         BOM, relativo a donde corre la orden: así el mensaje no pasa por la línea de órdenes (Q162). Devuelve
+         `empujar` con `rama` y `archivos` (estado y ruta de cada uno, separados por un tab), o `sin-cambios` si esas
+         rutas no cambiaron. Si una ruta no está en la copia y no cambió, no hace el commit y para con
+         `ruta-que-falta` y `rutas`.
 
 rechazo  después de que el servidor rechazó el push a la rama actual por algo que no son credenciales. Devuelve
          `rama-nueva` con `rama`, la actual, y `rama_nueva`: `<tipo>/<épica>` o, si ya existe en local o en el
@@ -78,8 +80,8 @@ hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide cred
 
 Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, una épica o un mockup que no sirve
 como nombre de rama (con mayúsculas, o que termina en guion y número, como `fase-2`), o una ruta de commit que no es
-de la skill, o un -F que no se puede leer, no es UTF-8 o tiene bytes nulos (Q167), sale con 2 sin escribir en stdout y dice en stderr
-por qué.
+de la skill, o un -F que no se puede leer, no es UTF-8 o tiene bytes nulos (Q167), sale con 2 sin escribir en
+stdout y dice en stderr por qué. Si no encuentra git, sale con 1.
 """
 import argparse
 import json
@@ -662,8 +664,22 @@ def argumentos(argv):
 ORDENES = {"revisar": revisar, "apartar": apartar, "volver": volver, "commit": commit, "rechazo": rechazo}
 
 
+def pide_ayuda(argv):
+    """-h o --help como los lee `flujo rama`: primero, o después de una orden conocida y antes de `--`."""
+    if argv[:1] in (["-h"], ["--help"]):
+        return True
+    if not argv or argv[0] not in ORDENES or (argv[0] == "commit" and "--" not in argv):
+        return False
+    antes = argv[1:argv.index("--")] if "--" in argv else argv[1:]
+    return "-h" in antes or "--help" in antes
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if pide_ayuda(argv):
+        # El mismo contrato que imprime `flujo rama -h`, no el resumen de argparse.
+        sys.stdout.write(__doc__)
+        return 0
     args = argumentos(argv)
     git = Git(args.repo)
     try:
