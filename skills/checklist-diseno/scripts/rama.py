@@ -29,7 +29,8 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
                   con `cambios-sin-guardar` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
                   rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con `ofrecer`, también
                   cualquier cambio de un archivo con seguimiento; con `volver` y `ofrecer`, también un archivo sin
-                  seguimiento, ignorado o no, que la principal tiene con otro contenido y el cambio de rama pisaría.
+                  seguimiento que la principal tiene, aunque sea igual, porque el cambio de rama no pasaría, o uno
+                  ignorado que tiene con otro contenido, porque lo pisaría.
                   Y para con `principal-adelantada` si se va a guardar desde la principal y la de esta copia tiene
                   commits que el servidor no tiene.
          Todas llevan `principal` cuando el servidor respondió y `rama` cuando la copia está en una. Con trabajo
@@ -41,7 +42,7 @@ apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-em
          `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD
          separado, con el primer sufijo libre) lo que había: primero lo que estaba preparado en el índice, tal cual,
          después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados
-         y los archivos sin seguimiento que el cambio de rama pisaría; los demás archivos sin seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
+         y los archivos sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
          a guardar desde la principal y tiene commits que el servidor no tiene, los guarda en `apartado/<principal>`
          y la iguala al servidor. Vuelve después a la rama del flujo: la actual, si `revisar` daba `guardar`,
          `ofrecer` o `volver`; si no, la rama viva del servidor para este trabajo, `<tipo>/<nombre>` con sufijos
@@ -311,8 +312,8 @@ def revisar(git, args, del_servidor=None):
 def sin_guardar(git, destino=None):
     """El trabajo sin guardar, en líneas de `git status --porcelain`: (lo que entraría en el commit de la skill o el
     cambio a `destino` pisaría, lo que se aparta). Lo primero son las rutas de la skill, con sus archivos nuevos, lo
-    preparado en el índice, en cualquier ruta, y los archivos sin seguimiento, también los ignorados, que `destino`
-    tiene con otro contenido; lo segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
+    preparado en el índice, en cualquier ruta, y los archivos sin seguimiento que `destino` tiene, en `choques`; lo
+    segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
     adentro no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí."""
     en_rutas = estado(git, "--untracked-files=all", "--", *RUTAS)
     seguidos = estado(git, "--untracked-files=no")
@@ -335,8 +336,9 @@ def estado(git, *args):
 
 
 def choques(git, destino):
-    """Los archivos sin seguimiento que `destino` tiene con otro contenido, y que `git switch` pisaría o no dejaría
-    pasar: `?? <ruta>`, o `!! <ruta>` si está ignorado, porque git reemplaza un ignorado sin avisar."""
+    """Los archivos sin seguimiento que `destino` tiene y que `git switch` no dejaría pasar o pisaría: `?? <ruta>` si
+    no está ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si está
+    ignorado y tiene otro contenido, porque git reemplaza un ignorado sin avisar."""
     raiz = git.salida("rev-parse", "--show-toplevel")
     if not raiz or not git.existe(destino):
         return []
@@ -350,13 +352,11 @@ def choques(git, destino):
     if not en_destino:
         return []
     rutas = sorted(en_destino)
-    locales = git.lineas("-C", raiz, "hash-object", "--", *rutas)
-    distintas = [r for r, h in zip(rutas, locales) if h != en_destino[r]]
-    if not distintas:
-        return []
-    ignoradas = set(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--",
-                              *distintas))
-    return [("!! " if r in ignoradas else "?? ") + r for r in distintas]
+    ignorados = set(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", *rutas))
+    ignoradas = [r for r in rutas if r in ignorados]
+    locales = git.lineas("-C", raiz, "hash-object", "--", *ignoradas) if ignoradas else []
+    pisadas = {r for r, h in zip(ignoradas, locales) if h != en_destino[r]}
+    return [("!! " + r) if r in pisadas else ("?? " + r) for r in rutas if r in pisadas or r not in ignorados]
 
 
 def unicas(lineas):

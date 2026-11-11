@@ -695,6 +695,41 @@ class SinSeguimientoQueChoca(Base):
         self.assertEqual((salida["accion"], salida["apartado"]), ("guardar", []))
         self.assertEqual(self.status(), "?? informe.txt\n")
 
+    def test_un_sin_seguimiento_igual_al_de_la_principal_no_deja_apartar_a_medias(self):
+        """Q168: `git switch` no deja pasar un archivo sin seguimiento que la rama de destino tiene aunque el contenido
+        sea idéntico. `revisar` lo nombra y `apartar` lo guarda y termina en la principal, en lugar de quedar en
+        `apartado/otra` con `error-de-git`."""
+        git("switch", "-q", "-c", "otra", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "cambio local\n")
+        for repo in (self.otra, self.copia):
+            self.escribir(repo, "doc/nuevo.md", "# Nuevo\n")
+        git("add", "doc/nuevo.md", cwd=self.otra)
+        git("commit", "-q", "-m", "nuevo", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        archivos = self.parada(self.revisar(), "otra-rama")["archivos"]
+        self.assertEqual(sorted(archivos), [" M notas.txt", "?? doc/nuevo.md"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"], salida["desde"]),
+                         ("guardar", "main", ["apartado/otra"], "otra"), salida)
+        self.assertEqual(self.status(), "")
+        self.assertTrue(self.igual_al_servidor())
+        self.assertEqual(self.contenido("apartado/otra", "notas.txt"), "cambio local\n")
+        self.assertEqual((self.copia / "doc/nuevo.md").read_text(encoding="utf-8"), "# Nuevo\n")
+        self.assertEqual(self.revisar()["accion"], "guardar")
+
+    def test_un_archivo_sacado_del_indice_igual_al_de_la_principal_no_deja_apartar_a_medias(self):
+        """Q168, con `git rm --cached`: el borrado preparado queda en el primer commit del apartado y el archivo, que
+        la principal tiene igual, no frena el cambio de rama."""
+        git("switch", "-q", "-c", "otra", cwd=self.copia)
+        git("rm", "-q", "--cached", "notas.txt", cwd=self.copia)
+        self.assertIn("?? notas.txt", self.parada(self.revisar(), "otra-rama")["archivos"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", ["apartado/otra"]),
+                         salida)
+        self.assertEqual(self.status(), "")
+        self.assertEqual(self.archivos_de("apartado/otra~1"), {"D", "notas.txt"})
+        self.assertEqual((self.copia / "notas.txt").read_text(encoding="utf-8"), "notas\n")
+
 
 class RamaDelFlujoSinUpstream(Base):
     """N4: una rama del flujo que está en el servidor pero no lo sigue queda siguiéndolo después de `apartar`."""

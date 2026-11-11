@@ -44,7 +44,8 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
                   con ` + "`cambios-sin-guardar`" + ` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
                   rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con ` + "`ofrecer`" + `, también
                   cualquier cambio de un archivo con seguimiento; con ` + "`volver` y `ofrecer`" + `, también un archivo sin
-                  seguimiento, ignorado o no, que la principal tiene con otro contenido y el cambio de rama pisaría.
+                  seguimiento que la principal tiene, aunque sea igual, porque el cambio de rama no pasaría, o uno
+                  ignorado que tiene con otro contenido, porque lo pisaría.
                   Y para con ` + "`principal-adelantada`" + ` si se va a guardar desde la principal y la de esta copia tiene
                   commits que el servidor no tiene.
          Todas llevan ` + "`principal`" + ` cuando el servidor respondió y ` + "`rama`" + ` cuando la copia está en una. Con trabajo
@@ -56,7 +57,7 @@ apartar  con el sí de la persona, ante ` + "`otra-rama`, `sin-rama`, `commits-s
          ` + "`principal-adelantada`" + `. Guarda en ` + "`apartado/<rama>`" + ` (cada ` + "`/`" + ` cambiada por ` + "`-`, `sin-rama`" + ` con HEAD
          separado, con el primer sufijo libre) lo que había: primero lo que estaba preparado en el índice, tal cual,
          después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados
-         y los archivos sin seguimiento que el cambio de rama pisaría; los demás archivos sin seguimiento no se tocan.
+         y los archivos sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se tocan.
          Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
          principal y tiene commits que el servidor no tiene, los guarda en ` + "`apartado/<principal>`" + ` y la iguala al
          servidor. Vuelve después a la rama del flujo: la actual, si ` + "`revisar`" + ` daba ` + "`guardar`, `ofrecer` o `volver`" + `;
