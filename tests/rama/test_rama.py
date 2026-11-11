@@ -596,6 +596,10 @@ class Ayuda(unittest.TestCase):
         self.assertIn("sin los hooks de commit ni de checkout (`reference-transaction` y `post-index-change` sí pueden "
                       "correr, y si uno rechaza, para antes de tocar HEAD, el índice o la carpeta; Q174)", texto)
 
+    def test_dice_los_casos_borde_del_reintento(self):
+        """Q176: los tres casos en que el reintento desde el apartado no va solo al `Destino:`."""
+        self.assertIn('El reintento sabe que la rama del `Destino:` es la de la que salió el apartado solo por el nombre del apartado; un apartado sin commits propios, de HEAD separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra vez; y si en una corrida que venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo rehace y `revisar` vuelve a dar `principal-adelantada`, con otro sí (Q176).', " ".join(self.correr("-h").stdout.split()))
+
     def test_un_h_donde_no_va_es_uso_incorrecto(self):
         for args in (("revisar", "--tipo", "-h"), ("revisar", "--foo", "-h"), ("commit", "-m", "-h", "--", "x"),
                      ("commit", "-h"), ("foo", "-h"), ("volver", "--rama", "x", "-h")):
