@@ -566,6 +566,24 @@ class MensajeDesdeArchivo(Base):
                 self.correr("commit", *args, "--", "design/", codigo=2)
         self.assertEqual(git("rev-parse", "HEAD", cwd=self.copia).stdout, antes)
 
+    def test_un_archivo_que_no_es_utf8_sale_con_2_sin_commit(self):
+        """Q167: lo que escriben `>` y `Out-File` (UTF-16 LE con BOM) y `Set-Content` sin `-Encoding` (Latin-1) en
+        PowerShell 5.1 no es UTF-8: sale con 2, no hace commit, no toca la copia y stderr dice qué pasa y cómo
+        escribirlo."""
+        self.preparar()
+        antes = (git("rev-parse", "HEAD", cwd=self.copia).stdout, self.status(),
+                 git("ls-files", "-s", cwd=self.copia).stdout)
+        for nombre, contenido in (("utf-16-le", b"\xff\xfe" + self.MENSAJE.encode("utf-16-le")),
+                                  ("latin-1", self.MENSAJE.encode("latin-1", errors="replace"))):
+            with self.subTest(encoding=nombre):
+                archivo = self.tmp / f"mensaje-{nombre}.txt"
+                archivo.write_bytes(contenido)
+                error = self.correr("commit", "-F", str(archivo), "--", "design/", codigo=2)
+                self.assertIn("no es UTF-8", error)
+                self.assertIn("herramienta de archivos", error)
+                self.assertEqual((git("rev-parse", "HEAD", cwd=self.copia).stdout, self.status(),
+                                  git("ls-files", "-s", cwd=self.copia).stdout), antes)
+
 
 class RutasIgnoradas(Base):
     """N1 y N2: una ruta de la skill ignorada, como el puntero que queda solo en esta máquina cuando la persona no

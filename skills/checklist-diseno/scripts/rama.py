@@ -77,7 +77,8 @@ hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide cred
 
 Escribe en stdout un objeto JSON con `accion` y sale con 0. Con uso incorrecto, una épica o un mockup que no sirve
 como nombre de rama (con mayúsculas, o que termina en guion y número, como `fase-2`), o una ruta de commit que no es
-de la skill, sale con 2 sin escribir en stdout y dice en stderr por qué.
+de la skill, o un -F que no se puede leer o no es UTF-8 (Q167), sale con 2 sin escribir en stdout y dice en stderr
+por qué.
 """
 import argparse
 import json
@@ -626,8 +627,13 @@ def argumentos(argv):
             try:
                 with open(args.archivo, encoding="utf-8-sig") as archivo:
                     texto = archivo.read().replace("\r\n", "\n").strip()
-            except (OSError, UnicodeDecodeError) as error:
+            except OSError as error:
                 parser.error(f"no se puede leer el mensaje de -F {args.archivo!r}: {error}")
+            except UnicodeDecodeError:
+                # Q167: lo que escriben > y Out-File (UTF-16) o Set-Content sin -Encoding (ANSI) en PowerShell 5.1.
+                parser.error(f"el mensaje de -F {args.archivo!r} no es UTF-8: escríbelo con la herramienta de archivos "
+                             "de la sesión, no con > ni Out-File de PowerShell, que escriben UTF-16, ni con Set-Content "
+                             "sin -Encoding UTF8")
             if not texto:
                 parser.error(f"el mensaje de -F {args.archivo!r} está vacío")
             args.mensaje = [texto]
