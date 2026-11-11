@@ -547,6 +547,13 @@ class ReferenciaDeRama(unittest.TestCase):
                     self.assertIn("`references/rama.md`", linea)
                 self.assertNotIn("el TL dice cómo seguir", skill_md)
 
+    def test_una_linea_sin_seguimiento_es_lo_que_el_cambio_de_rama_pisaria_o_lo_que_lo_bloquea(self):
+        """Q169: una línea `??` puede ser un archivo igual al de la principal, que el cambio de rama no pisa pero no
+        deja pasar; la prosa no le dice a la persona que se va a pisar."""
+        seccion_ = seccion(self.texto, "Trabajo por apartar", 2)
+        self.assertIn("una línea `??` o `!!` es un archivo sin seguimiento, o ignorado, que el cambio de rama pisaría o "
+                      "que lo bloquea", seccion_)
+
     def test_lo_que_hay_que_apartar_lo_aparta_rama_py_sin_stash(self):
         """Q143, Q158 y Q159: el arreglo de cada motivo que aparta es `rama.py apartar`; la conducta la prueba
         tests/rama/test_proteccion.py contra repositorios reales."""
