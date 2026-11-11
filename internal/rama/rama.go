@@ -294,11 +294,10 @@ func lineasDeEstado(partes []string) []string {
 	return lineas
 }
 
-// choques son los archivos sin seguimiento que `git switch` a `destino` no dejaría pasar o pisaría: `?? <ruta>` si no
-// está ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si está ignorado y
-// se perdería, porque git reemplaza un ignorado sin avisar. Uno ignorado se pierde si `destino` lo tiene con otro
-// contenido, si es un archivo donde `destino` tiene una carpeta, o si está dentro de una carpeta donde `destino` tiene
-// un archivo (H1 de la revisión 4).
+// choques son los archivos sin seguimiento en el camino de `git switch` a `destino`: los que `destino` tiene en la
+// misma ruta, un archivo donde `destino` tiene una carpeta y lo que hay dentro de una carpeta donde `destino` tiene un
+// archivo (H1 de la revisión 4). `?? <ruta>` si no está ignorado y `!! <ruta>` si lo está, aunque el contenido sea el
+// mismo: git se niega igual ante uno sin seguimiento (Q168), y ante un ignorado con `--no-overwrite-ignore` (Q175).
 func choques(g Git, destino string) []string {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" || !g.existe(destino) {
@@ -372,30 +371,11 @@ func choques(g Git, destino string) []string {
 		"--exclude-standard", "--"}, rutas...)...) {
 		ignorados[r] = true
 	}
-	var ignoradas []string
-	for _, r := range rutas {
-		if _, esta := enDestino[r]; esta && ignorados[r] {
-			ignoradas = append(ignoradas, r)
-		}
-	}
-	pisadas := map[string]bool{}
-	for r := range perdidos {
-		pisadas[r] = true
-	}
-	if len(ignoradas) > 0 {
-		locales := g.lineas(append([]string{"-C", raiz, "hash-object", "--"}, ignoradas...)...)
-		for i := 0; i < min(len(ignoradas), len(locales)); i++ {
-			if locales[i] != enDestino[ignoradas[i]] {
-				pisadas[ignoradas[i]] = true
-			}
-		}
-	}
 	var lineas []string
 	for _, r := range rutas {
-		switch {
-		case ignorados[r] && pisadas[r]:
+		if ignorados[r] {
 			lineas = append(lineas, "!! "+r)
-		case !ignorados[r]:
+		} else {
 			lineas = append(lineas, "?? "+r)
 		}
 	}
@@ -858,7 +838,8 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 				return nil, p
 			}
 		}
-		cambio := []string{"switch", "--quiet"}
+		// Con `--no-overwrite-ignore`, git se niega ante un ignorado que la predicción de choques no vio (Q175).
+		cambio := []string{"switch", "--quiet", "--no-overwrite-ignore"}
 		// Con un submódulo apartado, la copia vuelve también al commit del submódulo que tiene la rama del flujo.
 		if len(*creadas) > 0 {
 			cambio = append(cambio, "--recurse-submodules")

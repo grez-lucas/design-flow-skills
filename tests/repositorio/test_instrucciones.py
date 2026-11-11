@@ -552,7 +552,8 @@ class ReferenciaDeRama(unittest.TestCase):
         deja pasar; la prosa no le dice a la persona que se va a pisar."""
         seccion_ = seccion(self.texto, "Trabajo por apartar", 2)
         self.assertIn("una línea `??` o `!!` es un archivo sin seguimiento, o ignorado, que el cambio de rama, o igualar "
-                      "la principal al servidor, pisaría o que lo bloquea", seccion_)
+                      "la principal al servidor, pisaría o que lo bloquea, aunque sea igual al de la rama a la que va "
+                      "(Q175)", seccion_)
 
     def test_una_copia_que_quedo_en_el_apartado(self):
         """Q172 y Q173: si `apartar` para con `error-de-git` en el `git switch`, la copia queda en `apartado/<rama>` con

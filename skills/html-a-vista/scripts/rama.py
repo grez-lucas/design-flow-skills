@@ -29,13 +29,13 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
                   con `cambios-sin-guardar` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
                   rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con `ofrecer`, también
                   cualquier cambio de un archivo con seguimiento; con `volver` y `ofrecer`, también un archivo sin
-                  seguimiento que la principal tiene, aunque sea igual, porque el cambio de rama no pasaría, o uno
-                  ignorado que tiene con otro contenido, porque lo pisaría.
+                  seguimiento en el camino del cambio de rama, ignorado o no y aunque sea igual al de la principal,
+                  porque el cambio de rama no pasaría (Q169, Q175).
                   Y para con `principal-adelantada` si se va a guardar desde la principal y la de esta copia tiene
                   commits que el servidor no tiene; ahí cuenta también lo que traería igualarla al servidor (Q170).
          Todas llevan `principal` cuando el servidor respondió y `rama` cuando la copia está en una. Con trabajo
          sin guardar, `archivos` trae sus líneas de `git status --porcelain`, con las rutas sin escapar: lo que
-         `apartar` guardaría, y `!! <ruta>` para un ignorado que el cambio de rama pisaría. Con la principal
+         `apartar` guardaría, y `!! <ruta>` para un ignorado en el camino del cambio de rama. Con la principal
          adelantada, `commits` trae esos commits.
 
 apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar` o
@@ -53,9 +53,11 @@ apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-em
          es la rama actual y no sigue a la del servidor, la iguala al servidor, con sus commits propios antes en
          `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar` desde ahí, con `apartado` (las
          ramas donde quedó lo apartado) y `desde` (la rama donde estaba, o null). Con lo apartado, la copia pasa a
-         `apartado/<rama>` sin tocar la carpeta y de ahí cambia a la rama del flujo con `git switch` (Q172); el último
-         commit del apartado lleva `Destino: <rama>`, la rama del flujo a la que va (Q173). Con más de una rama viva
-         para este trabajo devuelve `elegir`, con `ramas`, y --rama <una de ellas> vuelve a esa.
+         `apartado/<rama>` sin tocar la carpeta y de ahí cambia a la rama del flujo con
+         `git switch --no-overwrite-ignore`, que se niega ante un ignorado que la predicción no vio en lugar de borrarlo
+         (Q172, Q175); igualar la principal sin cambiar de rama (`reset --keep`) no tiene esa opción y depende de la
+         predicción. El último commit del apartado lleva `Destino: <rama>`, la rama del flujo a la que va (Q173). Con
+         más de una rama viva para este trabajo devuelve `elegir`, con `ramas`, y --rama <una de ellas> vuelve a esa.
 
 volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, que va en --rama-nueva. Corre `revisar`
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con `ofrecer`, crea
@@ -353,11 +355,10 @@ def estado(git, *args):
 
 
 def choques(git, destino):
-    """Los archivos sin seguimiento que `git switch` a `destino` no dejaría pasar o pisaría: `?? <ruta>` si no está
-    ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si está ignorado y se
-    perdería, porque git reemplaza un ignorado sin avisar. Uno ignorado se pierde si `destino` lo tiene con otro
-    contenido, si es un archivo donde `destino` tiene una carpeta, o si está dentro de una carpeta donde `destino` tiene
-    un archivo (H1 de la revisión 4)."""
+    """Los archivos sin seguimiento en el camino de `git switch` a `destino`: los que `destino` tiene en la misma ruta,
+    un archivo donde `destino` tiene una carpeta y lo que hay dentro de una carpeta donde `destino` tiene un archivo
+    (H1 de la revisión 4). `?? <ruta>` si no está ignorado y `!! <ruta>` si lo está, aunque el contenido sea el mismo:
+    git se niega igual ante uno sin seguimiento (Q168), y ante un ignorado con `--no-overwrite-ignore` (Q175)."""
     raiz = git.salida("rev-parse", "--show-toplevel")
     if not raiz or not git.existe(destino):
         return []
@@ -392,10 +393,7 @@ def choques(git, destino):
     if not rutas:
         return []
     ignorados = set(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", *rutas))
-    ignoradas = [r for r in rutas if r in ignorados and r in en_destino]
-    locales = git.lineas("-C", raiz, "hash-object", "--", *ignoradas) if ignoradas else []
-    pisadas = perdidos | {r for r, h in zip(ignoradas, locales) if h != en_destino[r]}
-    return [("!! " + r) if r in ignorados else ("?? " + r) for r in rutas if r in pisadas or r not in ignorados]
+    return [("!! " + r) if r in ignorados else ("?? " + r) for r in rutas]
 
 
 def unicas(lineas):
@@ -673,7 +671,9 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         if destino != desde:
             al_dia(git, destino)
         # Con un submódulo apartado, la copia vuelve también al commit del submódulo que tiene la rama del flujo.
-        git.hacer("switch", "--quiet", *(("--recurse-submodules",) if creadas else ()), destino)
+        # Con `--no-overwrite-ignore`, git se niega ante un ignorado que la predicción de choques no vio (Q175).
+        git.hacer("switch", "--quiet", "--no-overwrite-ignore", *(("--recurse-submodules",) if creadas else ()),
+                  destino)
     try:
         salida = revisar(git, args, (principal, ramas))
     except Parada as parada:
