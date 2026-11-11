@@ -537,8 +537,10 @@ func guardarAparte(g Git, s delServidor, donde string, chocan []string) (string,
 		if err := os.WriteFile(ruta, contenido, 0o644); err != nil {
 			return "", "", nuevaParada("error-de-git", "no se pudo copiar el índice: "+err.Error(), g.rama())
 		}
-	} else {
+	} else if errors.Is(err, fs.ErrNotExist) {
 		os.Remove(ruta)
+	} else {
+		return "", "", nuevaParada("error-de-git", "no se pudo copiar el índice: "+err.Error(), g.rama())
 	}
 	temporal := Git{repo: g.repo, indice: ruta}
 	var arboles []string
@@ -639,8 +641,12 @@ func apartados(g Git, base string) []string {
 
 // pasarAlApartado pone HEAD en `apartado/<rama>` y el árbol del apartado en el índice, sin tocar la carpeta (Q172):
 // la copia queda como si hubiera hecho los commits ahí, y el `git switch` que sigue es el mismo de siempre. El índice
-// se escribe con `index.lock`, como lo escribe git, así que otro git que lo esté usando lo frena.
+// se escribe con `index.lock`, como lo escribe git, así que otro git que lo esté usando lo frena. Si no se puede
+// reemplazar el índice, HEAD vuelve adonde estaba y el candado se borra: la copia queda como estaba (H4 de la revisión
+// 4).
 func pasarAlApartado(g Git, apartado, indice string) *parada {
+	origen := g.rama()
+	inicio, _ := g.salida("rev-parse", "HEAD")
 	real := rutaDelIndice(g)
 	candado := real + ".lock"
 	contenido, err := os.ReadFile(indice)
@@ -668,6 +674,12 @@ func pasarAlApartado(g Git, apartado, indice string) *parada {
 			strings.TrimSpace(r.stderr)), g.rama())
 	}
 	if err := os.Rename(candado, real); err != nil {
+		if origen != "" {
+			g.correr("symbolic-ref", "HEAD", "refs/heads/"+origen)
+		} else {
+			g.correr("update-ref", "--no-deref", "HEAD", inicio)
+		}
+		os.Remove(candado)
 		return nuevaParada("error-de-git", "no se pudo escribir `"+real+"`: "+err.Error(), g.rama())
 	}
 	return nil
