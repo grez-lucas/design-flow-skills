@@ -82,11 +82,15 @@ Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el men
 deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` dice dónde quedó la copia. Si falla antes
 del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
 sin guardar, y otra corrida de `apartar`, sin nada nuevo que guardar, va a la rama de su `Destino:` sin volver a
-calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). Si el índice está en uso
-(`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama
-de origen y no deja su `index.lock`. `apartar` no guarda los cambios de adentro de un submódulo: si uno los tiene en
-archivos con seguimiento y el cambio de rama lo lleva a otro commit, para con `error-de-git` antes de guardar nada y lo
-nombra en `detalle`, y otra corrida para igual hasta que se guarden en el submódulo.
+calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). El reintento sabe que la rama del
+`Destino:` es la de la que salió el apartado solo por el nombre del apartado; un apartado sin commits propios, de HEAD
+separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra vez; y si en una corrida que
+venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo rehace y `revisar` vuelve a dar
+`principal-adelantada`, con otro sí (Q176). Si el índice está en uso (`index.lock`), para antes de tocarlo, y otra
+corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su `index.lock`. `apartar`
+no guarda los cambios de adentro de un submódulo: si uno los tiene en archivos con seguimiento y el cambio de rama lo
+lleva a otro commit, para con `error-de-git` antes de guardar nada y lo nombra en `detalle`, y otra corrida para igual
+hasta que se guarden en el submódulo.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
