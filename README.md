@@ -13,7 +13,7 @@ Skills en español para pasar de una idea de producto a un diseño listo para co
 
 `html-a-vista` es la entrada para un HTML que ya está hecho: un mockup vigente que un ticket nuevo va a tocar, o un prototipo de otra herramienta. Lo desarma con un script, muestra un plan, reparte la conversión entre subagentes en tres olas y deja vistas con la misma convención que `spec-a-html`. Exige spec como `spec-a-html`: sin spec, arma un borrador desde el HTML y deriva a `grilling-es`. Necesita una sesión con subagentes.
 
-Con el plugin, cada skill se invoca con el prefijo `flujo-diseno:`; la sesión también la nombra sin prefijo. Al cerrar, cada skill nombra el siguiente paso con las dos formas y dice qué hace.
+Con el plugin, cada skill se invoca con el prefijo `flujo-diseno:`; la sesión también la nombra sin prefijo. Al cerrar, cada skill nombra el siguiente paso con el prefijo del plugin y dice qué hace.
 
 | Skill | Con el prefijo del plugin |
 | :--- | :--- |

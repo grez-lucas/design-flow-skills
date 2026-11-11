@@ -636,6 +636,15 @@ class NombreDelSiguientePaso(unittest.TestCase):
                 self.assertIn(f"`{skill}`", readme)
                 self.assertIn(f"`{self.PLUGIN}:{skill}`", readme)
 
+    def test_el_readme_dice_que_el_cierre_usa_el_prefijo(self):
+        """Desde Q164 el cierre de cada skill nombra la siguiente solo con el prefijo del plugin, sin la forma de
+        `npx skills`, y el README lo dice así."""
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        cierre = re.search(r"^.*Al cerrar, cada skill nombra el siguiente paso.*$", readme, flags=re.M)
+        self.assertIsNotNone(cierre, "el README no dice cómo nombra el cierre el siguiente paso")
+        self.assertIn("con el prefijo del plugin", cierre.group(0))
+        self.assertNotIn("dos formas", cierre.group(0))
+
 
 class DescripcionDeLasSkills(unittest.TestCase):
     """El `description` del frontmatter de cada SKILL.md cabe en el tope de 1024 caracteres de las skills."""
