@@ -725,7 +725,8 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 		destino, candidatas = destinoDelFlujo(a, s, a.rama)
 	}
 	var chocan []string
-	if final := refFinal(g, d, destino, desde, s.principal); final != "" {
+	final := refFinal(g, d, destino, desde, s.principal)
+	if final != "" {
 		for _, l := range choques(g, final) {
 			chocan = append(chocan, l[3:])
 		}
@@ -736,6 +737,18 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 		sueltos = !ok || n != "0"
 	}
 	if _, amplio := sinGuardar(g, ""); len(amplio) > 0 || len(chocan) > 0 || sueltos {
+		if destino != "" {
+			llega := final
+			if llega == "" {
+				llega = "HEAD"
+			}
+			if sucios := submodulosSucios(g, llega); len(sucios) > 0 {
+				return nil, nuevaParada("error-de-git", "Estos submódulos tienen cambios sin guardar adentro, que "+
+					"`apartar` no guarda, y el cambio de rama los lleva a otro commit, donde git los pisaría o no "+
+					"dejaría pasar: "+strings.Join(sucios, ", ")+". Hay que guardarlos dentro del submódulo antes de "+
+					"apartar.", desde)
+			}
+		}
 		donde := desde
 		if donde == "" {
 			donde = "sin-rama"
@@ -799,6 +812,34 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 // yaApartada dice si el último apartado ya contiene a `ref`, para no crear otro con los mismos commits.
 func yaApartada(g Git, ref string, creadas []string) bool {
 	return len(creadas) > 0 && g.correr("merge-base", "--is-ancestor", ref, creadas[len(creadas)-1]).codigo == 0
+}
+
+// submodulosSucios son los submódulos con cambios en sus archivos con seguimiento que `git switch
+// --recurse-submodules` a `destino` llevaría a otro commit. git 2.43 se niega si el archivo cambia entre los dos
+// commits, y si no cambia, descarta el cambio sin avisar (H3 de la revisión 4); los archivos sin seguimiento de adentro
+// quedan.
+func submodulosSucios(g Git, destino string) []string {
+	raiz, _ := g.salida("rev-parse", "--show-toplevel")
+	partes := g.rutas("status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none")
+	var sucios []string
+	for i := 0; i < len(partes); i++ {
+		campos := strings.Split(partes[i], " ")
+		desde := 8
+		if campos[0] == "2" {
+			desde = 9
+			i++
+		}
+		if (campos[0] != "1" && campos[0] != "2") || len(campos) <= desde || !strings.HasPrefix(campos[2], "S") ||
+			campos[2][2] != 'M' {
+			continue
+		}
+		ruta := strings.Join(campos[desde:], " ")
+		adentro, _ := g.salida("-C", Git{repo: raiz}.enLaCopia(ruta), "rev-parse", "HEAD")
+		if enDestino, _ := g.salida("rev-parse", destino+":"+ruta); adentro != enDestino {
+			sucios = append(sucios, ruta)
+		}
+	}
+	return sucios
 }
 
 // igualar deja la rama local igual a la del servidor, esté o no la copia en ella.

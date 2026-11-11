@@ -234,6 +234,59 @@ class Submodulos(Base):
         self.assertEqual(self.archivos_de("apartado/main"), {"M", "design/lib"})
         self.assertEqual(self.status(), "")
 
+    def test_r4_h3_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_moveria(self):
+        """H3 de la revisión 4: `apartar` no guarda los cambios de adentro de un submódulo, y el `git switch
+        --recurse-submodules` falla si tiene que llevarlo a otro commit. Para antes de guardar nada y nombra el
+        submódulo; la copia queda como estaba, y con los cambios guardados en el submódulo, `apartar` sigue."""
+        lib = self.submodulo()
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(lib, "a.css", "a { otro }\n")
+        git("add", "-A", cwd=lib)
+        git("commit", "-q", "-m", "otro", cwd=lib)
+        self.escribir(lib, "a.css", "a { color: red }\n")
+        antes = (self.status(), git("rev-parse", "HEAD", cwd=self.copia).stdout)
+        salida = self.parada(self.apartar(), "error-de-git")
+        self.assertIn("design/lib", salida["detalle"])
+        self.assertEqual((salida["rama"], salida["apartado"], salida["desde"]), ("experimento", [], "experimento"),
+                         salida)
+        self.assertEqual((self.status(), git("rev-parse", "HEAD", cwd=self.copia).stdout), antes)
+        self.assertEqual(self.ramas_locales("apartado/*"), [])
+        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { color: red }\n")
+        # Otra corrida para igual, con el mismo motivo, mientras el submódulo tenga los cambios adentro.
+        self.assertEqual(self.parada(self.apartar(), "error-de-git")["detalle"], salida["detalle"])
+        git("commit", "-q", "-am", "color", cwd=lib)
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.archivos_de("apartado/experimento"), {"M", "design/lib"})
+        self.assertEqual(self.status(), "")
+
+    def test_r4_h3_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_no_toca(self):
+        """El submódulo va a otro commit y el archivo cambiado adentro es igual en los dos: `git switch
+        --recurse-submodules` pasa y descarta el cambio sin avisar (git 2.43). `apartar` para igual, antes de guardar."""
+        lib = self.submodulo()
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(lib, "b.css", "b {}\n")
+        git("add", "-A", cwd=lib)
+        git("commit", "-q", "-m", "otro", cwd=lib)
+        self.escribir(lib, "a.css", "a { color: red }\n")
+        salida = self.parada(self.apartar(), "error-de-git")
+        self.assertIn("design/lib", salida["detalle"])
+        self.assertEqual((salida["rama"], salida["apartado"]), ("experimento", []), salida)
+        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { color: red }\n")
+        self.assertTrue((lib / "b.css").exists())
+
+    def test_r4_h3_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_no_mueve(self):
+        lib = self.submodulo()
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(lib, "a.css", "a { color: red }\n")
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", "notas.txt"), "MI TRABAJO\n")
+        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { color: red }\n")
+
 
 class PrincipalAdelantada(Base):
     """M1 y Q158: los commits locales de la principal se apartan en `apartado/<principal>` y la principal se iguala
