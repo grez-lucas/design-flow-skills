@@ -518,7 +518,7 @@ func rutaDelIndice(g Git) string {
 // cambio de rama pisaría o no dejaría pasar (N2, N3). Crea `apartado/<rama>`, o reusa uno que ya tiene esos mismos
 // commits, y devuelve la rama y la ruta del índice temporal, que queda con el árbol del apartado; quien la recibe la
 // borra.
-func guardarAparte(g Git, s delServidor, donde string, chocan []string) (string, string, *parada) {
+func guardarAparte(g Git, s delServidor, donde string, chocan []string, destino string) (string, string, *parada) {
 	inicio, _ := g.salida("rev-parse", "HEAD")
 	real := rutaDelIndice(g)
 	archivo, err := os.CreateTemp(filepath.Dir(real), "index.apartar-")
@@ -543,17 +543,9 @@ func guardarAparte(g Git, s delServidor, donde string, chocan []string) (string,
 		return "", "", nuevaParada("error-de-git", "no se pudo copiar el índice: "+err.Error(), g.rama())
 	}
 	temporal := Git{repo: g.repo, indice: ruta}
-	var arboles []string
-	padre := inicio
 	preparado, p := escribirArbol(temporal)
 	if p != nil {
 		return "", "", p
-	}
-	if arbolDeHEAD, _ := g.salida("rev-parse", "HEAD^{tree}"); preparado != arbolDeHEAD {
-		if padre, p = commitTree(g, preparado, padre, "Apartado: lo que estaba preparado en "+donde); p != nil {
-			return "", "", p
-		}
-		arboles = append(arboles, preparado)
 	}
 	if p := agregar(temporal, chocan); p != nil {
 		return "", "", p
@@ -562,14 +554,26 @@ func guardarAparte(g Git, s delServidor, donde string, chocan []string) (string,
 	if p != nil {
 		return "", "", p
 	}
+	var arboles, mensajes []string
+	if arbolDeHEAD, _ := g.salida("rev-parse", "HEAD^{tree}"); preparado != arbolDeHEAD {
+		arboles, mensajes = append(arboles, preparado), append(mensajes, "Apartado: lo que estaba preparado en "+donde)
+	}
 	if todo != preparado {
-		if padre, p = commitTree(g, todo, padre, "Apartado: lo que había en "+donde+" antes de guardar"); p != nil {
+		arboles, mensajes = append(arboles, todo), append(mensajes, "Apartado: lo que había en "+donde+" antes de guardar")
+	}
+	padre := inicio
+	for i, arbol := range arboles {
+		parrafos := []string{mensajes[i]}
+		// El último commit lleva el destino, que lee el reintento desde el apartado (Q173).
+		if destino != "" && i == len(arboles)-1 {
+			parrafos = append(parrafos, "Destino: "+destino)
+		}
+		if padre, p = commitTree(g, arbol, padre, parrafos...); p != nil {
 			return "", "", p
 		}
-		arboles = append(arboles, todo)
 	}
 	base := "apartado/" + strings.ReplaceAll(donde, "/", "-")
-	apartado := reusable(g, base, inicio, arboles)
+	apartado := reusable(g, base, inicio, arboles, destino)
 	if apartado == "" {
 		apartado = primeraLibre(g, s.ramas, base)
 		// Con el valor anterior vacío, update-ref falla si la rama ya existe.
@@ -606,19 +610,34 @@ func agregar(temporal Git, chocan []string) *parada {
 	return nil
 }
 
-func commitTree(g Git, arbol, padre, mensaje string) (string, *parada) {
-	r := g.correr("commit-tree", arbol, "-p", padre, "-m", mensaje)
+func commitTree(g Git, arbol, padre string, parrafos ...string) (string, *parada) {
+	args := []string{"commit-tree", arbol, "-p", padre}
+	for _, parrafo := range parrafos {
+		args = append(args, "-m", parrafo)
+	}
+	r := g.correr(args...)
 	if r.codigo != 0 {
-		return "", nuevaParada("error-de-git", fmt.Sprintf("`git commit-tree %s -p %s -m %s` falló: %s", arbol, padre,
-			mensaje, strings.TrimSpace(r.stderr)), g.rama())
+		return "", nuevaParada("error-de-git", "`git "+strings.Join(args, " ")+"` falló: "+strings.TrimSpace(r.stderr),
+			g.rama())
 	}
 	return strings.TrimSpace(r.stdout), nil
 }
 
+// destinoDe es el `Destino: <rama>` del último commit de `ref`, que escribió `apartar` al guardar (Q173), o "".
+func destinoDe(g Git, ref string) string {
+	lineas := g.lineas("log", "-1", "--format=%B", ref)
+	for i := len(lineas) - 1; i >= 0; i-- {
+		if destino, ok := strings.CutPrefix(lineas[i], "Destino: "); ok {
+			return strings.TrimSpace(destino)
+		}
+	}
+	return ""
+}
+
 // reusable es un `apartado/<base>` o `apartado/<base>-<n>` que ya tiene, sobre `inicio`, commits con estos mismos
-// árboles: lo dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171). No uno que tiene en uso
-// alguna copia de `git worktree` (H7 de la revisión 4).
-func reusable(g Git, base, inicio string, arboles []string) string {
+// árboles y el mismo destino: lo dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171). No uno
+// que tiene en uso alguna copia de `git worktree` (H7 de la revisión 4).
+func reusable(g Git, base, inicio string, arboles []string, destino string) string {
 	enUso := map[string]bool{}
 	for _, l := range g.lineas("worktree", "list", "--porcelain") {
 		if rama, ok := strings.CutPrefix(l, "branch refs/heads/"); ok {
@@ -627,7 +646,8 @@ func reusable(g Git, base, inicio string, arboles []string) string {
 	}
 	for _, rama := range apartados(g, base) {
 		if !enUso[rama] && g.correr("merge-base", "--is-ancestor", inicio, rama).codigo == 0 &&
-			slices.Equal(g.lineas("log", "--reverse", "--format=%T", inicio+".."+rama), arboles) {
+			slices.Equal(g.lineas("log", "--reverse", "--format=%T", inicio+".."+rama), arboles) &&
+			(len(arboles) == 0 || destinoDe(g, rama) == destino) {
 			return rama
 		}
 	}
@@ -718,14 +738,30 @@ func apartarCommits(g Git, s delServidor, rama string, creadas *[]string) *parad
 }
 
 // refFinal es la ref cuyo árbol trae `apartar` a la carpeta, o "" si la carpeta no cambia: la rama a la que cambia
-// (con N4 la actual se iguala al servidor; las demás van a la local si tiene commits propios, M1), o la principal del
+// (con N4, `seguir`, se iguala al servidor; las demás van a la local si tiene commits propios, M1), o la principal del
 // servidor si la copia se queda en la principal y la iguala a él (Q170).
-func refFinal(g Git, d *decision, destino, desde, principal string) string {
+func refFinal(g Git, d *decision, destino, desde, principal string, seguir bool) string {
 	if vaA := llegada(d, destino, principal); vaA != "" {
-		return refDeLlegada(g, vaA, principal, vaA == desde)
+		return refDeLlegada(g, vaA, principal, seguir)
 	}
 	if desde == principal && len(adelantada(g, principal)) > 0 {
 		return "refs/remotes/origin/" + principal
+	}
+	return ""
+}
+
+// destinoGuardado es, en el reintento desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:`
+// de su último commit, adonde iba la corrida que lo armó (Q173), si sigue en esta copia o en el servidor; si no, "".
+func destinoGuardado(g Git, desde string, s delServidor) string {
+	if !strings.HasPrefix(desde, "apartado/") {
+		return ""
+	}
+	if _, amplio := sinGuardar(g, ""); len(amplio) > 0 {
+		return ""
+	}
+	destino := destinoDe(g, "HEAD")
+	if destino != "" && (destino == s.principal || s.ramas[destino] || g.existe("refs/heads/"+destino)) {
+		return destino
 	}
 	return ""
 }
@@ -734,6 +770,7 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 	var d *decision
 	var destino string
 	var candidatas []string
+	guardado := false
 	encontrada, p := ramaDelFlujo(g, a, s)
 	switch {
 	case p == nil:
@@ -741,10 +778,23 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 	case !slices.Contains(apartables, p.motivo):
 		return nil, p
 	default:
-		destino, candidatas = destinoDelFlujo(a, s, a.rama)
+		if destino = destinoGuardado(g, desde, s); destino != "" {
+			guardado = true
+		} else {
+			destino, candidatas = destinoDelFlujo(a, s, a.rama)
+		}
+	}
+	// N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue, y se iguala a él. En el
+	// reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
+	seguir := d == nil && destino != "" && destino == desde
+	if guardado && destino != s.principal && s.ramas[destino] {
+		sigue, _ := upstream(g, destino)
+		nombre := regexp.MustCompile("^apartado/" + regexp.QuoteMeta(strings.ReplaceAll(destino, "/", "-")) +
+			"(-[0-9]+)?$")
+		seguir = sigue != destino && nombre.MatchString(desde)
 	}
 	var chocan []string
-	final := refFinal(g, d, destino, desde, s.principal)
+	final := refFinal(g, d, destino, desde, s.principal, seguir)
 	if final != "" {
 		for _, l := range choques(g, final) {
 			chocan = append(chocan, l[3:])
@@ -772,7 +822,7 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 		if donde == "" {
 			donde = "sin-rama"
 		}
-		apartado, indice, p := guardarAparte(g, s, donde, chocan)
+		apartado, indice, p := guardarAparte(g, s, donde, chocan, destino)
 		if p != nil {
 			return nil, p
 		}
@@ -797,7 +847,7 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 		return nuevoObjeto(par{"accion", "elegir"}, par{"ramas", candidatas}, par{"principal", s.principal},
 			par{"apartado", *creadas}, par{"desde", nulable(desde)}), nil
 	}
-	if d == nil && destino == desde {
+	if seguir {
 		if p := seguirAlServidor(g, s, destino, creadas); p != nil {
 			return nil, p
 		}

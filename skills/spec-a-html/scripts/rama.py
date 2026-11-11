@@ -42,18 +42,19 @@ apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-em
          `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD separado,
          con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo y que ninguna copia de `git worktree`
          tiene en uso) lo que había, con un índice temporal y sin correr hooks, antes de tocar la carpeta (Q171):
-         primero lo que estaba preparado, tal cual, después los
-         cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados y los archivos
-         sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se
-         tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
-         principal y tiene commits que el servidor no tiene, los guarda en `apartado/<principal>` y la iguala al
-         servidor. Vuelve después a la rama del flujo: la actual, si `revisar` daba `guardar`, `ofrecer` o `volver`; si
-         no, la rama viva del servidor para este trabajo, `<tipo>/<nombre>` con sufijos exactos, o la principal. Si esa
-         es la rama actual y no sigue a la del servidor, la iguala al servidor, con sus commits propios antes en
-         `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar` desde ahí, con `apartado` (las
-         ramas donde quedó lo apartado) y `desde` (la rama donde estaba, o null). Con lo apartado, la copia pasa a
-         `apartado/<rama>` sin tocar la carpeta y de ahí cambia a la rama del flujo con `git switch` (Q172). Con más de
-         una rama viva para este trabajo devuelve `elegir`, con `ramas`, y --rama <una de ellas> vuelve a esa.
+         primero lo que estaba preparado, tal cual, después los cambios de los archivos con seguimiento, los archivos
+         nuevos de las rutas que no están ignorados y los archivos sin seguimiento que el cambio de rama pisaría o no
+         dejaría pasar; los demás archivos sin seguimiento no se tocan. Con HEAD separado guarda también los commits
+         que no están en ninguna rama. Si se va a guardar desde la principal y tiene commits que el servidor no tiene,
+         los guarda en `apartado/<principal>` y la iguala al servidor. Vuelve después a la rama del flujo: la actual,
+         si `revisar` daba `guardar`, `ofrecer` o `volver`; si no, la rama viva del servidor para este trabajo,
+         `<tipo>/<nombre>` con sufijos exactos, o la principal. Si esa es la rama actual y no sigue a la del servidor,
+         la iguala al servidor, con sus commits propios antes en `apartado/<rama>`, y la deja siguiéndola. Devuelve lo
+         que devuelve `revisar` desde ahí, con `apartado` (las ramas donde quedó lo apartado) y `desde` (la rama donde
+         estaba, o null). Con lo apartado, la copia pasa a `apartado/<rama>` sin tocar la carpeta y de ahí cambia a la
+         rama del flujo con `git switch` (Q172); el último commit del apartado lleva `Destino: <rama>`, la rama del
+         flujo a la que va (Q173). Con más de una rama viva para este trabajo devuelve `elegir`, con `ramas`, y
+         --rama <una de ellas> vuelve a esa.
 
 volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, que va en --rama-nueva. Corre `revisar`
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con `ofrecer`, crea
@@ -77,11 +78,12 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
 Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el mensaje de git en `detalle`. `apartar` no
 deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` dice dónde quedó la copia. Si falla antes
 del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
-sin guardar, y otra corrida de `apartar` no guarda nada nuevo: solo vuelve a cambiar a la rama del flujo. Si el índice
-está en uso (`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado; si no lo puede escribir, deja HEAD
-en la rama de origen y no deja su `index.lock`. `apartar` no guarda los cambios de adentro de un submódulo: si uno los
-tiene en archivos con seguimiento y el cambio de rama lo lleva a otro commit, para con `error-de-git` antes de guardar
-nada y lo nombra en `detalle`, y otra corrida para igual hasta que se guarden en el submódulo.
+sin guardar, y otra corrida de `apartar`, sin nada nuevo que guardar, va a la rama de su `Destino:` sin volver a
+calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). Si el índice está en uso
+(`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama
+de origen y no deja su `index.lock`. `apartar` no guarda los cambios de adentro de un submódulo: si uno los tiene en
+archivos con seguimiento y el cambio de rama lo lleva a otro commit, para con `error-de-git` antes de guardar nada y lo
+nombra en `detalle`, y otra corrida para igual hasta que se guarden en el submódulo.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -455,13 +457,14 @@ def ruta_del_indice(git):
     return ruta and os.path.abspath(os.path.join(git.repo, ruta))
 
 
-def guardar_aparte(git, ramas, donde, chocan):
+def guardar_aparte(git, ramas, donde, chocan, destino):
     """Arma el apartado de lo que hay en la copia sin tocar la carpeta, el índice ni HEAD y sin correr hooks (Q171): un
     índice temporal, copia del de la copia con sus marcas, `write-tree` y `commit-tree`. Primero lo preparado, tal cual,
     porque `git add -u` pisaría lo que está solo en el índice (H3); después los cambios de los archivos con
     seguimiento, los archivos nuevos de las rutas que no están ignorados (N1) y los sin seguimiento que el cambio de
-    rama pisaría o no dejaría pasar (N2, N3). Crea `apartado/<rama>`, o reusa uno que ya tiene esos mismos commits, y
-    devuelve (la rama, la ruta del índice temporal, que queda con el árbol del apartado)."""
+    rama pisaría o no dejaría pasar (N2, N3). El último commit lleva `Destino: <destino>`, si lo hay (Q173). Crea
+    `apartado/<rama>`, o reusa uno que ya tiene esos mismos commits, y devuelve (la rama, la ruta del índice temporal,
+    que queda con el árbol del apartado)."""
     inicio = git.salida("rev-parse", "HEAD")
     real = ruta_del_indice(git)
     try:
@@ -477,18 +480,22 @@ def guardar_aparte(git, ramas, donde, chocan):
         except OSError as error:
             raise Parada("error-de-git", f"no se pudo copiar el índice: {error}", git.rama())
         temporal = Git(git.repo, indice=ruta)
-        arboles, padre = [], inicio
         preparado = escribir_arbol(temporal)
-        if preparado != git.salida("rev-parse", "HEAD^{tree}"):
-            padre = commit_tree(git, preparado, padre, f"Apartado: lo que estaba preparado en {donde}")
-            arboles.append(preparado)
         agregar(temporal, chocan)
         todo = escribir_arbol(temporal)
+        commits = []
+        if preparado != git.salida("rev-parse", "HEAD^{tree}"):
+            commits.append((preparado, f"Apartado: lo que estaba preparado en {donde}"))
         if todo != preparado:
-            padre = commit_tree(git, todo, padre, f"Apartado: lo que había en {donde} antes de guardar")
-            arboles.append(todo)
+            commits.append((todo, f"Apartado: lo que había en {donde} antes de guardar"))
+        padre = inicio
+        for i, (arbol, mensaje) in enumerate(commits):
+            # El último commit lleva el destino, que lee el reintento desde el apartado (Q173).
+            final = destino is not None and i == len(commits) - 1
+            padre = commit_tree(git, arbol, padre, mensaje, *([f"Destino: {destino}"] if final else []))
+        arboles = [arbol for arbol, _ in commits]
         base = "apartado/" + donde.replace("/", "-")
-        apartado = reusable(git, base, inicio, arboles)
+        apartado = reusable(git, base, inicio, arboles, destino)
         if apartado is None:
             apartado = primera_libre(git, ramas, base)
             # Con el valor anterior vacío, update-ref falla si la rama ya existe.
@@ -515,23 +522,30 @@ def agregar(temporal, chocan):
         temporal.hacer("-C", temporal.salida("rev-parse", "--show-toplevel"), "add", "-f", "--", *chocan)
 
 
-def commit_tree(git, arbol, padre, mensaje):
-    resultado = git.correr("commit-tree", arbol, "-p", padre, "-m", mensaje)
+def commit_tree(git, arbol, padre, *parrafos):
+    args = ["commit-tree", arbol, "-p", padre, *(parte for p in parrafos for parte in ("-m", p))]
+    resultado = git.correr(*args)
     if resultado.returncode != 0:
-        raise Parada("error-de-git", f"`git commit-tree {arbol} -p {padre} -m {mensaje}` falló: "
-                     + resultado.stderr.strip(), git.rama())
+        raise Parada("error-de-git", f"`git {' '.join(args)}` falló: " + resultado.stderr.strip(), git.rama())
     return resultado.stdout.strip()
 
 
-def reusable(git, base, inicio, arboles):
-    """Un `apartado/<base>` o `apartado/<base>-<n>` que ya tiene, sobre `inicio`, commits con estos mismos árboles: lo
-    dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171). No uno que tiene en uso alguna copia
-    de `git worktree` (H7 de la revisión 4)."""
+def destino_de(git, ref):
+    """El `Destino: <rama>` del último commit de `ref`, que escribió `apartar` al guardar (Q173), o None."""
+    lineas = git.lineas("log", "-1", "--format=%B", ref)
+    return next((l[len("Destino: "):].strip() for l in reversed(lineas) if l.startswith("Destino: ")), None)
+
+
+def reusable(git, base, inicio, arboles, destino):
+    """Un `apartado/<base>` o `apartado/<base>-<n>` que ya tiene, sobre `inicio`, commits con estos mismos árboles y el
+    mismo destino: lo dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171). No uno que tiene
+    en uso alguna copia de `git worktree` (H7 de la revisión 4)."""
     en_uso = {l[len("branch refs/heads/"):] for l in git.lineas("worktree", "list", "--porcelain")
               if l.startswith("branch refs/heads/")}
     for rama in apartados(git, base):
         if rama not in en_uso and (git.correr("merge-base", "--is-ancestor", inicio, rama).returncode == 0
-                and git.lineas("log", "--reverse", "--format=%T", f"{inicio}..{rama}") == arboles):
+                and git.lineas("log", "--reverse", "--format=%T", f"{inicio}..{rama}") == arboles
+                and (not arboles or destino_de(git, rama) == destino)):
             return rama
     return None
 
@@ -585,19 +599,31 @@ def quitar(ruta):
         pass
 
 
-def ref_final(git, decision, destino, desde, principal):
-    """La ref cuyo árbol trae `apartar` a la carpeta, o None si la carpeta no cambia: la rama a la que cambia (con N4
-    la actual se iguala al servidor; las demás van a la local si tiene commits propios, M1), o la principal del
+def ref_final(git, decision, destino, desde, principal, seguir):
+    """La ref cuyo árbol trae `apartar` a la carpeta, o None si la carpeta no cambia: la rama a la que cambia (con N4,
+    `seguir`, se iguala al servidor; las demás van a la local si tiene commits propios, M1), o la principal del
     servidor si la copia se queda en la principal y la iguala a él (Q170)."""
     va_a = llegada(decision, destino, principal)
     if va_a:
-        return ref_de_llegada(git, va_a, principal, va_a == desde)
+        return ref_de_llegada(git, va_a, principal, seguir)
     if desde == principal and adelantada(git, principal):
         return f"refs/remotes/origin/{principal}"
     return None
 
 
+def destino_guardado(git, desde, principal, ramas):
+    """En el reintento, desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:` de su último
+    commit, adonde iba la corrida que lo armó (Q173), si sigue en esta copia o en el servidor; si no, None."""
+    if not desde or not desde.startswith("apartado/") or sin_guardar(git)[1]:
+        return None
+    destino = destino_de(git, "HEAD")
+    if destino and (destino == principal or destino in ramas or git.existe(f"refs/heads/{destino}")):
+        return destino
+    return None
+
+
 def apartar_y_volver(git, args, principal, ramas, desde, creadas):
+    guardado = False
     try:
         decision = rama_del_flujo(git, args, principal, ramas)
         destino, candidatas = desde, []
@@ -605,8 +631,17 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         if parada.motivo not in APARTABLES:
             raise
         decision = None
-        destino, candidatas = destino_del_flujo(args, principal, ramas, args.rama)
-    final = ref_final(git, decision, destino, desde, principal)
+        destino, candidatas = destino_guardado(git, desde, principal, ramas), []
+        if destino is None:
+            destino, candidatas = destino_del_flujo(args, principal, ramas, args.rama)
+        else:
+            guardado = True
+    # N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue, y se iguala a él. En el
+    # reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
+    seguir = decision is None and destino is not None and (destino == desde or (
+        guardado and destino != principal and destino in ramas and upstream(git, destino) != destino
+        and re.fullmatch(rf"apartado/{re.escape(destino.replace('/', '-'))}(-[0-9]+)?", desde) is not None))
+    final = ref_final(git, decision, destino, desde, principal, seguir)
     chocan = [l[3:] for l in choques(git, final)] if final else []
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
@@ -618,7 +653,7 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
                              "guarda, y el cambio de rama los lleva a otro commit, donde git los pisaría o no dejaría "
                              "pasar: " + ", ".join(sucios) + ". Hay que guardarlos dentro del submódulo antes de "
                              "apartar.", desde)
-        apartado, indice = guardar_aparte(git, ramas, desde or "sin-rama", chocan)
+        apartado, indice = guardar_aparte(git, ramas, desde or "sin-rama", chocan, destino)
         creadas.append(apartado)
         try:
             pasar_al_apartado(git, apartado, indice)
@@ -631,7 +666,7 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
 
     if destino is None:
         return {"accion": "elegir", "ramas": candidatas, "principal": principal, "apartado": creadas, "desde": desde}
-    if decision is None and destino == desde:
+    if seguir:
         seguir_al_servidor(git, ramas, destino, creadas)
     if git.rama() != destino:
         if destino != desde:
