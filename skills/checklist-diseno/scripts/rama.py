@@ -77,10 +77,10 @@ Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el men
 deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` dice dónde quedó la copia. Si falla antes
 del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
 sin guardar, y otra corrida de `apartar` no guarda nada nuevo: solo vuelve a cambiar a la rama del flujo. Si el índice
-está en uso (`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado. `apartar` no guarda los cambios de
-adentro de un submódulo: si uno los tiene en archivos con seguimiento y el cambio de rama lo lleva a otro commit, para
-con `error-de-git` antes de guardar nada y lo nombra en `detalle`, y otra corrida para igual hasta que se guarden en el
-submódulo.
+está en uso (`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado; si no lo puede escribir, deja HEAD
+en la rama de origen y no deja su `index.lock`. `apartar` no guarda los cambios de adentro de un submódulo: si uno los
+tiene en archivos con seguimiento y el cambio de rama lo lleva a otro commit, para con `error-de-git` antes de guardar
+nada y lo nombra en `detalle`, y otra corrida para igual hasta que se guarden en el submódulo.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -463,13 +463,18 @@ def guardar_aparte(git, ramas, donde, chocan):
     devuelve (la rama, la ruta del índice temporal, que queda con el árbol del apartado)."""
     inicio = git.salida("rev-parse", "HEAD")
     real = ruta_del_indice(git)
-    descriptor, ruta = tempfile.mkstemp(prefix="index.apartar-", dir=os.path.dirname(real))
-    os.close(descriptor)
     try:
-        if os.path.exists(real):
+        descriptor, ruta = tempfile.mkstemp(prefix="index.apartar-", dir=os.path.dirname(real))
+        os.close(descriptor)
+    except OSError as error:
+        raise Parada("error-de-git", f"no se pudo crear el índice temporal: {error}", git.rama())
+    try:
+        try:
             shutil.copyfile(real, ruta)
-        else:
+        except FileNotFoundError:
             os.remove(ruta)
+        except OSError as error:
+            raise Parada("error-de-git", f"no se pudo copiar el índice: {error}", git.rama())
         temporal = Git(git.repo, indice=ruta)
         arboles, padre = [], inicio
         preparado = escribir_arbol(temporal)
@@ -489,8 +494,7 @@ def guardar_aparte(git, ramas, donde, chocan):
             git.hacer("update-ref", f"refs/heads/{apartado}", padre, "")
         return apartado, ruta
     except BaseException:
-        if os.path.exists(ruta):
-            os.remove(ruta)
+        quitar(ruta)
         raise
 
 
@@ -531,20 +535,50 @@ def reusable(git, base, inicio, arboles):
 def pasar_al_apartado(git, apartado, indice):
     """HEAD a `apartado/<rama>` y el árbol del apartado en el índice, sin tocar la carpeta (Q172): la copia queda como
     si hubiera hecho los commits ahí, y el `git switch` que sigue es el mismo de siempre. El índice se escribe con
-    `index.lock`, como lo escribe git, así que otro git que lo esté usando lo frena."""
+    `index.lock`, como lo escribe git, así que otro git que lo esté usando lo frena. Si no se puede reemplazar el
+    índice, HEAD vuelve adonde estaba y el candado se borra: la copia queda como estaba (H4 de la revisión 4)."""
+    origen, inicio = git.rama(), git.salida("rev-parse", "HEAD")
     real = ruta_del_indice(git)
     candado = real + ".lock"
     try:
-        with open(candado, "xb") as destino, open(indice, "rb") as origen:
-            shutil.copyfileobj(origen, destino)
+        with open(indice, "rb") as archivo:
+            contenido = archivo.read()
+    except OSError as error:
+        raise Parada("error-de-git", f"no se pudo leer el índice temporal: {error}", git.rama())
+    try:
+        archivo = open(candado, "xb")
     except FileExistsError:
         raise Parada("error-de-git", f"`{candado}` existe: otro proceso de git está usando el índice.", git.rama())
+    except OSError as error:
+        raise Parada("error-de-git", f"no se pudo escribir `{candado}`: {error}", git.rama())
+    try:
+        with archivo:
+            archivo.write(contenido)
+    except OSError as error:
+        quitar(candado)
+        raise Parada("error-de-git", f"no se pudo escribir `{candado}`: {error}", git.rama())
     resultado = git.correr("symbolic-ref", "HEAD", f"refs/heads/{apartado}")
     if resultado.returncode != 0:
-        os.remove(candado)
+        quitar(candado)
         raise Parada("error-de-git", f"`git symbolic-ref HEAD refs/heads/{apartado}` falló: "
                      + resultado.stderr.strip(), git.rama())
-    os.replace(candado, real)
+    try:
+        os.replace(candado, real)
+    except OSError as error:
+        if origen:
+            git.correr("symbolic-ref", "HEAD", f"refs/heads/{origen}")
+        else:
+            git.correr("update-ref", "--no-deref", "HEAD", inicio)
+        quitar(candado)
+        raise Parada("error-de-git", f"no se pudo escribir `{real}`: {error}", git.rama())
+
+
+def quitar(ruta):
+    """Borra un archivo propio que quedó de un paso que falló; si tampoco se puede, sigue la parada de ese paso."""
+    try:
+        os.remove(ruta)
+    except OSError:
+        pass
 
 
 def ref_final(git, decision, destino, desde, principal):
@@ -585,8 +619,7 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         try:
             pasar_al_apartado(git, apartado, indice)
         finally:
-            if os.path.exists(indice):
-                os.remove(indice)
+            quitar(indice)
 
     if (destino == principal or (decision and llega_a_la_principal(decision))) and adelantada(git, principal):
         apartar_commits(git, ramas, principal, creadas)

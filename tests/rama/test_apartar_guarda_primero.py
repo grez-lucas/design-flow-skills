@@ -429,5 +429,77 @@ class IndiceEnUso(Base):
         self.assertEqual(self.contenido("apartado/experimento", "notas.txt"), "MI TRABAJO\n")
 
 
+GIT_QUE_TRABA = """#!/bin/sh
+# git que, después de la orden que contiene $TRABA_PATRON por $TRABA_VEZ vez, deja `.git` sin poder escribir el
+# índice: con `carpeta`, `.git/index` pasa a ser una carpeta y `rename` sobre él falla; con `permisos`, `.git` queda
+# sin escritura y crear `index.lock` falla. La orden de git siguiente, la que sea, lo devuelve como estaba.
+gitdir='{gitdir}'
+if [ -e "$gitdir/traba" ]; then
+  if [ -d "$gitdir/index" ]; then rmdir "$gitdir/index"; mv "$gitdir/index.real" "$gitdir/index"; fi
+  chmod u+w "$gitdir"
+  rm "$gitdir/traba"
+  : > '{marca}'
+fi
+'{git}' "$@"
+codigo=$?
+case " $* " in
+  *" $TRABA_PATRON "*)
+    echo x >> '{cuenta}'
+    if [ "$(wc -l < '{cuenta}')" -eq "$TRABA_VEZ" ]; then
+      : > "$gitdir/traba"
+      if [ "$TRABA_MODO" = carpeta ]; then mv "$gitdir/index" "$gitdir/index.real"; mkdir "$gitdir/index"; fi
+      if [ "$TRABA_MODO" = permisos ]; then chmod a-w "$gitdir"; fi
+    fi ;;
+esac
+exit $codigo
+"""
+
+
+@unittest.skipIf(os.name == "nt", "el git que traba es un sh")
+class IndiceQueNoSeEscribe(Base):
+    """H4 de la revisión 4: si no se puede crear `index.lock` o reemplazar el índice con él, `apartar` sale con su JSON,
+    como `flujo rama`, sin traceback. No deja su `index.lock`, que el reintento tomaría por otro git, y la copia sigue
+    en su rama con su índice: HEAD vuelve a la rama de origen si ya se había movido. Lo guardado queda en
+    `apartado/<rama>` y el reintento lo reusa."""
+
+    def apartar_trabado(self, modo, patron, vez):
+        carpeta = self.tmp / "git-que-traba"
+        carpeta.mkdir()
+        real = shutil.which("git", path=ENTORNO.get("PATH"))
+        marca = self.tmp / "trabado"
+        (carpeta / "git").write_text(GIT_QUE_TRABA.format(git=real, gitdir=(self.copia / ".git").as_posix(),
+                                                          marca=marca.as_posix(),
+                                                          cuenta=(self.tmp / "cuenta").as_posix()), encoding="utf-8")
+        (carpeta / "git").chmod(0o755)
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        antes = self.foto()
+        salida = self.parada(self.apartar(entorno={"PATH": str(carpeta) + os.pathsep + ENTORNO.get("PATH", ""),
+                                                   "TRABA_MODO": modo, "TRABA_PATRON": patron,
+                                                   "TRABA_VEZ": str(vez)}), "error-de-git")
+        self.assertTrue(marca.exists(), "el índice no se trabó")
+        despues = self.foto()
+        for clave in ("indice", "rama", "HEAD", "carpeta"):
+            self.assertEqual(despues[clave], antes[clave], clave)
+        self.assertFalse((self.copia / ".git" / "index.lock").exists(), "quedó index.lock")
+        self.assertEqual([p.name for p in (self.copia / ".git").iterdir() if p.name.startswith("index.apartar-")], [])
+        self.assertEqual((salida["apartado"], salida["rama"], salida["desde"]),
+                         (["apartado/experimento"], "experimento", "experimento"), salida)
+        self.assertEqual(self.status(), " M notas.txt\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.ramas_locales("apartado/*"), ["apartado/experimento"])
+        self.assertEqual(self.contenido("apartado/experimento", "notas.txt"), "MI TRABAJO\n")
+
+    def test_el_indice_no_se_puede_reemplazar(self):
+        self.apartar_trabado("carpeta", "symbolic-ref HEAD", 1)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root escribe en una carpeta sin permisos")
+    def test_index_lock_no_se_puede_crear(self):
+        # La segunda `--git-path index` es la de pasar la copia al apartado; la primera es la de guardar.
+        self.apartar_trabado("permisos", "--git-path index", 2)
+
+
 if __name__ == "__main__":
     unittest.main()
