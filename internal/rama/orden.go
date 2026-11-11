@@ -56,20 +56,21 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
 apartar  con el sí de la persona, ante ` + "`otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar`" + ` o
          ` + "`principal-adelantada`" + `. Guarda en ` + "`apartado/<rama>`" + ` (cada ` + "`/`" + ` cambiada por ` + "`-`, `sin-rama`" + ` con HEAD separado,
          con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo y que ninguna copia de ` + "`git worktree`" + `
-         tiene en uso) lo que había, con un índice temporal y sin correr hooks, antes de tocar la carpeta (Q171):
-         primero lo que estaba preparado, tal cual, después los cambios de los archivos con seguimiento, los archivos
-         nuevos de las rutas que no están ignorados y los archivos sin seguimiento que el cambio de rama pisaría o no
-         dejaría pasar; los demás archivos sin seguimiento no se tocan. Con HEAD separado guarda también los commits
-         que no están en ninguna rama. Si se va a guardar desde la principal y tiene commits que el servidor no tiene,
-         los guarda en ` + "`apartado/<principal>`" + ` y la iguala al servidor. Vuelve después a la rama del flujo: la actual,
-         si ` + "`revisar`" + ` daba ` + "`guardar`" + `, ` + "`ofrecer`" + ` o ` + "`volver`" + `; si no, la rama viva del servidor para este trabajo,
-         ` + "`<tipo>/<nombre>`" + ` con sufijos exactos, o la principal. Si esa es la rama actual y no sigue a la del servidor,
-         la iguala al servidor, con sus commits propios antes en ` + "`apartado/<rama>`" + `, y la deja siguiéndola. Devuelve lo
-         que devuelve ` + "`revisar`" + ` desde ahí, con ` + "`apartado`" + ` (las ramas donde quedó lo apartado) y ` + "`desde`" + ` (la rama donde
-         estaba, o null). Con lo apartado, la copia pasa a ` + "`apartado/<rama>`" + ` sin tocar la carpeta y de ahí cambia a la
-         rama del flujo con ` + "`git switch`" + ` (Q172); el último commit del apartado lleva ` + "`Destino: <rama>`" + `, la rama del
-         flujo a la que va (Q173). Con más de una rama viva para este trabajo devuelve ` + "`elegir`" + `, con ` + "`ramas`" + `, y
-         --rama <una de ellas> vuelve a esa.
+         tiene en uso) lo que había, con un índice temporal, antes de tocar la carpeta (Q171) y sin los hooks de commit
+         ni de checkout (` + "`reference-transaction`" + ` y ` + "`post-index-change`" + ` sí pueden correr, y si uno rechaza, para antes de
+         tocar HEAD, el índice o la carpeta; Q174): primero lo que estaba preparado, tal cual, después los cambios de
+         los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados y los archivos sin
+         seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se tocan.
+         Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
+         principal y tiene commits que el servidor no tiene, los guarda en ` + "`apartado/<principal>`" + ` y la iguala al
+         servidor. Vuelve después a la rama del flujo: la actual, si ` + "`revisar`" + ` daba ` + "`guardar`" + `, ` + "`ofrecer`" + ` o ` + "`volver`" + `; si
+         no, la rama viva del servidor para este trabajo, ` + "`<tipo>/<nombre>`" + ` con sufijos exactos, o la principal. Si esa
+         es la rama actual y no sigue a la del servidor, la iguala al servidor, con sus commits propios antes en
+         ` + "`apartado/<rama>`" + `, y la deja siguiéndola. Devuelve lo que devuelve ` + "`revisar`" + ` desde ahí, con ` + "`apartado`" + ` (las
+         ramas donde quedó lo apartado) y ` + "`desde`" + ` (la rama donde estaba, o null). Con lo apartado, la copia pasa a
+         ` + "`apartado/<rama>`" + ` sin tocar la carpeta y de ahí cambia a la rama del flujo con ` + "`git switch`" + ` (Q172); el último
+         commit del apartado lleva ` + "`Destino: <rama>`" + `, la rama del flujo a la que va (Q173). Con más de una rama viva
+         para este trabajo devuelve ` + "`elegir`" + `, con ` + "`ramas`" + `, y --rama <una de ellas> vuelve a esa.
 
 volver   con ` + "`volver`" + `, o con ` + "`ofrecer`" + ` y el sí de la persona a ` + "`rama_nueva`" + `, que va en --rama-nueva. Corre ` + "`revisar`" + `
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con ` + "`ofrecer`" + `, crea

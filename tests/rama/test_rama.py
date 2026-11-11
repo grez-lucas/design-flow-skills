@@ -589,6 +589,13 @@ class Ayuda(unittest.TestCase):
                 self.assertEqual(r.returncode, 0, r.stderr)
                 self.assertTrue(r.stdout.startswith("Decide en qué rama guarda una skill del flujo"), r.stdout[:80])
 
+    def test_dice_que_hooks_corren_al_apartar(self):
+        """Q174: el contrato no dice "sin correr hooks", que no es literal: dice cuáles no corren y cuáles sí."""
+        texto = " ".join(self.correr("-h").stdout.split())
+        self.assertNotIn("sin correr hooks", texto)
+        self.assertIn("sin los hooks de commit ni de checkout (`reference-transaction` y `post-index-change` sí pueden "
+                      "correr, y si uno rechaza, para antes de tocar HEAD, el índice o la carpeta; Q174)", texto)
+
     def test_un_h_donde_no_va_es_uso_incorrecto(self):
         for args in (("revisar", "--tipo", "-h"), ("revisar", "--foo", "-h"), ("commit", "-m", "-h", "--", "x"),
                      ("commit", "-h"), ("foo", "-h"), ("volver", "--rama", "x", "-h")):

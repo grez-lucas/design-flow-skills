@@ -3,7 +3,7 @@ vez, al final.
 
 Los choques se calculan también cuando la copia no cambia de rama pero `apartar` iguala la principal actual al
 servidor (H1 y H2 de la revisión 2). El apartado se arma con un índice temporal, `write-tree`, `commit-tree` y
-`update-ref`, sin tocar la carpeta, el índice ni HEAD y sin correr hooks (Q171); después HEAD pasa a
+`update-ref`, sin tocar la carpeta, el índice ni HEAD y sin los hooks de commit (Q171, Q174); después HEAD pasa a
 `apartado/<rama>` con su árbol en el índice, sin tocar la carpeta, y corre el `git switch` de siempre (Q172). No hay
 vuelta atrás: si un paso falla, `apartar` para con el motivo, la carpeta sigue como estaba y `apartado` lista las
 ramas donde quedó el trabajo, que existen; si falla el `switch`, la copia queda en `apartado/<rama>` sin cambios sin
@@ -437,8 +437,8 @@ class ReintentoAlMismoDestino(GitQueFalla):
 
 
 class SinHooksAlGuardar(Base):
-    """Q171: guardar no corre hooks. H3 de la revisión 3 desaparece: un `pre-commit` que reescribe un archivo y falla
-    no corre, y lo apartado es lo que había en la carpeta."""
+    """Q171 y Q174: al guardar no corren los hooks de commit. H3 de la revisión 3 desaparece: un `pre-commit` que
+    reescribe un archivo y falla no corre, y lo apartado es lo que había en la carpeta."""
 
     def test_un_pre_commit_que_reescribe_y_falla_no_corre(self):
         hooks = self.copia / ".git" / "hooks"
@@ -455,6 +455,27 @@ class SinHooksAlGuardar(Base):
         self.assertFalse(marca.exists(), "corrió un hook al guardar")
         self.assertEqual(self.contenido("apartado/experimento", "notas.txt"), "MI TRABAJO\n")
         self.assertEqual((self.copia / "notas.txt").read_text(encoding="utf-8"), "notas\n")
+
+
+class HooksQueSiCorren(Base):
+    """Q174 y H5 de la revisión 4: `reference-transaction` corre con el `update-ref` del apartado. Si rechaza, `apartar`
+    para antes de tocar HEAD, el índice o la carpeta, y no quedan ramas ni índices temporales."""
+
+    def test_un_reference_transaction_que_rechaza_el_apartado(self):
+        hook = self.copia / ".git" / "hooks" / "reference-transaction"
+        hook.write_text('#!/bin/sh\nwhile read viejo nuevo ref; do\n  case "$1 $ref" in\n    "prepared refs/heads/apartado/"*)'
+                        ' echo rt rechaza >&2; exit 1 ;;\n  esac\ndone\nexit 0\n', encoding="utf-8")
+        hook.chmod(0o755)
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        antes = self.foto()
+        salida = self.parada(self.apartar(), "error-de-git")
+        self.assertIn("rt rechaza", salida["detalle"])
+        self.assertEqual((salida["apartado"], salida["rama"]), ([], "experimento"), salida)
+        despues = self.foto()
+        for clave in ("indice", "rama", "HEAD", "ramas", "carpeta"):
+            self.assertEqual(despues[clave], antes[clave], clave)
+        self.assertEqual([p.name for p in (self.copia / ".git").iterdir() if p.name.startswith("index")], ["index"])
 
 
 class SwitchQueFallaDespuesDeEscribir(Base):
