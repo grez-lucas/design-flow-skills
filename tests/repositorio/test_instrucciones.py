@@ -551,8 +551,16 @@ class ReferenciaDeRama(unittest.TestCase):
         """Q169: una línea `??` puede ser un archivo igual al de la principal, que el cambio de rama no pisa pero no
         deja pasar; la prosa no le dice a la persona que se va a pisar."""
         seccion_ = seccion(self.texto, "Trabajo por apartar", 2)
-        self.assertIn("una línea `??` o `!!` es un archivo sin seguimiento, o ignorado, que el cambio de rama pisaría o "
-                      "que lo bloquea", seccion_)
+        self.assertIn("una línea `??` o `!!` es un archivo sin seguimiento, o ignorado, que el cambio de rama, o igualar "
+                      "la principal al servidor, pisaría o que lo bloquea", seccion_)
+
+    def test_con_la_principal_adelantada_no_hay_cambio_de_rama(self):
+        """H6 de la revisión 3: con `principal-adelantada` la copia se queda en la principal y la iguala al servidor, y
+        lo que listan los `archivos`, también un cambio fuera de las rutas de la skill, sale de la carpeta al apartar."""
+        seccion_ = seccion(self.texto, "Trabajo por apartar", 2)
+        self.assertIn("Con `principal-adelantada` la copia no cambia de rama: `apartar` iguala la principal al servidor, "
+                      "y todo lo que listan los `archivos`, también un ` M` fuera de las rutas de la skill, sale de la "
+                      "carpeta y queda en `apartado/<principal>`.", seccion_)
 
     def test_lo_que_hay_que_apartar_lo_aparta_rama_py_sin_stash(self):
         """Q143, Q158 y Q159: el arreglo de cada motivo que aparta es `rama.py apartar`; la conducta la prueba
