@@ -94,7 +94,7 @@ hijos (` + "`taskkill /T`" + ` en Windows) y paran con ` + "`sin-servidor`" + `.
 
 Escribe en stdout un objeto JSON con ` + "`accion`" + ` y sale con 0. Con uso incorrecto, una épica o un mockup que no sirve
 como nombre de rama (con mayúsculas, o que termina en guion y número, como ` + "`fase-2`" + `), o una ruta de commit que no es
-de la skill, o un -F que no se puede leer o no es UTF-8 (Q167), sale con 2 sin escribir en stdout y dice en stderr
+de la skill, o un -F que no se puede leer, no es UTF-8 o tiene bytes nulos (Q167), sale con 2 sin escribir en stdout y dice en stderr
 por qué. Si no encuentra git, sale con 1.
 `
 
@@ -377,6 +377,11 @@ func leerMensaje(ruta string) ([]string, error) {
 	if !utf8.Valid(contenido) {
 		return nil, fallo("el mensaje de -F %s no es UTF-8: escríbelo con la herramienta de archivos de la sesión, "+
 			"no con > ni Out-File de PowerShell, que escriben UTF-16, ni con Set-Content sin -Encoding UTF8", citar(ruta))
+	}
+	// git no acepta un argumento con un byte nulo: UTF-16 sin BOM, o un archivo que no es texto (Q167).
+	if strings.ContainsRune(string(contenido), 0) {
+		return nil, fallo("el mensaje de -F %s tiene bytes nulos, que git no acepta: escríbelo con la herramienta "+
+			"de archivos de la sesión, en UTF-8", citar(ruta))
 	}
 	texto := strings.TrimPrefix(string(contenido), "\ufeff")
 	texto = strings.TrimSpace(strings.ReplaceAll(texto, "\r\n", "\n"))
