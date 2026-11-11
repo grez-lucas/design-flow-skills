@@ -734,6 +734,37 @@ class SinSeguimientoQueChoca(Base):
         self.assertEqual((self.copia / "doc/nuevo.md").read_text(encoding="utf-8"), "# Nuevo\n")
         self.assertEqual(self.revisar()["accion"], "guardar")
 
+    def con_el_mismo_archivo_que_trae_la_principal(self):
+        for repo in (self.otra, self.copia):
+            self.escribir(repo, "doc/nuevo.md", "# Nuevo\n")
+        git("add", "doc/nuevo.md", cwd=self.otra)
+        git("commit", "-q", "-m", "nuevo", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+
+    def test_volver_con_un_sin_seguimiento_igual_al_de_la_principal(self):
+        """Q168 y Q169: `volver` cambia a la principal, que no deja pasar el archivo igual. `revisar` lo nombra,
+        `apartar` lo guarda y `volver` termina en la principal, en lugar de un ciclo de `cambios-sin-guardar`."""
+        self.trabajar_en("diseno/alertas")
+        git("push", "-q", "origin", "--delete", "diseno/alertas", cwd=self.copia)
+        self.con_el_mismo_archivo_que_trae_la_principal()
+        self.assertEqual(self.parada(self.revisar(), "cambios-sin-guardar")["archivos"], ["?? doc/nuevo.md"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["apartado"]), ("volver", ["apartado/diseno-alertas"]), salida)
+        self.assertEqual(self.volver(), {"accion": "guardar", "rama": "main", "principal": "main"})
+        self.assertEqual((self.status(), (self.copia / "doc/nuevo.md").read_text(encoding="utf-8")), ("", "# Nuevo\n"))
+
+    def test_ofrecer_con_un_sin_seguimiento_igual_al_de_la_principal(self):
+        """Q168 y Q169: lo mismo con `ofrecer`, que cambia a la rama nueva desde la principal."""
+        self.trabajar_en("diseno/alertas")
+        self.con_el_mismo_archivo_que_trae_la_principal()
+        self.assertEqual(self.parada(self.revisar(*MOCKUP), "cambios-sin-guardar")["archivos"], ["?? doc/nuevo.md"])
+        salida = self.apartar(*MOCKUP)
+        self.assertEqual((salida["accion"], salida["rama_nueva"], salida["apartado"]),
+                         ("ofrecer", "diseno/panel", ["apartado/diseno-alertas"]), salida)
+        self.assertEqual(self.volver(*MOCKUP, "--rama-nueva", "diseno/panel"),
+                         {"accion": "guardar", "rama": "diseno/panel", "principal": "main"})
+        self.assertEqual((self.status(), (self.copia / "doc/nuevo.md").read_text(encoding="utf-8")), ("", "# Nuevo\n"))
+
     def test_un_archivo_sacado_del_indice_igual_al_de_la_principal_no_deja_apartar_a_medias(self):
         """Q168, con `git rm --cached`: el borrado preparado queda en el primer commit del apartado y el archivo, que
         la principal tiene igual, no frena el cambio de rama."""
