@@ -23,6 +23,8 @@ const esperaDeTuberias = 5 * time.Second
 // Git corre git en un repositorio, sin pedir credenciales por la terminal y con las rutas sin escapar.
 type Git struct {
 	repo string
+	// indice, si no está vacío, es el GIT_INDEX_FILE con que corre git: el índice temporal del apartado (Q171).
+	indice string
 }
 
 type resultado struct {
@@ -46,6 +48,9 @@ func (g Git) correrConTope(tope time.Duration, args ...string) resultado {
 	}
 	orden := exec.CommandContext(ctx, "git", append([]string{"-c", "core.quotePath=false", "-C", g.repo}, args...)...)
 	orden.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	if g.indice != "" {
+		orden.Env = append(orden.Env, "GIT_INDEX_FILE="+g.indice)
+	}
 	var salida, errores bytes.Buffer
 	orden.Stdout, orden.Stderr = &salida, &errores
 	matarElArbolAlCancelar(orden)

@@ -39,18 +39,20 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
          adelantada, `commits` trae esos commits.
 
 apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar` o
-         `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD
-         separado, con el primer sufijo libre) lo que había: primero lo que estaba preparado en el índice, tal cual,
-         después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados
-         y los archivos sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin
-         seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
-         a guardar desde la principal y tiene commits que el servidor no tiene, los guarda en `apartado/<principal>`
-         y la iguala al servidor. Vuelve después a la rama del flujo: la actual, si `revisar` daba `guardar`,
-         `ofrecer` o `volver`; si no, la rama viva del servidor para este trabajo, `<tipo>/<nombre>` con sufijos
-         exactos, o la principal. Si esa es la rama actual y no sigue a la del servidor, la iguala al servidor, con
-         sus commits propios antes en `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar`
-         desde ahí, con `apartado` (las ramas que creó) y `desde` (la rama donde estaba, o null). Con más de una rama
-         viva para este trabajo devuelve `elegir`, con `ramas`, y --rama <una de ellas> vuelve a esa.
+         `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD separado,
+         con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo) lo que había, con un índice temporal y
+         sin correr hooks, antes de tocar la carpeta (Q171): primero lo que estaba preparado, tal cual, después los
+         cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados y los archivos
+         sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se
+         tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
+         principal y tiene commits que el servidor no tiene, los guarda en `apartado/<principal>` y la iguala al
+         servidor. Vuelve después a la rama del flujo: la actual, si `revisar` daba `guardar`, `ofrecer` o `volver`; si
+         no, la rama viva del servidor para este trabajo, `<tipo>/<nombre>` con sufijos exactos, o la principal. Si esa
+         es la rama actual y no sigue a la del servidor, la iguala al servidor, con sus commits propios antes en
+         `apartado/<rama>`, y la deja siguiéndola. Devuelve lo que devuelve `revisar` desde ahí, con `apartado` (las
+         ramas donde quedó lo apartado) y `desde` (la rama donde estaba, o null). Con lo apartado, la copia pasa a
+         `apartado/<rama>` sin tocar la carpeta y de ahí cambia a la rama del flujo con `git switch` (Q172). Con más de
+         una rama viva para este trabajo devuelve `elegir`, con `ramas`, y --rama <una de ellas> vuelve a esa.
 
 volver   con `volver`, o con `ofrecer` y el sí de la persona a `rama_nueva`, que va en --rama-nueva. Corre `revisar`
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con `ofrecer`, crea
@@ -71,11 +73,11 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          la de `rama-nueva` o la `rama_nueva` de `ofrecer`, aunque siga a otra rama, y para con
          `rama-nueva-rechazada`, sin otro sufijo.
 
-Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el mensaje de git en `detalle`. `apartar`
-deshace lo que hizo (Q170): vuelve a la rama donde estaba, con la carpeta y el índice como estaban, ignorados y marcas
-incluidos, devuelve las ramas que movió a su commit y el upstream de la actual a lo que era, y borra las ramas que
-creó; `apartado` viene vacía y `desde` y `rama` dicen dónde estaba. Si no puede deshacerlo, `apartado` y `rama` dicen
-lo que quedó.
+Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el mensaje de git en `detalle`. `apartar` no
+deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` dice dónde quedó la copia. Si falla antes
+del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
+sin guardar, y otra corrida de `apartar` no guarda nada nuevo: solo vuelve a cambiar a la rama del flujo. Si el índice
+está en uso (`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -90,9 +92,11 @@ import json
 import os
 import posixpath
 import re
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 
 TIPOS = ("spec", "tickets", "diseno")
 RUTAS = ("design/", "specs/", ".gitignore", ".claude/pm-conventions.md")
@@ -110,14 +114,15 @@ class Parada(Exception):
 
 
 class Git:
-    def __init__(self, repo):
+    def __init__(self, repo, indice=None):
         self.repo = repo
+        self.indice = indice
 
     def correr(self, *args, tope=None):
         """Corre git en el repositorio, sin pedir credenciales por la terminal y con las rutas sin escapar. Con `tope`,
         en segundos, mata a git y a lo que haya lanzado si no termina a tiempo, y devuelve código 124."""
         orden = ["git", "-c", "core.quotePath=false", "-C", self.repo, *args]
-        entorno = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        entorno = {**os.environ, "GIT_TERMINAL_PROMPT": "0", **({"GIT_INDEX_FILE": self.indice} if self.indice else {})}
         proceso = subprocess.Popen(orden, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
                                    text=True, encoding="utf-8", errors="replace", env=entorno,
                                    start_new_session=os.name != "nt")
@@ -409,90 +414,112 @@ def primera_libre(git, ramas_del_servidor, base):
 
 def apartar(git, args):
     principal, ramas = servidor(git)
-    antes = foto(git)
+    desde = git.rama()
     creadas = []
     try:
-        return apartar_y_volver(git, args, principal, ramas, antes["desde"], creadas)
+        return apartar_y_volver(git, args, principal, ramas, desde, creadas)
     except Parada as parada:
         if parada.motivo == "error-de-git":
-            if deshacer(git, antes):
-                creadas.clear()
-            parada.salida.update({"apartado": creadas, "desde": antes["desde"], "rama": git.rama()})
+            parada.salida.update({"apartado": creadas, "desde": desde, "rama": git.rama()})
         raise
 
 
 def ruta_del_indice(git):
     ruta = git.salida("rev-parse", "--git-path", "index")
-    return ruta and os.path.join(git.repo, ruta)
+    return ruta and os.path.abspath(os.path.join(git.repo, ruta))
 
 
-def leer_indice(git):
-    """El archivo del índice tal cual, con sus marcas (`add -N`, `skip-worktree`), o None si no hay."""
+def guardar_aparte(git, ramas, donde, chocan):
+    """Arma el apartado de lo que hay en la copia sin tocar la carpeta, el índice ni HEAD y sin correr hooks (Q171): un
+    índice temporal, copia del de la copia con sus marcas, `write-tree` y `commit-tree`. Primero lo preparado, tal cual,
+    porque `git add -u` pisaría lo que está solo en el índice (H3); después los cambios de los archivos con
+    seguimiento, los archivos nuevos de las rutas que no están ignorados (N1) y los sin seguimiento que el cambio de
+    rama pisaría o no dejaría pasar (N2, N3). Crea `apartado/<rama>`, o reusa uno que ya tiene esos mismos commits, y
+    devuelve (la rama, la ruta del índice temporal, que queda con el árbol del apartado)."""
+    inicio = git.salida("rev-parse", "HEAD")
+    real = ruta_del_indice(git)
+    descriptor, ruta = tempfile.mkstemp(prefix="index.apartar-", dir=os.path.dirname(real))
+    os.close(descriptor)
     try:
-        with open(ruta_del_indice(git), "rb") as archivo:
-            return archivo.read()
-    except (OSError, TypeError):
-        return None
+        if os.path.exists(real):
+            shutil.copyfile(real, ruta)
+        else:
+            os.remove(ruta)
+        temporal = Git(git.repo, indice=ruta)
+        arboles, padre = [], inicio
+        preparado = escribir_arbol(temporal)
+        if preparado != git.salida("rev-parse", "HEAD^{tree}"):
+            padre = commit_tree(git, preparado, padre, f"Apartado: lo que estaba preparado en {donde}")
+            arboles.append(preparado)
+        agregar(temporal, chocan)
+        todo = escribir_arbol(temporal)
+        if todo != preparado:
+            padre = commit_tree(git, todo, padre, f"Apartado: lo que había en {donde} antes de guardar")
+            arboles.append(todo)
+        base = "apartado/" + donde.replace("/", "-")
+        apartado = reusable(git, base, inicio, arboles)
+        if apartado is None:
+            apartado = primera_libre(git, ramas, base)
+            # Con el valor anterior vacío, update-ref falla si la rama ya existe.
+            git.hacer("update-ref", f"refs/heads/{apartado}", padre, "")
+        return apartado, ruta
+    except BaseException:
+        if os.path.exists(ruta):
+            os.remove(ruta)
+        raise
 
 
-def ramas_locales(git):
-    """Cada rama local, `refs/heads/<rama>`, con su commit."""
-    return dict(reversed(l.split(" ", 1)) for l in git.lineas("for-each-ref", "--format=%(objectname) %(refname)",
-                                                              "refs/heads"))
+def escribir_arbol(temporal):
+    resultado = temporal.correr("write-tree")
+    if resultado.returncode != 0:
+        raise Parada("error-de-git", "`git write-tree` falló: " + resultado.stderr.strip(), temporal.rama())
+    return resultado.stdout.strip()
 
 
-def upstream_guardado(git, rama):
-    if not rama:
-        return {}
-    return {clave: git.salida("config", "--get", f"branch.{rama}.{clave}") for clave in ("remote", "merge")}
+def agregar(temporal, chocan):
+    temporal.hacer("add", "-u")
+    nuevos = temporal.rutas("ls-files", "-z", "--others", "--exclude-standard", "--", *RUTAS)
+    if nuevos:
+        temporal.hacer("add", "--", *nuevos)
+    if chocan:
+        temporal.hacer("-C", temporal.salida("rev-parse", "--show-toplevel"), "add", "-f", "--", *chocan)
 
 
-def foto(git):
-    """Lo que `apartar` necesita para deshacerse (Q170): la rama y el commit de la copia, el archivo del índice, las
-    ramas locales y el upstream de la actual. La carpeta no hace falta: solo la cambia el último paso, el `git switch`
-    o el `git reset --keep` que la lleva a la rama del flujo, y git no escribe nada si ese paso falla."""
-    desde = git.rama()
-    return {"desde": desde, "inicio": git.salida("rev-parse", "HEAD"), "indice": leer_indice(git),
-            "ramas": ramas_locales(git), "upstream": upstream_guardado(git, desde)}
+def commit_tree(git, arbol, padre, mensaje):
+    resultado = git.correr("commit-tree", arbol, "-p", padre, "-m", mensaje)
+    if resultado.returncode != 0:
+        raise Parada("error-de-git", f"`git commit-tree {arbol} -p {padre} -m {mensaje}` falló: "
+                     + resultado.stderr.strip(), git.rama())
+    return resultado.stdout.strip()
 
 
-def deshacer(git, antes):
-    """Deja la copia como en `antes` después de un paso de git que falló (N11, B1, B4, Q170): en la rama de origen, con
-    la carpeta y el archivo del índice como estaban, marcas incluidas, las ramas que se movieron donde estaban, sin las
-    ramas que se crearon y con el upstream de la rama de origen. Devuelve False si no pudo, y no sigue."""
-    desde, inicio = antes["desde"], antes["inicio"]
-    actual, ramas = git.rama(), ramas_locales(git)
-    if actual == desde:
-        # Un `git reset --keep` sin nada apartado: la carpeta tenía solo lo de `inicio`, y vuelve a eso.
-        if git.salida("rev-parse", "HEAD") != inicio and git.correr("reset", "--quiet", "--keep", inicio).returncode:
-            return False
-    elif f"refs/heads/{actual}" in ramas.keys() - antes["ramas"].keys():
-        # En la rama del apartado la carpeta sigue como estaba: alcanza con mover las refs.
-        vuelta = ("symbolic-ref", "HEAD", f"refs/heads/{desde}") if desde else ("update-ref", "--no-deref", "HEAD",
-                                                                                 inicio)
-        if git.correr(*vuelta).returncode:
-            return False
-    else:
-        return False
-    ramas = ramas_locales(git)
-    if any(git.correr("update-ref", ref, commit).returncode
-           for ref, commit in antes["ramas"].items() if ramas.get(ref) != commit):
-        return False
-    if any(git.correr("branch", "--quiet", "-D", ref.removeprefix("refs/heads/")).returncode
-           for ref in sorted(ramas.keys() - antes["ramas"].keys())):
-        return False
-    for clave, valor in antes["upstream"].items():
-        if git.salida("config", "--get", f"branch.{desde}.{clave}") != valor:
-            nombre = f"branch.{desde}.{clave}"
-            if git.correr(*(("config", nombre, valor) if valor else ("config", "--unset", nombre))).returncode:
-                return False
-    if antes["indice"] is not None:
-        try:
-            with open(ruta_del_indice(git), "wb") as archivo:
-                archivo.write(antes["indice"])
-        except (OSError, TypeError):
-            return False
-    return True
+def reusable(git, base, inicio, arboles):
+    """Un `apartado/<base>` o `apartado/<base>-<n>` que ya tiene, sobre `inicio`, commits con estos mismos árboles: lo
+    dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171)."""
+    for rama in apartados(git, base):
+        if (git.correr("merge-base", "--is-ancestor", inicio, rama).returncode == 0
+                and git.lineas("log", "--reverse", "--format=%T", f"{inicio}..{rama}") == arboles):
+            return rama
+    return None
+
+
+def pasar_al_apartado(git, apartado, indice):
+    """HEAD a `apartado/<rama>` y el árbol del apartado en el índice, sin tocar la carpeta (Q172): la copia queda como
+    si hubiera hecho los commits ahí, y el `git switch` que sigue es el mismo de siempre. El índice se escribe con
+    `index.lock`, como lo escribe git, así que otro git que lo esté usando lo frena."""
+    real = ruta_del_indice(git)
+    candado = real + ".lock"
+    try:
+        with open(candado, "xb") as destino, open(indice, "rb") as origen:
+            shutil.copyfileobj(origen, destino)
+    except FileExistsError:
+        raise Parada("error-de-git", f"`{candado}` existe: otro proceso de git está usando el índice.", git.rama())
+    resultado = git.correr("symbolic-ref", "HEAD", f"refs/heads/{apartado}")
+    if resultado.returncode != 0:
+        os.remove(candado)
+        raise Parada("error-de-git", f"`git symbolic-ref HEAD refs/heads/{apartado}` falló: "
+                     + resultado.stderr.strip(), git.rama())
+    os.replace(candado, real)
 
 
 def ref_final(git, decision, destino, desde, principal):
@@ -521,29 +548,16 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
     if sin_guardar(git)[1] or chocan or sueltos:
-        donde = desde or "sin-rama"
-        apartado = primera_libre(git, ramas, "apartado/" + donde.replace("/", "-"))
-        git.hacer("switch", "--quiet", "-c", apartado)
+        apartado, indice = guardar_aparte(git, ramas, desde or "sin-rama", chocan)
         creadas.append(apartado)
-        # Primero lo preparado, tal cual: `git add -u` pisaría lo que está solo en el índice (H3).
-        if git.correr("diff", "--cached", "--quiet").returncode == 1:
-            git.hacer("commit", "--quiet", "-m", f"Apartado: lo que estaba preparado en {donde}")
-        git.hacer("add", "-u")
-        # Los archivos nuevos de las rutas que no están ignorados (N1), y los que el cambio de rama pisaría (N2, N3).
-        nuevos = git.rutas("ls-files", "-z", "--others", "--exclude-standard", "--", *RUTAS)
-        if nuevos:
-            git.hacer("add", "--", *nuevos)
-        if chocan:
-            git.hacer("-C", git.salida("rev-parse", "--show-toplevel"), "add", "-f", "--", *chocan)
-        if git.correr("diff", "--cached", "--quiet").returncode == 1:
-            git.hacer("commit", "--quiet", "-m", f"Apartado: lo que había en {donde} antes de guardar")
+        try:
+            pasar_al_apartado(git, apartado, indice)
+        finally:
+            if os.path.exists(indice):
+                os.remove(indice)
 
     if (destino == principal or (decision and llega_a_la_principal(decision))) and adelantada(git, principal):
-        local = f"refs/heads/{principal}"
-        if not (creadas and git.correr("merge-base", "--is-ancestor", local, creadas[-1]).returncode == 0):
-            apartado = primera_libre(git, ramas, "apartado/" + principal.replace("/", "-"))
-            git.hacer("branch", apartado, local)
-            creadas.append(apartado)
+        apartar_commits(git, ramas, principal, creadas)
         igualar(git, principal)
 
     if destino is None:
@@ -576,12 +590,32 @@ def seguir_al_servidor(git, ramas, rama, creadas):
     servidor no tiene, quedan antes en `apartado/<rama>`, y la rama se iguala al servidor."""
     local, remota = f"refs/heads/{rama}", f"refs/remotes/origin/{rama}"
     if git.correr("merge-base", "--is-ancestor", local, remota).returncode != 0:
-        if not (creadas and git.correr("merge-base", "--is-ancestor", local, creadas[-1]).returncode == 0):
-            apartado = primera_libre(git, ramas, "apartado/" + rama.replace("/", "-"))
-            git.hacer("branch", apartado, local)
-            creadas.append(apartado)
+        apartar_commits(git, ramas, rama, creadas)
+    # El upstream después de igualar: con upstream vivo, otra corrida tomaría esos commits como del flujo y los subiría.
     igualar(git, rama)
     git.hacer("branch", "--quiet", f"--set-upstream-to=origin/{rama}", rama)
+
+
+def apartar_commits(git, ramas, rama, creadas):
+    """Los commits de `rama` que el servidor no tiene, en `apartado/<rama>`: en el apartado recién creado si ya los
+    tiene, en uno de otra corrida que los tiene (Q171), o en uno nuevo."""
+    local = f"refs/heads/{rama}"
+    if creadas and git.correr("merge-base", "--is-ancestor", local, creadas[-1]).returncode == 0:
+        return
+    base = "apartado/" + rama.replace("/", "-")
+    apartado = next((r for r in apartados(git, base)
+                     if git.correr("merge-base", "--is-ancestor", local, r).returncode == 0), None)
+    if apartado is None:
+        apartado = primera_libre(git, ramas, base)
+        git.hacer("branch", apartado, local)
+    creadas.append(apartado)
+
+
+def apartados(git, base):
+    """Las ramas locales `apartado/<base>` y `apartado/<base>-<n>`."""
+    patron = re.compile(rf"{re.escape(base)}(-[0-9]+)?")
+    return [r for r in git.lineas("for-each-ref", "--format=%(refname:short)", "refs/heads/apartado/")
+            if patron.fullmatch(r)]
 
 
 def al_dia(git, rama):

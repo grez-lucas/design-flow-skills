@@ -54,18 +54,20 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
          adelantada, ` + "`commits`" + ` trae esos commits.
 
 apartar  con el sí de la persona, ante ` + "`otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar`" + ` o
-         ` + "`principal-adelantada`" + `. Guarda en ` + "`apartado/<rama>`" + ` (cada ` + "`/`" + ` cambiada por ` + "`-`, `sin-rama`" + ` con HEAD
-         separado, con el primer sufijo libre) lo que había: primero lo que estaba preparado en el índice, tal cual,
-         después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados
-         y los archivos sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin
-         seguimiento no se tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va
-         a guardar desde la principal y tiene commits que el servidor no tiene, los guarda en ` + "`apartado/<principal>`" + `
-         y la iguala al servidor. Vuelve después a la rama del flujo: la actual, si ` + "`revisar` daba `guardar`" + `,
-         ` + "`ofrecer` o `volver`" + `; si no, la rama viva del servidor para este trabajo, ` + "`<tipo>/<nombre>`" + ` con sufijos
-         exactos, o la principal. Si esa es la rama actual y no sigue a la del servidor, la iguala al servidor, con
-         sus commits propios antes en ` + "`apartado/<rama>`" + `, y la deja siguiéndola. Devuelve lo que devuelve ` + "`revisar`" + `
-         desde ahí, con ` + "`apartado`" + ` (las ramas que creó) y ` + "`desde`" + ` (la rama donde estaba, o null). Con más de una rama
-         viva para este trabajo devuelve ` + "`elegir`, con `ramas`" + `, y --rama <una de ellas> vuelve a esa.
+         ` + "`principal-adelantada`" + `. Guarda en ` + "`apartado/<rama>`" + ` (cada ` + "`/`" + ` cambiada por ` + "`-`, `sin-rama`" + ` con HEAD separado,
+         con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo) lo que había, con un índice temporal y
+         sin correr hooks, antes de tocar la carpeta (Q171): primero lo que estaba preparado, tal cual, después los
+         cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados y los archivos
+         sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se
+         tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
+         principal y tiene commits que el servidor no tiene, los guarda en ` + "`apartado/<principal>`" + ` y la iguala al
+         servidor. Vuelve después a la rama del flujo: la actual, si ` + "`revisar` daba `guardar`, `ofrecer` o `volver`" + `; si
+         no, la rama viva del servidor para este trabajo, ` + "`<tipo>/<nombre>`" + ` con sufijos exactos, o la principal. Si esa
+         es la rama actual y no sigue a la del servidor, la iguala al servidor, con sus commits propios antes en
+         ` + "`apartado/<rama>`" + `, y la deja siguiéndola. Devuelve lo que devuelve ` + "`revisar`" + ` desde ahí, con ` + "`apartado`" + ` (las
+         ramas donde quedó lo apartado) y ` + "`desde`" + ` (la rama donde estaba, o null). Con lo apartado, la copia pasa a
+         ` + "`apartado/<rama>`" + ` sin tocar la carpeta y de ahí cambia a la rama del flujo con ` + "`git switch`" + ` (Q172). Con más de
+         una rama viva para este trabajo devuelve ` + "`elegir`, con `ramas`" + `, y --rama <una de ellas> vuelve a esa.
 
 volver   con ` + "`volver`" + `, o con ` + "`ofrecer`" + ` y el sí de la persona a ` + "`rama_nueva`" + `, que va en --rama-nueva. Corre ` + "`revisar`" + `
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con ` + "`ofrecer`" + `, crea
@@ -86,11 +88,11 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          la de ` + "`rama-nueva` o la `rama_nueva` de `ofrecer`" + `, aunque siga a otra rama, y para con
          ` + "`rama-nueva-rechazada`" + `, sin otro sufijo.
 
-Si git falla en ` + "`apartar`, `volver` o `commit`" + `, para con ` + "`error-de-git`" + ` y el mensaje de git en ` + "`detalle`. `apartar`" + `
-deshace lo que hizo (Q170): vuelve a la rama donde estaba, con la carpeta y el índice como estaban, ignorados y marcas
-incluidos, devuelve las ramas que movió a su commit y el upstream de la actual a lo que era, y borra las ramas que
-creó; ` + "`apartado`" + ` viene vacía y ` + "`desde` y `rama`" + ` dicen dónde estaba. Si no puede deshacerlo, ` + "`apartado` y `rama`" + ` dicen
-lo que quedó.
+Si git falla en ` + "`apartar`, `volver` o `commit`" + `, para con ` + "`error-de-git`" + ` y el mensaje de git en ` + "`detalle`. `apartar`" + ` no
+deshace nada: ` + "`apartado`" + ` lista las ramas donde ya quedó lo apartado y ` + "`rama`" + ` dice dónde quedó la copia. Si falla antes
+del ` + "`git switch`" + `, la carpeta está como estaba. Si falla el ` + "`git switch`" + `, la copia queda en ` + "`apartado/<rama>`" + ` sin cambios
+sin guardar, y otra corrida de ` + "`apartar`" + ` no guarda nada nuevo: solo vuelve a cambiar a la rama del flujo. Si el índice
+está en uso (` + "`index.lock`" + `), para antes de tocarlo, y otra corrida reusa el apartado.
 
 ` + "`fetch` y `ls-remote`" + ` esperan al servidor ` + "`RAMA_TOPE`" + ` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (` + "`taskkill /T`" + ` en Windows) y paran con ` + "`sin-servidor`" + `. git nunca pide credenciales por la terminal.
@@ -365,7 +367,7 @@ func Correr(argv []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "flujo rama: %s\nUso: flujo rama -h\n", err)
 		return 2
 	}
-	fmt.Fprintln(stdout, ordenes[a.orden](Git{a.repo}, a).json())
+	fmt.Fprintln(stdout, ordenes[a.orden](Git{repo: a.repo}, a).json())
 	return 0
 }
 
