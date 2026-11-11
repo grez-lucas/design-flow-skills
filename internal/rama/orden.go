@@ -40,12 +40,17 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
          volver   el upstream de la rama actual ya no está en el servidor y lo suyo entró a la principal: todos sus
                   commits están en alguna rama del servidor, o los archivos que tocan los que no están, desde la
                   base común con la principal, están iguales en ella (squash merge).
-         parar    cualquier otro caso, con ` + "`motivo` y `detalle`" + `. En lugar de ` + "`guardar`, `ofrecer` o `volver`" + `, para
-                  con ` + "`cambios-sin-guardar`" + ` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
-                  rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con ` + "`ofrecer`" + `, también
-                  cualquier cambio de un archivo con seguimiento; con ` + "`volver` y `ofrecer`" + `, también un archivo sin
-                  seguimiento en el camino del cambio de rama, ignorado o no y aunque sea igual al de la principal,
-                  porque el cambio de rama no pasaría (Q169, Q175).
+         parar    cualquier otro caso, con ` + "`motivo` y `detalle`" + `. Antes que nada, para con ` + "`copia-no-soportada`" + ` y
+                  ` + "`rutas`" + ` si la copia tiene un submódulo, un repositorio git anidado en la carpeta, ignorado o no, o
+                  un enlace simbólico sin seguimiento en el camino del cambio de rama, apunte adonde apunte: donde la
+                  rama a la que va tiene un archivo o una carpeta de sus archivos, o dentro de una carpeta donde tiene
+                  un archivo. ` + "`apartar`" + ` no hace nada en esa copia, y se resuelve a mano (Q177).
+                  En lugar de ` + "`guardar`, `ofrecer` o `volver`" + `, para con ` + "`cambios-sin-guardar`" + ` si hay trabajo sin
+                  guardar que entraría en el commit de la skill: en sus rutas, con los archivos nuevos, o preparado
+                  en el índice, en cualquier ruta; con ` + "`ofrecer`" + `, también cualquier cambio de un archivo con
+                  seguimiento; con ` + "`volver` y `ofrecer`" + `, también un archivo sin seguimiento en el camino del cambio
+                  de rama, ignorado o no y aunque sea igual al de la principal, porque el cambio de rama no pasaría
+                  (Q169, Q175).
                   Y para con ` + "`principal-adelantada`" + ` si se va a guardar desde la principal y la de esta copia tiene
                   commits que el servidor no tiene; ahí cuenta también lo que traería igualarla al servidor (Q170).
          Todas llevan ` + "`principal`" + ` cuando el servidor respondió y ` + "`rama`" + ` cuando la copia está en una. Con trabajo
@@ -102,10 +107,7 @@ calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173).
 separado solo con commits sueltos, no lleva ` + "`Destino:`" + ` y el reintento calcula la rama otra vez; y si en una corrida que
 venía de ` + "`ofrecer`" + ` o ` + "`volver`" + ` falla igualar la principal adelantada, el reintento no lo rehace y ` + "`revisar`" + ` vuelve a dar
 ` + "`principal-adelantada`" + `, con otro sí (Q176). Si el índice está en uso (` + "`index.lock`" + `), para antes de tocarlo, y otra
-corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su ` + "`index.lock`" + `. ` + "`apartar`" + `
-no guarda los cambios de adentro de un submódulo: si uno los tiene en archivos con seguimiento y el cambio de rama lo
-lleva a otro commit, para con ` + "`error-de-git`" + ` antes de guardar nada y lo nombra en ` + "`detalle`" + `, y otra corrida para igual
-hasta que se guarden en el submódulo.
+corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su ` + "`index.lock`" + `.
 
 ` + "`fetch` y `ls-remote`" + ` esperan al servidor ` + "`RAMA_TOPE`" + ` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (` + "`taskkill /T`" + ` en Windows) y paran con ` + "`sin-servidor`" + `. git nunca pide credenciales por la terminal.

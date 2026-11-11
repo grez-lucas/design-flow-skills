@@ -10,6 +10,7 @@ Los casos: A1 a A4, B5, B6, M1, M2 y M9 de las revisiones del issue 42, que ante
 borrada en el servidor, HEAD separado y submódulos.
 Uso: python3 -m unittest discover -s tests/rama -v
 """
+import os
 import unittest
 
 from repos import Repositorio, git
@@ -205,7 +206,12 @@ class TrabajoSinGuardar(Base):
         self.assertEqual(self.apartar()["apartado"], ["apartado/main-3"])
 
 
-class Submodulos(Base):
+class FormaDeLaCopia(Base):
+    """Q177, que reemplaza la parada de Q176 con `error-de-git`: con un submódulo, un repositorio git anidado en la
+    carpeta o un enlace simbólico en el camino del cambio de rama, `revisar` para con `copia-no-soportada` y las
+    `rutas`, antes del sí, y `apartar` no hace nada en esa copia. Cada revisión encontraba otra forma de perder trabajo
+    con ellos (H3 de la revisión 4; H1, H2 y H5 de la revisión 5)."""
+
     def submodulo(self):
         modulo = self.tmp / "modulo"
         git("init", "-q", "--initial-branch=main", str(modulo), cwd=self.tmp)
@@ -217,75 +223,220 @@ class Submodulos(Base):
         git("push", "-q", "origin", "HEAD:main", cwd=self.copia)
         return self.copia / "design/lib"
 
-    def test_b6_un_submodulo_con_cambios_adentro_no_detiene(self):
-        lib = self.submodulo()
-        self.escribir(lib, "suelto.txt", "x\n")
-        self.escribir(lib, "a.css", "a { color: red }\n")
-        self.assertEqual(self.revisar()["accion"], "guardar")
+    def al_servidor(self, ruta, texto="del servidor\n"):
+        self.escribir(self.otra, ruta, texto)
+        git("add", ruta, cwd=self.otra)
+        git("commit", "-q", "-m", f"agrega {ruta}", cwd=self.otra)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
 
-    def test_un_submodulo_que_apunta_a_otro_commit_detiene(self):
+    def repositorio_anidado(self, ruta):
+        """Un clon dentro de la copia, con un commit, un cambio sin commit y un archivo nuevo."""
+        anidado = self.copia / ruta
+        anidado.mkdir(parents=True)
+        git("init", "-q", str(anidado), cwd=self.copia)
+        self.escribir(anidado, "x.txt", "commit\n")
+        git("add", "-A", cwd=anidado)
+        git("commit", "-q", "-m", "x", cwd=anidado)
+        self.escribir(anidado, "x.txt", "MI TRABAJO SIN COMMIT\n")
+        self.escribir(anidado, "nuevo.txt", "MI ARCHIVO NUEVO\n")
+        return anidado
+
+    def ignorar(self, regla):
+        (self.copia / ".git" / "info").mkdir(exist_ok=True)
+        (self.copia / ".git" / "info" / "exclude").write_text(regla + "\n", encoding="utf-8")
+
+    def foto(self):
+        return (self.rama_actual(), git("rev-parse", "HEAD", cwd=self.copia).stdout,
+                git("for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", cwd=self.copia).stdout,
+                git("status", "--porcelain", "--ignored", "--untracked-files=all", cwd=self.copia).stdout,
+                (self.copia / ".git" / "index").read_bytes())
+
+    def no_soportada(self, rutas, *orden):
+        """`revisar` y dos `apartar` paran con `copia-no-soportada` y `rutas`, y `apartar` no cambia nada."""
+        salida = self.parada(self.revisar(*orden), "copia-no-soportada")
+        self.assertEqual(salida["rutas"], rutas, salida)
+        self.assertEqual(salida["principal"], "main", salida)
+        for ruta in rutas:
+            self.assertIn(ruta, salida["detalle"])
+        antes = self.foto()
+        for _ in range(2):
+            self.assertEqual(self.parada(self.apartar(*orden), "copia-no-soportada"), salida)
+            self.assertEqual(self.foto(), antes)
+        self.assertEqual(self.ramas_locales("apartado/*"), [])
+        return salida
+
+
+class CopiaNoSoportada(FormaDeLaCopia):
+    def test_un_submodulo_en_la_principal(self):
+        self.submodulo()
+        salida = self.no_soportada(["design/lib"])
+        self.assertEqual(salida["rama"], "main")
+        self.assertIn("submódulo", salida["detalle"])
+
+    def test_un_submodulo_que_apunta_a_otro_commit(self):
         lib = self.submodulo()
         self.escribir(lib, "b.css", "b {}\n")
         git("add", "-A", cwd=lib)
         git("commit", "-q", "-m", "otro", cwd=lib)
-        self.assertIn(" M design/lib", self.parada(self.revisar(), "cambios-sin-guardar")["archivos"])
-        # El apartado guarda el puntero y la copia vuelve al commit del submódulo que tiene la principal.
-        self.assertEqual(self.apartar()["accion"], "guardar")
-        self.assertEqual(self.archivos_de("apartado/main"), {"M", "design/lib"})
-        self.assertEqual(self.status(), "")
+        self.no_soportada(["design/lib"])
 
-    def test_r4_h3_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_moveria(self):
-        """H3 de la revisión 4: `apartar` no guarda los cambios de adentro de un submódulo, y el `git switch
-        --recurse-submodules` falla si tiene que llevarlo a otro commit. Para antes de guardar nada y nombra el
-        submódulo; la copia queda como estaba, y con los cambios guardados en el submódulo, `apartar` sigue."""
+    def test_q176_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_moveria(self):
+        """El caso de la parada de Q176: ahora `revisar` lo dice antes del sí."""
         lib = self.submodulo()
         git("switch", "-q", "-c", "experimento", cwd=self.copia)
         self.escribir(lib, "a.css", "a { otro }\n")
         git("add", "-A", cwd=lib)
         git("commit", "-q", "-m", "otro", cwd=lib)
         self.escribir(lib, "a.css", "a { color: red }\n")
-        antes = (self.status(), git("rev-parse", "HEAD", cwd=self.copia).stdout)
-        salida = self.parada(self.apartar(), "error-de-git")
-        self.assertIn("design/lib", salida["detalle"])
-        self.assertEqual((salida["rama"], salida["apartado"], salida["desde"]), ("experimento", [], "experimento"),
-                         salida)
-        self.assertEqual((self.status(), git("rev-parse", "HEAD", cwd=self.copia).stdout), antes)
-        self.assertEqual(self.ramas_locales("apartado/*"), [])
+        self.assertEqual(self.no_soportada(["design/lib"])["rama"], "experimento")
         self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { color: red }\n")
-        # Otra corrida para igual, con el mismo motivo, mientras el submódulo tenga los cambios adentro.
-        self.assertEqual(self.parada(self.apartar(), "error-de-git")["detalle"], salida["detalle"])
-        git("commit", "-q", "-am", "color", cwd=lib)
-        salida = self.apartar()
-        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
-                         ("guardar", "main", ["apartado/experimento"]), salida)
-        self.assertEqual(self.archivos_de("apartado/experimento"), {"M", "design/lib"})
-        self.assertEqual(self.status(), "")
 
-    def test_r4_h3_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_no_toca(self):
-        """El submódulo va a otro commit y el archivo cambiado adentro es igual en los dos: `git switch
-        --recurse-submodules` pasa y descarta el cambio sin avisar (git 2.43). `apartar` para igual, antes de guardar."""
+    def submodulo_en_otro_commit_que_la_principal(self):
+        """H2 de la revisión 5: `experimento` sale del commit A del submódulo, la principal del servidor lo lleva a B,
+        `a.css` es igual en los dos, y adentro tiene un cambio sin guardar. La copia no tiene nada más que guardar."""
         lib = self.submodulo()
-        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        inicio = git("rev-parse", "HEAD", cwd=self.copia).stdout.strip()
+        a = git("rev-parse", "HEAD", cwd=lib).stdout.strip()
         self.escribir(lib, "b.css", "b {}\n")
         git("add", "-A", cwd=lib)
-        git("commit", "-q", "-m", "otro", cwd=lib)
-        self.escribir(lib, "a.css", "a { color: red }\n")
-        salida = self.parada(self.apartar(), "error-de-git")
-        self.assertIn("design/lib", salida["detalle"])
-        self.assertEqual((salida["rama"], salida["apartado"]), ("experimento", []), salida)
-        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { color: red }\n")
-        self.assertTrue((lib / "b.css").exists())
+        git("commit", "-q", "-m", "B", cwd=lib)
+        git("commit", "-q", "-am", "submódulo en B", cwd=self.copia)
+        git("push", "-q", "origin", "HEAD:main", cwd=self.copia)
+        return lib, inicio, a
 
-    def test_r4_h3_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_no_mueve(self):
-        lib = self.submodulo()
+    def test_r5_h2_nada_que_guardar_y_la_principal_adelantada(self):
+        lib, inicio, a = self.submodulo_en_otro_commit_que_la_principal()
+        self.escribir(self.copia, "specs/alertas/spec.md", "local\n")
+        git("commit", "-q", "-am", "local sin empujar", cwd=self.copia)
+        git("switch", "-q", "-c", "experimento", inicio, cwd=self.copia)
+        git("checkout", "-q", a, cwd=lib)
+        self.escribir(lib, "a.css", "a { MI TRABAJO }\n")
+        self.no_soportada(["design/lib"])
+        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { MI TRABAJO }\n")
+        self.assertFalse(self.igual_al_servidor())
+
+    def test_r5_h2_nada_que_guardar_con_submodule_recurse(self):
+        lib, inicio, a = self.submodulo_en_otro_commit_que_la_principal()
+        git("switch", "-q", "-c", "experimento", inicio, cwd=self.copia)
+        git("checkout", "-q", a, cwd=lib)
+        git("config", "submodule.recurse", "true", cwd=self.copia)
+        self.escribir(lib, "a.css", "a { MI TRABAJO }\n")
+        self.no_soportada(["design/lib"])
+        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { MI TRABAJO }\n")
+
+    def assertAnidadoIntacto(self, anidado):
+        self.assertTrue((anidado / ".git").is_dir())
+        self.assertEqual((anidado / "x.txt").read_text(encoding="utf-8"), "MI TRABAJO SIN COMMIT\n")
+        self.assertEqual((anidado / "nuevo.txt").read_text(encoding="utf-8"), "MI ARCHIVO NUEVO\n")
+        self.assertEqual(git("log", "--format=%s", cwd=anidado).stdout, "x\n")
+
+    def test_r5_h1_un_repositorio_anidado_donde_la_principal_trae_un_archivo(self):
+        for ignorado in (False, True):
+            with self.subTest(ignorado=ignorado):
+                self.setUp()
+                self.al_servidor("vendor")
+                git("switch", "-q", "-c", "experimento", cwd=self.copia)
+                if ignorado:
+                    self.ignorar("vendor/")
+                anidado = self.repositorio_anidado("vendor")
+                self.assertIn("repositorio git anidado", self.no_soportada(["vendor"])["detalle"])
+                self.assertAnidadoIntacto(anidado)
+
+    def test_un_repositorio_anidado_sin_choque(self):
+        """Q177 no pide que esté en el camino: un repositorio anidado en cualquier lugar de la carpeta, también dentro
+        de una carpeta ignorada, hace parar igual, aunque `apartar` no lo pisara."""
+        for ruta, regla in (("design/clon", None), ("cache/profundo/clon", "cache/")):
+            with self.subTest(ruta=ruta):
+                self.setUp()
+                if regla:
+                    self.ignorar(regla)
+                anidado = self.repositorio_anidado(ruta)
+                self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
+                self.no_soportada([ruta])
+                self.assertAnidadoIntacto(anidado)
+
+    def test_volver_para_igual(self):
+        self.trabajar_en("tickets/alertas")
+        git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
+        anidado = self.repositorio_anidado("clon")
+        orden = ("--tipo", "tickets", "--epica", "alertas")
+        self.parada(self.volver(*orden), "copia-no-soportada")
+        self.assertEqual(self.rama_actual(), "tickets/alertas")
+        self.assertAnidadoIntacto(anidado)
+
+    def test_varias_a_la_vez(self):
+        self.submodulo()
+        self.repositorio_anidado("clon")
+        self.assertEqual(self.revisar()["rutas"], ["clon", "design/lib"])
+
+
+@unittest.skipIf(os.name == "nt", "crear un enlace simbólico en Windows pide permisos")
+class EnlaceEnElCamino(FormaDeLaCopia):
+    """Q177 y H5 de la revisión 5: un enlace simbólico sin seguimiento está en el camino del cambio de rama si el
+    `git switch` lo reemplaza o lo borra, apunte adonde apunte: donde la rama a la que va tiene un archivo, donde tiene
+    una carpeta de sus archivos, o dentro de una carpeta de la copia donde tiene un archivo. Ignorado o no."""
+
+    def enlace(self, ruta, apunta):
+        lugar = self.copia / ruta
+        lugar.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(apunta, lugar)
+        return lugar
+
+    def assertEnlace(self, lugar, apunta):
+        self.assertTrue(lugar.is_symlink())
+        self.assertEqual(os.readlink(lugar), apunta)
+
+    def test_r5_h5_donde_la_principal_trae_un_archivo(self):
+        for apunta in ("no-existe", "design", "notas.txt"):
+            for ignorado in (False, True):
+                with self.subTest(apunta=apunta, ignorado=ignorado):
+                    self.setUp()
+                    self.al_servidor("enlace")
+                    git("switch", "-q", "-c", "experimento", cwd=self.copia)
+                    if ignorado:
+                        self.ignorar("enlace")
+                    lugar = self.enlace("enlace", apunta)
+                    self.assertIn("enlace simbólico", self.no_soportada(["enlace"])["detalle"])
+                    self.assertEnlace(lugar, apunta)
+
+    def test_donde_la_principal_trae_una_carpeta(self):
+        self.al_servidor("doc/nuevo.md")
         git("switch", "-q", "-c", "experimento", cwd=self.copia)
-        self.escribir(lib, "a.css", "a { color: red }\n")
+        lugar = self.enlace("doc", "design")
+        self.no_soportada(["doc"])
+        self.assertEnlace(lugar, "design")
+
+    def test_dentro_de_una_carpeta_donde_la_principal_trae_un_archivo(self):
+        self.al_servidor("vendor")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "vendor/x.txt", "MI TRABAJO\n")
+        lugar = self.enlace("vendor/enlace", "../notas.txt")
+        self.no_soportada(["vendor/enlace"])
+        self.assertEnlace(lugar, "../notas.txt")
+
+    def test_al_igualar_la_principal_adelantada(self):
+        self.al_servidor("enlace")
+        self.escribir(self.copia, "specs/alertas/spec.md", "local\n")
+        git("commit", "-q", "-am", "local sin empujar", cwd=self.copia)
+        lugar = self.enlace("enlace", "no-existe")
+        self.no_soportada(["enlace"])
+        self.assertEnlace(lugar, "no-existe")
+
+    def test_fuera_del_camino_no_detiene(self):
+        """Un enlace que la rama a la que va no toca queda donde está, como cualquier sin seguimiento."""
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        lugar = self.enlace("enlace", "no-existe")
         self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.parada(self.revisar(), "otra-rama")
         salida = self.apartar()
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
                          ("guardar", "main", ["apartado/experimento"]), salida)
-        self.assertEqual(self.contenido("apartado/experimento", "notas.txt"), "MI TRABAJO\n")
-        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { color: red }\n")
+        self.assertEnlace(lugar, "no-existe")
+        self.assertEqual(self.revisar()["accion"], "guardar")
+
+    def test_en_la_principal_sin_cambio_de_rama_no_detiene(self):
+        self.enlace("enlace", "no-existe")
+        self.assertEqual(self.revisar()["accion"], "guardar")
 
 
 class PrincipalAdelantada(Base):
