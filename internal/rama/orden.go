@@ -44,13 +44,13 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
                   con ` + "`cambios-sin-guardar`" + ` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
                   rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con ` + "`ofrecer`" + `, también
                   cualquier cambio de un archivo con seguimiento; con ` + "`volver` y `ofrecer`" + `, también un archivo sin
-                  seguimiento que la principal tiene, aunque sea igual, porque el cambio de rama no pasaría, o uno
-                  ignorado que tiene con otro contenido, porque lo pisaría.
+                  seguimiento en el camino del cambio de rama, ignorado o no y aunque sea igual al de la principal,
+                  porque el cambio de rama no pasaría (Q169, Q175).
                   Y para con ` + "`principal-adelantada`" + ` si se va a guardar desde la principal y la de esta copia tiene
                   commits que el servidor no tiene; ahí cuenta también lo que traería igualarla al servidor (Q170).
          Todas llevan ` + "`principal`" + ` cuando el servidor respondió y ` + "`rama`" + ` cuando la copia está en una. Con trabajo
          sin guardar, ` + "`archivos`" + ` trae sus líneas de ` + "`git status --porcelain`" + `, con las rutas sin escapar: lo que
-         ` + "`apartar`" + ` guardaría, y ` + "`!! <ruta>`" + ` para un ignorado que el cambio de rama pisaría. Con la principal
+         ` + "`apartar`" + ` guardaría, y ` + "`!! <ruta>`" + ` para un ignorado en el camino del cambio de rama. Con la principal
          adelantada, ` + "`commits`" + ` trae esos commits.
 
 apartar  con el sí de la persona, ante ` + "`otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar`" + ` o
@@ -68,9 +68,11 @@ apartar  con el sí de la persona, ante ` + "`otra-rama`, `sin-rama`, `commits-s
          es la rama actual y no sigue a la del servidor, la iguala al servidor, con sus commits propios antes en
          ` + "`apartado/<rama>`" + `, y la deja siguiéndola. Devuelve lo que devuelve ` + "`revisar`" + ` desde ahí, con ` + "`apartado`" + ` (las
          ramas donde quedó lo apartado) y ` + "`desde`" + ` (la rama donde estaba, o null). Con lo apartado, la copia pasa a
-         ` + "`apartado/<rama>`" + ` sin tocar la carpeta y de ahí cambia a la rama del flujo con ` + "`git switch`" + ` (Q172); el último
-         commit del apartado lleva ` + "`Destino: <rama>`" + `, la rama del flujo a la que va (Q173). Con más de una rama viva
-         para este trabajo devuelve ` + "`elegir`" + `, con ` + "`ramas`" + `, y --rama <una de ellas> vuelve a esa.
+         ` + "`apartado/<rama>`" + ` sin tocar la carpeta y de ahí cambia a la rama del flujo con
+         ` + "`git switch --no-overwrite-ignore`" + `, que se niega ante un ignorado que la predicción no vio en lugar de borrarlo
+         (Q172, Q175); igualar la principal sin cambiar de rama (` + "`reset --keep`" + `) no tiene esa opción y depende de la
+         predicción. El último commit del apartado lleva ` + "`Destino: <rama>`" + `, la rama del flujo a la que va (Q173). Con
+         más de una rama viva para este trabajo devuelve ` + "`elegir`" + `, con ` + "`ramas`" + `, y --rama <una de ellas> vuelve a esa.
 
 volver   con ` + "`volver`" + `, o con ` + "`ofrecer`" + ` y el sí de la persona a ` + "`rama_nueva`" + `, que va en --rama-nueva. Corre ` + "`revisar`" + `
          otra vez: si devuelve eso, iguala la principal local al servidor, cambia a ella y, con ` + "`ofrecer`" + `, crea

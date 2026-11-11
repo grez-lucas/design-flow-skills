@@ -717,7 +717,9 @@ class RutasIgnoradas(Base):
         self.assertEqual(self.contenido("apartado/experimento", ".claude/pm-conventions.md"), "puntero local\n")
         self.assertEqual(self.status(), "")
 
-    def test_un_ignorado_igual_al_de_la_rama_de_destino_no_detiene(self):
+    def test_un_ignorado_igual_al_de_la_rama_de_destino_detiene_y_se_aparta(self):
+        """Q175, que reemplaza lo que este test pedía antes (no detener): un ignorado igual al de la rama de destino
+        está en el camino del cambio de rama, `revisar` lo lista como `!!` y `apartar` lo guarda."""
         self.ignorar(".claude/\n")
         self.trabajar_en("tickets/alertas")
         git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
@@ -726,7 +728,12 @@ class RutasIgnoradas(Base):
         git("add", "-f", ".claude/pm-conventions.md", cwd=self.otra)
         git("commit", "-q", "-m", "puntero", cwd=self.otra)
         git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
-        self.assertEqual(self.revisar("--tipo", "tickets", "--epica", "alertas")["accion"], "volver")
+        salida = self.parada(self.revisar("--tipo", "tickets", "--epica", "alertas"), "cambios-sin-guardar")
+        self.assertEqual(salida["archivos"], ["!! .claude/pm-conventions.md"])
+        salida = self.apartar("--tipo", "tickets", "--epica", "alertas")
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("volver", "tickets/alertas", ["apartado/tickets-alertas"]), salida)
+        self.assertEqual(self.contenido("apartado/tickets-alertas", ".claude/pm-conventions.md"), "el mismo puntero\n")
 
 
 class SinSeguimientoQueChoca(Base):

@@ -184,6 +184,81 @@ class ChoquesDeArchivoContraCarpeta(Base):
         self.assertTrue(self.igual_al_servidor())
 
 
+class IgnoradoIgualAlDelDestino(Base):
+    """Q175: con `--no-overwrite-ignore`, git se niega también ante un ignorado igual al del destino, así que entra al
+    apartado como `!!`, como un sin seguimiento igual (Q169), y el reintento no queda dando vueltas."""
+
+    def ignorar(self, ruta):
+        (self.copia / ".git" / "info").mkdir(exist_ok=True)
+        (self.copia / ".git" / "info" / "exclude").write_text(ruta + "\n", encoding="utf-8")
+
+    def test_desde_otra_rama(self):
+        self.al_servidor("cache.txt", "del servidor\n")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.ignorar("cache.txt")
+        self.escribir(self.copia, "cache.txt", "del servidor\n")
+        self.assertEqual(self.parada(self.revisar(), "otra-rama").get("archivos"), ["!! cache.txt"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", "cache.txt"), "del servidor\n")
+        self.assertEqual((self.copia / "cache.txt").read_text(encoding="utf-8"), "del servidor\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", []), salida)
+        self.assertEqual(self.ramas_locales("apartado/*"), ["apartado/experimento"])
+
+    def test_al_igualar_la_principal_adelantada(self):
+        """El camino de `reset --keep` no tiene `--no-overwrite-ignore` y depende de la predicción: el ignorado igual
+        entra al apartado, la copia pasa a `apartado/main` y llega a la principal con el `switch`."""
+        self.commit_local()
+        self.al_servidor("cache.txt", "del servidor\n")
+        self.ignorar("cache.txt")
+        self.escribir(self.copia, "cache.txt", "del servidor\n")
+        self.assertEqual(self.parada(self.revisar(), "principal-adelantada")["archivos"], ["!! cache.txt"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", ["apartado/main"]),
+                         salida)
+        self.assertEqual(self.contenido("apartado/main", "cache.txt"), "del servidor\n")
+        self.assertTrue(self.igual_al_servidor())
+        self.assertEqual(self.status(), "")
+
+
+GIT_QUE_NO_VE = """#!/bin/sh
+# git que, con `ls-tree -r`, no devuelve nada: la predicción de choques no ve el destino.
+case " $* " in
+  *" ls-tree -r "*) exit 0 ;;
+esac
+exec '{git}' "$@"
+"""
+
+
+@unittest.skipIf(os.name == "nt", "el git que no ve es un sh")
+class RedDeSeguridad(Base):
+    """Q175: si la predicción de choques no ve un ignorado en el camino, el `git switch --no-overwrite-ignore` final
+    se niega en lugar de borrarlo, y `apartar` para con `error-de-git` con el ignorado en la carpeta."""
+
+    def test_un_choque_que_la_prediccion_no_vio(self):
+        self.al_servidor("build/x.txt", "del servidor\n")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        (self.copia / ".git" / "info").mkdir(exist_ok=True)
+        (self.copia / ".git" / "info" / "exclude").write_text("build\n", encoding="utf-8")
+        self.escribir(self.copia, "build", "MI TRABAJO\n")
+        carpeta = self.tmp / "git-que-no-ve"
+        carpeta.mkdir()
+        (carpeta / "git").write_text(GIT_QUE_NO_VE.format(git=shutil.which("git", path=ENTORNO.get("PATH"))),
+                                     encoding="utf-8")
+        (carpeta / "git").chmod(0o755)
+        salida = self.parada(self.apartar(entorno={"PATH": str(carpeta) + os.pathsep + ENTORNO.get("PATH", "")}),
+                             "error-de-git")
+        self.assertIn("build", salida["detalle"])
+        self.assertEqual(salida["rama"], "experimento", salida)
+        self.assertEqual((self.copia / "build").read_text(encoding="utf-8"), "MI TRABAJO\n")
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", "build"), "MI TRABAJO\n")
+
+
 class GitQueFalla(Base):
     def git_que_falla(self, patron, vez):
         carpeta = self.tmp / "git-que-falla"
