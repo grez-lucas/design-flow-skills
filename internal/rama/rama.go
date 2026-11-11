@@ -215,18 +215,22 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 			return decision{}, p
 		}
 	}
+	desde := g.rama()
 	d, p := ramaDelFlujo(g, a, s)
 	if p != nil {
 		if slices.Contains(apartables, p.motivo) {
-			destino, _ := destinoDelFlujo(a, s, "")
-			ref := ""
-			if destino != "" {
-				ref = refDeLlegada(g, destino, s.principal, destino == g.rama())
+			destino, _, seguir := destinoDeApartar(g, a, s, desde)
+			final := refFinal(g, nil, destino, desde, s.principal, seguir)
+			if p := noSoportada(g, final, s.principal); p != nil {
+				return decision{}, p
 			}
-			if _, amplio := sinGuardar(g, ref); len(amplio) > 0 {
+			if _, amplio := sinGuardar(g, final); len(amplio) > 0 {
 				p.salida.poner("archivos", amplio)
 			}
 		}
+		return decision{}, p
+	}
+	if p := noSoportada(g, refFinal(g, &d, desde, desde, s.principal, false), s.principal); p != nil {
 		return decision{}, p
 	}
 	ref := ""
@@ -255,8 +259,8 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 // sinGuardar es el trabajo sin guardar, en líneas de `git status --porcelain`: lo que entraría en el commit de la skill
 // o el cambio a `destino` pisaría, y lo que se aparta. Lo primero son las rutas de la skill, con sus archivos nuevos,
 // lo preparado en el índice, en cualquier ruta, y los archivos sin seguimiento que `destino` tiene, en `choques`; lo
-// segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
-// adentro no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí.
+// segundo suma los cambios de cualquier archivo con seguimiento. Una copia con submódulos no llega acá: `revisar` y
+// `apartar` paran antes con `copia-no-soportada` (Q177).
 func sinGuardar(g Git, destino string) (estrecho, amplio []string) {
 	enRutas := estado(g, append([]string{"--untracked-files=all", "--"}, rutasDeLaSkill...)...)
 	seguidos := estado(g, "--untracked-files=no")
@@ -294,23 +298,30 @@ func lineasDeEstado(partes []string) []string {
 	return lineas
 }
 
-// choques son los archivos sin seguimiento en el camino de `git switch` a `destino`: los que `destino` tiene en la
-// misma ruta, un archivo donde `destino` tiene una carpeta y lo que hay dentro de una carpeta donde `destino` tiene un
-// archivo (H1 de la revisión 4). `?? <ruta>` si no está ignorado y `!! <ruta>` si lo está, aunque el contenido sea el
-// mismo: git se niega igual ante uno sin seguimiento (Q168), y ante un ignorado con `--no-overwrite-ignore` (Q175).
+// choques son las líneas de los archivos sin seguimiento de `camino`.
 func choques(g Git, destino string) []string {
+	lineas, _ := camino(g, destino)
+	return lineas
+}
+
+// camino es lo que hay sin seguimiento en el camino de `git switch` a `destino`, lo que el `switch` reemplaza o borra:
+// lo que `destino` tiene en la misma ruta, lo que no es una carpeta donde `destino` tiene una carpeta, y lo que hay
+// dentro de una carpeta donde `destino` tiene un archivo (H1 de la revisión 4). Devuelve las líneas de los archivos y
+// los enlaces simbólicos. Un archivo va como `?? <ruta>` si no está ignorado y `!! <ruta>` si lo está, aunque el
+// contenido sea el mismo: git se niega igual ante uno sin seguimiento (Q168), y ante un ignorado con
+// `--no-overwrite-ignore` (Q175). Un enlace va aparte, apunte adonde apunte, porque hace parar con
+// `copia-no-soportada` (Q177).
+func camino(g Git, destino string) (lineas, enlaces []string) {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" || !g.existe(destino) {
-		return nil
+		return nil, nil
 	}
 	enRaiz := Git{repo: raiz}
 	seguidos := map[string]bool{}
 	for _, r := range g.rutas("ls-files", "-z") {
 		seguidos[r] = true
 	}
-	enDestino := map[string]string{}
-	perdidos := map[string]bool{}
-	vistas := map[string]bool{}
+	enDestino, perdidos, deEnlaces, vistas := map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}
 	var carpetas []string
 	for _, entrada := range g.rutas("ls-tree", "-r", "-z", "--full-tree", destino) {
 		datos, ruta, _ := strings.Cut(entrada, "\t")
@@ -318,7 +329,7 @@ func choques(g Git, destino string) []string {
 		if len(campos) != 3 || campos[1] != "blob" {
 			continue
 		}
-		// Una carpeta de `destino` que en la copia es un archivo sin seguimiento: el `switch` lo reemplaza.
+		// Una carpeta de `destino` que en la copia es un archivo o un enlace sin seguimiento: el `switch` lo reemplaza.
 		partes := strings.Split(ruta, "/")
 		for i := 1; i < len(partes); i++ {
 			carpeta := strings.Join(partes[:i], "/")
@@ -326,7 +337,15 @@ func choques(g Git, destino string) []string {
 				continue
 			}
 			vistas[carpeta] = true
-			if info, err := os.Lstat(enRaiz.enLaCopia(carpeta)); err == nil && !seguidos[carpeta] && !info.IsDir() {
+			if seguidos[carpeta] {
+				continue
+			}
+			info, err := os.Lstat(enRaiz.enLaCopia(carpeta))
+			switch {
+			case err != nil:
+			case info.Mode()&os.ModeSymlink != 0:
+				deEnlaces[carpeta] = true
+			case !info.IsDir():
 				perdidos[carpeta] = true
 			}
 		}
@@ -336,42 +355,37 @@ func choques(g Git, destino string) []string {
 		info, err := os.Lstat(enRaiz.enLaCopia(ruta))
 		switch {
 		case err != nil:
+		case info.Mode()&os.ModeSymlink != 0:
+			deEnlaces[ruta] = true
 		case info.IsDir():
 			carpetas = append(carpetas, ruta)
 		case info.Mode().IsRegular():
-			enDestino[ruta] = campos[2]
-		case info.Mode()&os.ModeSymlink != 0:
-			// Como `os.path.isfile` de rama.py: un enlace a un archivo cuenta como archivo.
-			if destinoDelEnlace, err := os.Stat(enRaiz.enLaCopia(ruta)); err == nil && destinoDelEnlace.Mode().IsRegular() {
-				enDestino[ruta] = campos[2]
-			}
+			enDestino[ruta] = true
 		}
 	}
 	// Un archivo de `destino` que en la copia es una carpeta: el `switch` borra lo que tiene sin seguimiento.
 	if len(carpetas) > 0 {
 		for _, r := range g.rutas(append([]string{"-C", raiz, "ls-files", "-z", "--others", "--"}, carpetas...)...) {
-			perdidos[r] = true
+			if info, err := os.Lstat(enRaiz.enLaCopia(r)); err == nil && info.Mode()&os.ModeSymlink != 0 {
+				deEnlaces[r] = true
+			} else {
+				perdidos[r] = true
+			}
 		}
 	}
-	var rutas []string
-	for r := range enDestino {
-		rutas = append(rutas, r)
-	}
+	enlaces = ordenadas(deEnlaces)
 	for r := range perdidos {
-		if _, esta := enDestino[r]; !esta {
-			rutas = append(rutas, r)
-		}
+		enDestino[r] = true
 	}
+	rutas := ordenadas(enDestino)
 	if len(rutas) == 0 {
-		return nil
+		return nil, enlaces
 	}
-	slices.Sort(rutas)
 	ignorados := map[string]bool{}
 	for _, r := range g.rutas(append([]string{"-C", raiz, "ls-files", "-z", "--others", "--ignored",
 		"--exclude-standard", "--"}, rutas...)...) {
 		ignorados[r] = true
 	}
-	var lineas []string
 	for _, r := range rutas {
 		if ignorados[r] {
 			lineas = append(lineas, "!! "+r)
@@ -379,7 +393,70 @@ func choques(g Git, destino string) []string {
 			lineas = append(lineas, "?? "+r)
 		}
 	}
-	return lineas
+	return lineas, enlaces
+}
+
+// ordenadas son las claves de `conjunto`, ordenadas.
+func ordenadas(conjunto map[string]bool) []string {
+	var claves []string
+	for clave := range conjunto {
+		claves = append(claves, clave)
+	}
+	slices.Sort(claves)
+	return claves
+}
+
+// forma es lo que `apartar` no sabe guardar sin riesgo de perder trabajo (Q177), como ruta y qué es: los submódulos,
+// los repositorios git anidados en la carpeta, ignorados o no, que git lista como `<ruta>/` (H1 de la revisión 5), y
+// los enlaces simbólicos sin seguimiento en el camino del cambio a `destino` (H5).
+func forma(g Git, destino string) map[string]string {
+	raiz, ok := g.salida("rev-parse", "--show-toplevel")
+	if !ok || raiz == "" {
+		return nil
+	}
+	encontradas := map[string]string{}
+	poner := func(ruta, que string) {
+		if _, esta := encontradas[ruta]; !esta {
+			encontradas[ruta] = que
+		}
+	}
+	for _, entrada := range g.rutas("-C", raiz, "ls-files", "-z", "--stage") {
+		if datos, ruta, _ := strings.Cut(entrada, "\t"); strings.HasPrefix(datos, "160000 ") {
+			poner(ruta, "submódulo")
+		}
+	}
+	for _, ruta := range g.rutas("-C", raiz, "ls-files", "-z", "--others") {
+		if anidado, ok := strings.CutSuffix(ruta, "/"); ok {
+			poner(anidado, "repositorio git anidado")
+		}
+	}
+	if destino != "" {
+		_, enlaces := camino(g, destino)
+		for _, ruta := range enlaces {
+			poner(ruta, "enlace simbólico en el camino del cambio de rama")
+		}
+	}
+	return encontradas
+}
+
+// noSoportada para con `copia-no-soportada` si la copia tiene algo que `apartar` no sabe guardar (Q177).
+func noSoportada(g Git, destino, principal string) *parada {
+	encontradas := forma(g, destino)
+	if len(encontradas) == 0 {
+		return nil
+	}
+	rutas := make([]string, 0, len(encontradas))
+	for ruta := range encontradas {
+		rutas = append(rutas, ruta)
+	}
+	slices.Sort(rutas)
+	partes := make([]string, len(rutas))
+	for i, ruta := range rutas {
+		partes[i] = ruta + " (" + encontradas[ruta] + ")"
+	}
+	return nuevaParada("copia-no-soportada", "La copia tiene algo que `apartar` no sabe guardar sin riesgo de perder "+
+		"trabajo, y se resuelve a mano (Q177): "+strings.Join(partes, ", ")+".", g.rama(), par{"principal", principal},
+		par{"rutas", rutas})
 }
 
 // unicas junta las listas sin repetir líneas, en el orden en que aparecen.
@@ -746,11 +823,27 @@ func destinoGuardado(g Git, desde string, s delServidor) string {
 	return ""
 }
 
+// destinoDeApartar es adónde va `apartar` desde una rama que no es de este trabajo: la rama, o "" si hay que elegir; las
+// candidatas; y si la iguala al servidor y le pone el upstream (N4). En el reintento desde un apartado, la de su
+// `Destino:` (Q173); si no, la rama viva del servidor para este trabajo, o la principal.
+func destinoDeApartar(g Git, a argumentos, s delServidor, desde string) (string, []string, bool) {
+	destino := destinoGuardado(g, desde, s)
+	if destino == "" {
+		destino, candidatas := destinoDelFlujo(a, s, a.rama)
+		// N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue.
+		return destino, candidatas, destino != "" && destino == desde
+	}
+	// En el reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
+	sigue, _ := upstream(g, destino)
+	nombre := regexp.MustCompile("^apartado/" + regexp.QuoteMeta(strings.ReplaceAll(destino, "/", "-")) + "(-[0-9]+)?$")
+	return destino, nil, destino != s.principal && s.ramas[destino] && sigue != destino && nombre.MatchString(desde)
+}
+
 func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[]string) (*objeto, *parada) {
 	var d *decision
 	var destino string
 	var candidatas []string
-	guardado := false
+	seguir := false
 	encontrada, p := ramaDelFlujo(g, a, s)
 	switch {
 	case p == nil:
@@ -758,23 +851,14 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 	case !slices.Contains(apartables, p.motivo):
 		return nil, p
 	default:
-		if destino = destinoGuardado(g, desde, s); destino != "" {
-			guardado = true
-		} else {
-			destino, candidatas = destinoDelFlujo(a, s, a.rama)
-		}
-	}
-	// N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue, y se iguala a él. En el
-	// reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
-	seguir := d == nil && destino != "" && destino == desde
-	if guardado && destino != s.principal && s.ramas[destino] {
-		sigue, _ := upstream(g, destino)
-		nombre := regexp.MustCompile("^apartado/" + regexp.QuoteMeta(strings.ReplaceAll(destino, "/", "-")) +
-			"(-[0-9]+)?$")
-		seguir = sigue != destino && nombre.MatchString(desde)
+		destino, candidatas, seguir = destinoDeApartar(g, a, s, desde)
 	}
 	var chocan []string
 	final := refFinal(g, d, destino, desde, s.principal, seguir)
+	// Antes de escribir nada: con un submódulo, un repositorio anidado o un enlace en el camino, no hace nada (Q177).
+	if p := noSoportada(g, final, s.principal); p != nil {
+		return nil, p
+	}
 	if final != "" {
 		for _, l := range choques(g, final) {
 			chocan = append(chocan, l[3:])
@@ -786,18 +870,6 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 		sueltos = !ok || n != "0"
 	}
 	if _, amplio := sinGuardar(g, ""); len(amplio) > 0 || len(chocan) > 0 || sueltos {
-		if destino != "" {
-			llega := final
-			if llega == "" {
-				llega = "HEAD"
-			}
-			if sucios := submodulosSucios(g, llega); len(sucios) > 0 {
-				return nil, nuevaParada("error-de-git", "Estos submódulos tienen cambios sin guardar adentro, que "+
-					"`apartar` no guarda, y el cambio de rama los lleva a otro commit, donde git los pisaría o no "+
-					"dejaría pasar: "+strings.Join(sucios, ", ")+". Hay que guardarlos dentro del submódulo antes de "+
-					"apartar.", desde)
-			}
-		}
 		donde := desde
 		if donde == "" {
 			donde = "sin-rama"
@@ -839,12 +911,7 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 			}
 		}
 		// Con `--no-overwrite-ignore`, git se niega ante un ignorado que la predicción de choques no vio (Q175).
-		cambio := []string{"switch", "--quiet", "--no-overwrite-ignore"}
-		// Con un submódulo apartado, la copia vuelve también al commit del submódulo que tiene la rama del flujo.
-		if len(*creadas) > 0 {
-			cambio = append(cambio, "--recurse-submodules")
-		}
-		if p := g.hacer(append(cambio, destino)...); p != nil {
+		if p := g.hacer("switch", "--quiet", "--no-overwrite-ignore", destino); p != nil {
 			return nil, p
 		}
 	}
@@ -862,34 +929,6 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 // yaApartada dice si el último apartado ya contiene a `ref`, para no crear otro con los mismos commits.
 func yaApartada(g Git, ref string, creadas []string) bool {
 	return len(creadas) > 0 && g.correr("merge-base", "--is-ancestor", ref, creadas[len(creadas)-1]).codigo == 0
-}
-
-// submodulosSucios son los submódulos con cambios en sus archivos con seguimiento que `git switch
-// --recurse-submodules` a `destino` llevaría a otro commit. git 2.43 se niega si el archivo cambia entre los dos
-// commits, y si no cambia, descarta el cambio sin avisar (H3 de la revisión 4); los archivos sin seguimiento de adentro
-// quedan.
-func submodulosSucios(g Git, destino string) []string {
-	raiz, _ := g.salida("rev-parse", "--show-toplevel")
-	partes := g.rutas("status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none")
-	var sucios []string
-	for i := 0; i < len(partes); i++ {
-		campos := strings.Split(partes[i], " ")
-		desde := 8
-		if campos[0] == "2" {
-			desde = 9
-			i++
-		}
-		if (campos[0] != "1" && campos[0] != "2") || len(campos) <= desde || !strings.HasPrefix(campos[2], "S") ||
-			campos[2][2] != 'M' {
-			continue
-		}
-		ruta := strings.Join(campos[desde:], " ")
-		adentro, _ := g.salida("-C", Git{repo: raiz}.enLaCopia(ruta), "rev-parse", "HEAD")
-		if enDestino, _ := g.salida("rev-parse", destino+":"+ruta); adentro != enDestino {
-			sucios = append(sucios, ruta)
-		}
-	}
-	return sucios
 }
 
 // igualar deja la rama local igual a la del servidor, esté o no la copia en ella.

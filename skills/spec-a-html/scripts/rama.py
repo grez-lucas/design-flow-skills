@@ -25,12 +25,17 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
          volver   el upstream de la rama actual ya no está en el servidor y lo suyo entró a la principal: todos sus
                   commits están en alguna rama del servidor, o los archivos que tocan los que no están, desde la
                   base común con la principal, están iguales en ella (squash merge).
-         parar    cualquier otro caso, con `motivo` y `detalle`. En lugar de `guardar`, `ofrecer` o `volver`, para
-                  con `cambios-sin-guardar` si hay trabajo sin guardar que entraría en el commit de la skill: en sus
-                  rutas, con los archivos nuevos, o preparado en el índice, en cualquier ruta; con `ofrecer`, también
-                  cualquier cambio de un archivo con seguimiento; con `volver` y `ofrecer`, también un archivo sin
-                  seguimiento en el camino del cambio de rama, ignorado o no y aunque sea igual al de la principal,
-                  porque el cambio de rama no pasaría (Q169, Q175).
+         parar    cualquier otro caso, con `motivo` y `detalle`. Antes que nada, para con `copia-no-soportada` y
+                  `rutas` si la copia tiene un submódulo, un repositorio git anidado en la carpeta, ignorado o no, o
+                  un enlace simbólico sin seguimiento en el camino del cambio de rama, apunte adonde apunte: donde la
+                  rama a la que va tiene un archivo o una carpeta de sus archivos, o dentro de una carpeta donde tiene
+                  un archivo. `apartar` no hace nada en esa copia, y se resuelve a mano (Q177).
+                  En lugar de `guardar`, `ofrecer` o `volver`, para con `cambios-sin-guardar` si hay trabajo sin
+                  guardar que entraría en el commit de la skill: en sus rutas, con los archivos nuevos, o preparado
+                  en el índice, en cualquier ruta; con `ofrecer`, también cualquier cambio de un archivo con
+                  seguimiento; con `volver` y `ofrecer`, también un archivo sin seguimiento en el camino del cambio
+                  de rama, ignorado o no y aunque sea igual al de la principal, porque el cambio de rama no pasaría
+                  (Q169, Q175).
                   Y para con `principal-adelantada` si se va a guardar desde la principal y la de esta copia tiene
                   commits que el servidor no tiene; ahí cuenta también lo que traería igualarla al servidor (Q170).
          Todas llevan `principal` cuando el servidor respondió y `rama` cuando la copia está en una. Con trabajo
@@ -87,10 +92,7 @@ calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173).
 separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra vez; y si en una corrida que
 venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo rehace y `revisar` vuelve a dar
 `principal-adelantada`, con otro sí (Q176). Si el índice está en uso (`index.lock`), para antes de tocarlo, y otra
-corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su `index.lock`. `apartar`
-no guarda los cambios de adentro de un submódulo: si uno los tiene en archivos con seguimiento y el cambio de rama lo
-lleva a otro commit, para con `error-de-git` antes de guardar nada y lo nombra en `detalle`, y otra corrida para igual
-hasta que se guarden en el submódulo.
+corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su `index.lock`.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -306,16 +308,19 @@ def llegada(decision, destino, principal):
 
 def revisar(git, args, del_servidor=None):
     principal, ramas = del_servidor or servidor(git)
+    desde = git.rama()
     try:
         decision = rama_del_flujo(git, args, principal, ramas)
     except Parada as parada:
         if parada.motivo in APARTABLES:
-            destino = destino_del_flujo(args, principal, ramas)[0]
-            amplio = sin_guardar(git, destino and ref_de_llegada(git, destino, principal,
-                                                                  destino == git.rama()))[1]
+            destino, _, seguir = destino_de_apartar(git, args, principal, ramas, desde)
+            final = ref_final(git, None, destino, desde, principal, seguir)
+            no_soportada(git, final, principal)
+            amplio = sin_guardar(git, final)[1]
             if amplio:
                 parada.salida["archivos"] = amplio
         raise
+    no_soportada(git, ref_final(git, decision, desde, desde, principal, False), principal)
     destino = llegada(decision, None, principal)
     estrecho, amplio = sin_guardar(git, destino and f"refs/remotes/origin/{destino}")
     # `ofrecer` cambia de rama con lo que haya: cuenta cualquier cambio de un archivo con seguimiento.
@@ -336,8 +341,8 @@ def sin_guardar(git, destino=None):
     """El trabajo sin guardar, en líneas de `git status --porcelain`: (lo que entraría en el commit de la skill o el
     cambio a `destino` pisaría, lo que se aparta). Lo primero son las rutas de la skill, con sus archivos nuevos, lo
     preparado en el índice, en cualquier ruta, y los archivos sin seguimiento que `destino` tiene, en `choques`; lo
-    segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios
-    adentro no cuenta, porque la skill no lo agrega; uno que apunta a otro commit, sí."""
+    segundo suma los cambios de cualquier archivo con seguimiento. Una copia con submódulos no llega acá: `revisar` y
+    `apartar` paran antes con `copia-no-soportada` (Q177)."""
     en_rutas = estado(git, "--untracked-files=all", "--", *RUTAS)
     seguidos = estado(git, "--untracked-files=no")
     preparados = [l for l in seguidos if l[0] not in " ?"]
@@ -359,45 +364,87 @@ def estado(git, *args):
 
 
 def choques(git, destino):
-    """Los archivos sin seguimiento en el camino de `git switch` a `destino`: los que `destino` tiene en la misma ruta,
-    un archivo donde `destino` tiene una carpeta y lo que hay dentro de una carpeta donde `destino` tiene un archivo
-    (H1 de la revisión 4). `?? <ruta>` si no está ignorado y `!! <ruta>` si lo está, aunque el contenido sea el mismo:
-    git se niega igual ante uno sin seguimiento (Q168), y ante un ignorado con `--no-overwrite-ignore` (Q175)."""
+    return camino(git, destino)[0]
+
+
+def camino(git, destino):
+    """Lo que hay sin seguimiento en el camino de `git switch` a `destino`, lo que el `switch` reemplaza o borra: lo que
+    `destino` tiene en la misma ruta, lo que no es una carpeta donde `destino` tiene una carpeta, y lo que hay dentro de
+    una carpeta donde `destino` tiene un archivo (H1 de la revisión 4). Devuelve (las líneas de los archivos, los
+    enlaces simbólicos). Un archivo va como `?? <ruta>` si no está ignorado y `!! <ruta>` si lo está, aunque el
+    contenido sea el mismo: git se niega igual ante uno sin seguimiento (Q168), y ante un ignorado con
+    `--no-overwrite-ignore` (Q175). Un enlace va aparte, apunte adonde apunte, porque hace parar con
+    `copia-no-soportada` (Q177)."""
     raiz = git.salida("rev-parse", "--show-toplevel")
     if not raiz or not git.existe(destino):
-        return []
+        return [], []
     seguidos = set(git.rutas("ls-files", "-z"))
-    en_destino, perdidos, carpetas, vistas = {}, set(), [], set()
+    en_destino, perdidos, enlaces, carpetas, vistas = set(), set(), set(), [], set()
     for entrada in git.rutas("ls-tree", "-r", "-z", "--full-tree", destino):
         datos, _, ruta = entrada.partition("\t")
-        modo, tipo, objeto = datos.split(" ")
-        if tipo != "blob":
+        if datos.split(" ")[1] != "blob":
             continue
-        # Una carpeta de `destino` que en la copia es un archivo sin seguimiento: el `switch` lo reemplaza.
+        # Una carpeta de `destino` que en la copia es un archivo o un enlace sin seguimiento: el `switch` lo reemplaza.
         partes = ruta.split("/")
         for i in range(1, len(partes)):
             carpeta = "/".join(partes[:i])
             if carpeta not in vistas:
                 vistas.add(carpeta)
                 lugar = os.path.join(raiz, carpeta)
-                if carpeta not in seguidos and os.path.lexists(lugar) and (os.path.islink(lugar)
-                                                                            or not os.path.isdir(lugar)):
+                if carpeta in seguidos:
+                    continue
+                if os.path.islink(lugar):
+                    enlaces.add(carpeta)
+                elif os.path.lexists(lugar) and not os.path.isdir(lugar):
                     perdidos.add(carpeta)
         if ruta in seguidos:
             continue
         lugar = os.path.join(raiz, ruta)
-        if os.path.isdir(lugar) and not os.path.islink(lugar):
+        if os.path.islink(lugar):
+            enlaces.add(ruta)
+        elif os.path.isdir(lugar):
             carpetas.append(ruta)
         elif os.path.isfile(lugar):
-            en_destino[ruta] = objeto
+            en_destino.add(ruta)
     # Un archivo de `destino` que en la copia es una carpeta: el `switch` borra lo que tiene sin seguimiento.
     if carpetas:
-        perdidos.update(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--", *carpetas))
-    rutas = sorted(set(en_destino) | perdidos)
+        for ruta in git.rutas("-C", raiz, "ls-files", "-z", "--others", "--", *carpetas):
+            (enlaces if os.path.islink(os.path.join(raiz, ruta)) else perdidos).add(ruta)
+    rutas = sorted(en_destino | perdidos)
     if not rutas:
-        return []
+        return [], sorted(enlaces)
     ignorados = set(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", *rutas))
-    return [("!! " + r) if r in ignorados else ("?? " + r) for r in rutas]
+    return [("!! " + r) if r in ignorados else ("?? " + r) for r in rutas], sorted(enlaces)
+
+
+def forma(git, destino):
+    """Lo que `apartar` no sabe guardar sin riesgo de perder trabajo (Q177), como {ruta: qué es}: los submódulos, los
+    repositorios git anidados en la carpeta, ignorados o no, que git lista como `<ruta>/` (H1 de la revisión 5), y los
+    enlaces simbólicos sin seguimiento en el camino del cambio a `destino` (H5)."""
+    raiz = git.salida("rev-parse", "--show-toplevel")
+    if not raiz:
+        return {}
+    encontradas = {}
+    for entrada in git.rutas("-C", raiz, "ls-files", "-z", "--stage"):
+        datos, _, ruta = entrada.partition("\t")
+        if datos.startswith("160000 "):
+            encontradas[ruta] = "submódulo"
+    for ruta in git.rutas("-C", raiz, "ls-files", "-z", "--others"):
+        if ruta.endswith("/"):
+            encontradas.setdefault(ruta[:-1], "repositorio git anidado")
+    for ruta in (camino(git, destino)[1] if destino else []):
+        encontradas.setdefault(ruta, "enlace simbólico en el camino del cambio de rama")
+    return encontradas
+
+
+def no_soportada(git, destino, principal):
+    """Para con `copia-no-soportada` si la copia tiene algo que `apartar` no sabe guardar (Q177)."""
+    encontradas = forma(git, destino)
+    if encontradas:
+        rutas = sorted(encontradas)
+        raise Parada("copia-no-soportada", "La copia tiene algo que `apartar` no sabe guardar sin riesgo de perder "
+                     "trabajo, y se resuelve a mano (Q177): " + ", ".join(f"{r} ({encontradas[r]})" for r in rutas)
+                     + ".", git.rama(), principal=principal, rutas=rutas)
 
 
 def unicas(lineas):
@@ -625,37 +672,37 @@ def destino_guardado(git, desde, principal, ramas):
     return None
 
 
+def destino_de_apartar(git, args, principal, ramas, desde):
+    """Adónde va `apartar` desde una rama que no es de este trabajo: (la rama, o None si hay que elegir; las candidatas;
+    si la iguala al servidor y le pone el upstream, N4). En el reintento desde un apartado, la de su `Destino:` (Q173);
+    si no, la rama viva del servidor para este trabajo, o la principal."""
+    destino = destino_guardado(git, desde, principal, ramas)
+    if destino is None:
+        destino, candidatas = destino_del_flujo(args, principal, ramas, getattr(args, "rama", None))
+        # N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue.
+        return destino, candidatas, destino is not None and destino == desde
+    # En el reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
+    seguir = (destino != principal and destino in ramas and upstream(git, destino) != destino
+              and re.fullmatch(rf"apartado/{re.escape(destino.replace('/', '-'))}(-[0-9]+)?", desde) is not None)
+    return destino, [], seguir
+
+
 def apartar_y_volver(git, args, principal, ramas, desde, creadas):
-    guardado = False
     try:
         decision = rama_del_flujo(git, args, principal, ramas)
-        destino, candidatas = desde, []
+        destino, candidatas, seguir = desde, [], False
     except Parada as parada:
         if parada.motivo not in APARTABLES:
             raise
         decision = None
-        destino, candidatas = destino_guardado(git, desde, principal, ramas), []
-        if destino is None:
-            destino, candidatas = destino_del_flujo(args, principal, ramas, args.rama)
-        else:
-            guardado = True
-    # N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue, y se iguala a él. En el
-    # reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
-    seguir = decision is None and destino is not None and (destino == desde or (
-        guardado and destino != principal and destino in ramas and upstream(git, destino) != destino
-        and re.fullmatch(rf"apartado/{re.escape(destino.replace('/', '-'))}(-[0-9]+)?", desde) is not None))
+        destino, candidatas, seguir = destino_de_apartar(git, args, principal, ramas, desde)
     final = ref_final(git, decision, destino, desde, principal, seguir)
+    # Antes de escribir nada: con un submódulo, un repositorio anidado o un enlace en el camino, no hace nada (Q177).
+    no_soportada(git, final, principal)
     chocan = [l[3:] for l in choques(git, final)] if final else []
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
     if sin_guardar(git)[1] or chocan or sueltos:
-        if destino is not None:
-            sucios = submodulos_sucios(git, final or "HEAD")
-            if sucios:
-                raise Parada("error-de-git", "Estos submódulos tienen cambios sin guardar adentro, que `apartar` no "
-                             "guarda, y el cambio de rama los lleva a otro commit, donde git los pisaría o no dejaría "
-                             "pasar: " + ", ".join(sucios) + ". Hay que guardarlos dentro del submódulo antes de "
-                             "apartar.", desde)
         apartado, indice = guardar_aparte(git, ramas, desde or "sin-rama", chocan, destino)
         creadas.append(apartado)
         try:
@@ -674,34 +721,13 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
     if git.rama() != destino:
         if destino != desde:
             al_dia(git, destino)
-        # Con un submódulo apartado, la copia vuelve también al commit del submódulo que tiene la rama del flujo.
         # Con `--no-overwrite-ignore`, git se niega ante un ignorado que la predicción de choques no vio (Q175).
-        git.hacer("switch", "--quiet", "--no-overwrite-ignore", *(("--recurse-submodules",) if creadas else ()),
-                  destino)
+        git.hacer("switch", "--quiet", "--no-overwrite-ignore", destino)
     try:
         salida = revisar(git, args, (principal, ramas))
     except Parada as parada:
         salida = parada.salida
     return {**salida, "apartado": creadas, "desde": desde}
-
-
-def submodulos_sucios(git, destino):
-    """Los submódulos con cambios en sus archivos con seguimiento que `git switch --recurse-submodules` a `destino`
-    llevaría a otro commit. git 2.43 se niega si el archivo cambia entre los dos commits, y si no cambia, descarta el
-    cambio sin avisar (H3 de la revisión 4); los archivos sin seguimiento de adentro quedan."""
-    raiz = git.salida("rev-parse", "--show-toplevel")
-    partes = git.rutas("status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none")
-    sucios = []
-    while partes:
-        campos = partes.pop(0).split(" ")
-        if campos[0] == "2" and partes:
-            partes.pop(0)
-        if campos[0] not in ("1", "2") or not campos[2].startswith("S") or campos[2][2] != "M":
-            continue
-        ruta = " ".join(campos[8 if campos[0] == "1" else 9:])
-        if git.salida("-C", os.path.join(raiz, ruta), "rev-parse", "HEAD") != git.salida("rev-parse", f"{destino}:{ruta}"):
-            sucios.append(ruta)
-    return sucios
 
 
 def igualar(git, rama):

@@ -600,6 +600,16 @@ class Ayuda(unittest.TestCase):
         """Q176: los tres casos en que el reintento desde el apartado no va solo al `Destino:`."""
         self.assertIn('El reintento sabe que la rama del `Destino:` es la de la que salió el apartado solo por el nombre del apartado; un apartado sin commits propios, de HEAD separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra vez; y si en una corrida que venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo rehace y `revisar` vuelve a dar `principal-adelantada`, con otro sí (Q176).', " ".join(self.correr("-h").stdout.split()))
 
+    def test_dice_cuando_la_copia_no_esta_soportada(self):
+        """Q177: el motivo nuevo de `revisar`, y la parada de Q176 con `error-de-git` ya no está."""
+        texto = " ".join(self.correr("-h").stdout.split())
+        self.assertIn("Antes que nada, para con `copia-no-soportada` y `rutas` si la copia tiene un submódulo, un "
+                      "repositorio git anidado en la carpeta, ignorado o no, o un enlace simbólico sin seguimiento en el "
+                      "camino del cambio de rama, apunte adonde apunte: donde la rama a la que va tiene un archivo o una "
+                      "carpeta de sus archivos, o dentro de una carpeta donde tiene un archivo. `apartar` no hace nada "
+                      "en esa copia, y se resuelve a mano (Q177).", texto)
+        self.assertNotIn("no guarda los cambios de adentro de un submódulo", texto)
+
     def test_un_h_donde_no_va_es_uso_incorrecto(self):
         for args in (("revisar", "--tipo", "-h"), ("revisar", "--foo", "-h"), ("commit", "-m", "-h", "--", "x"),
                      ("commit", "-h"), ("foo", "-h"), ("volver", "--rama", "x", "-h")):
