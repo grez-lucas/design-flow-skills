@@ -47,7 +47,7 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
                   seguimiento que la principal tiene, aunque sea igual, porque el cambio de rama no pasaría, o uno
                   ignorado que tiene con otro contenido, porque lo pisaría.
                   Y para con ` + "`principal-adelantada`" + ` si se va a guardar desde la principal y la de esta copia tiene
-                  commits que el servidor no tiene.
+                  commits que el servidor no tiene; ahí cuenta también lo que traería igualarla al servidor (Q170).
          Todas llevan ` + "`principal`" + ` cuando el servidor respondió y ` + "`rama`" + ` cuando la copia está en una. Con trabajo
          sin guardar, ` + "`archivos`" + ` trae sus líneas de ` + "`git status --porcelain`" + `, con las rutas sin escapar: lo que
          ` + "`apartar`" + ` guardaría, y ` + "`!! <ruta>`" + ` para un ignorado que el cambio de rama pisaría. Con la principal
@@ -86,9 +86,11 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          la de ` + "`rama-nueva` o la `rama_nueva` de `ofrecer`" + `, aunque siga a otra rama, y para con
          ` + "`rama-nueva-rechazada`" + `, sin otro sufijo.
 
-Si git falla en ` + "`apartar`, `volver` o `commit`" + `, para con ` + "`error-de-git`" + `, el mensaje de git en ` + "`detalle`" + ` y, en
-` + "`apartar`, `apartado` y `desde`" + ` con lo que alcanzó a apartar. Si ` + "`apartar`" + ` falla antes del primer commit del
-apartado, vuelve a la rama donde estaba, con el índice tal cual, y borra la rama vacía.
+Si git falla en ` + "`apartar`, `volver` o `commit`" + `, para con ` + "`error-de-git`" + ` y el mensaje de git en ` + "`detalle`. `apartar`" + `
+deshace lo que hizo (Q170): vuelve a la rama donde estaba, con la carpeta y el índice como estaban, ignorados y marcas
+incluidos, devuelve las ramas que movió a su commit y el upstream de la actual a lo que era, y borra las ramas que
+creó; ` + "`apartado`" + ` viene vacía y ` + "`desde` y `rama`" + ` dicen dónde estaba. Si no puede deshacerlo, ` + "`apartado` y `rama`" + ` dicen
+lo que quedó.
 
 ` + "`fetch` y `ls-remote`" + ` esperan al servidor ` + "`RAMA_TOPE`" + ` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (` + "`taskkill /T`" + ` en Windows) y paran con ` + "`sin-servidor`" + `. git nunca pide credenciales por la terminal.

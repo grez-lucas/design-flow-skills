@@ -32,7 +32,7 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
                   seguimiento que la principal tiene, aunque sea igual, porque el cambio de rama no pasaría, o uno
                   ignorado que tiene con otro contenido, porque lo pisaría.
                   Y para con `principal-adelantada` si se va a guardar desde la principal y la de esta copia tiene
-                  commits que el servidor no tiene.
+                  commits que el servidor no tiene; ahí cuenta también lo que traería igualarla al servidor (Q170).
          Todas llevan `principal` cuando el servidor respondió y `rama` cuando la copia está en una. Con trabajo
          sin guardar, `archivos` trae sus líneas de `git status --porcelain`, con las rutas sin escapar: lo que
          `apartar` guardaría, y `!! <ruta>` para un ignorado que el cambio de rama pisaría. Con la principal
@@ -71,9 +71,11 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          la de `rama-nueva` o la `rama_nueva` de `ofrecer`, aunque siga a otra rama, y para con
          `rama-nueva-rechazada`, sin otro sufijo.
 
-Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git`, el mensaje de git en `detalle` y, en
-`apartar`, `apartado` y `desde` con lo que alcanzó a apartar. Si `apartar` falla antes del primer commit del
-apartado, vuelve a la rama donde estaba, con el índice tal cual, y borra la rama vacía.
+Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el mensaje de git en `detalle`. `apartar`
+deshace lo que hizo (Q170): vuelve a la rama donde estaba, con la carpeta y el índice como estaban, ignorados y marcas
+incluidos, devuelve las ramas que movió a su commit y el upstream de la actual a lo que era, y borra las ramas que
+creó; `apartado` viene vacía y `desde` y `rama` dicen dónde estaba. Si no puede deshacerlo, `apartado` y `rama` dicen
+lo que quedó.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -305,9 +307,10 @@ def revisar(git, args, del_servidor=None):
                      principal=principal, archivos=amplio)
     commits = adelantada(git, principal) if llega_a_la_principal(decision) else []
     if commits:
+        # `apartar` iguala la principal al servidor, que trae sus archivos aunque la copia no cambie de rama (Q170).
         raise Parada("principal-adelantada", f"La rama principal {principal} de esta copia tiene commits que el "
                      "servidor no tiene, y el push los subiría.", decision["rama"], principal=principal,
-                     commits=commits)
+                     archivos=sin_guardar(git, f"refs/remotes/origin/{principal}")[1], commits=commits)
     return decision
 
 
@@ -406,15 +409,15 @@ def primera_libre(git, ramas_del_servidor, base):
 
 def apartar(git, args):
     principal, ramas = servidor(git)
-    desde, inicio = git.rama(), git.salida("rev-parse", "HEAD")
-    indice = leer_indice(git)
+    antes = foto(git)
     creadas = []
     try:
-        return apartar_y_volver(git, args, principal, ramas, desde, creadas)
+        return apartar_y_volver(git, args, principal, ramas, antes["desde"], creadas)
     except Parada as parada:
         if parada.motivo == "error-de-git":
-            deshacer_apartado_vacio(git, desde, inicio, indice, creadas)
-            parada.salida.update({"apartado": creadas, "desde": desde, "rama": git.rama()})
+            if deshacer(git, antes):
+                creadas.clear()
+            parada.salida.update({"apartado": creadas, "desde": antes["desde"], "rama": git.rama()})
         raise
 
 
@@ -432,17 +435,76 @@ def leer_indice(git):
         return None
 
 
-def deshacer_apartado_vacio(git, desde, inicio, indice, creadas):
-    """Si git falló antes del primer commit del apartado, vuelve a donde estaba, con el archivo del índice como estaba
-    al entrar, marcas incluidas, y borra la rama vacía, para que otra corrida no aparte dentro de ella (N11, B1, B4)."""
-    if not creadas or git.rama() != creadas[-1] or git.salida("rev-parse", "HEAD") != inicio:
-        return
-    vuelta = ("switch", "--quiet", desde) if desde else ("switch", "--quiet", "--detach", inicio)
-    if git.correr(*vuelta).returncode == 0 and git.correr("branch", "--quiet", "-D", creadas[-1]).returncode == 0:
-        creadas.pop()
-        if indice is not None:
+def ramas_locales(git):
+    """Cada rama local, `refs/heads/<rama>`, con su commit."""
+    return dict(reversed(l.split(" ", 1)) for l in git.lineas("for-each-ref", "--format=%(objectname) %(refname)",
+                                                              "refs/heads"))
+
+
+def upstream_guardado(git, rama):
+    if not rama:
+        return {}
+    return {clave: git.salida("config", "--get", f"branch.{rama}.{clave}") for clave in ("remote", "merge")}
+
+
+def foto(git):
+    """Lo que `apartar` necesita para deshacerse (Q170): la rama y el commit de la copia, el archivo del índice, las
+    ramas locales y el upstream de la actual. La carpeta no hace falta: solo la cambia el último paso, el `git switch`
+    o el `git reset --keep` que la lleva a la rama del flujo, y git no escribe nada si ese paso falla."""
+    desde = git.rama()
+    return {"desde": desde, "inicio": git.salida("rev-parse", "HEAD"), "indice": leer_indice(git),
+            "ramas": ramas_locales(git), "upstream": upstream_guardado(git, desde)}
+
+
+def deshacer(git, antes):
+    """Deja la copia como en `antes` después de un paso de git que falló (N11, B1, B4, Q170): en la rama de origen, con
+    la carpeta y el archivo del índice como estaban, marcas incluidas, las ramas que se movieron donde estaban, sin las
+    ramas que se crearon y con el upstream de la rama de origen. Devuelve False si no pudo, y no sigue."""
+    desde, inicio = antes["desde"], antes["inicio"]
+    actual, ramas = git.rama(), ramas_locales(git)
+    if actual == desde:
+        # Un `git reset --keep` sin nada apartado: la carpeta tenía solo lo de `inicio`, y vuelve a eso.
+        if git.salida("rev-parse", "HEAD") != inicio and git.correr("reset", "--quiet", "--keep", inicio).returncode:
+            return False
+    elif f"refs/heads/{actual}" in ramas.keys() - antes["ramas"].keys():
+        # En la rama del apartado la carpeta sigue como estaba: alcanza con mover las refs.
+        vuelta = ("symbolic-ref", "HEAD", f"refs/heads/{desde}") if desde else ("update-ref", "--no-deref", "HEAD",
+                                                                                 inicio)
+        if git.correr(*vuelta).returncode:
+            return False
+    else:
+        return False
+    ramas = ramas_locales(git)
+    if any(git.correr("update-ref", ref, commit).returncode
+           for ref, commit in antes["ramas"].items() if ramas.get(ref) != commit):
+        return False
+    if any(git.correr("branch", "--quiet", "-D", ref.removeprefix("refs/heads/")).returncode
+           for ref in sorted(ramas.keys() - antes["ramas"].keys())):
+        return False
+    for clave, valor in antes["upstream"].items():
+        if git.salida("config", "--get", f"branch.{desde}.{clave}") != valor:
+            nombre = f"branch.{desde}.{clave}"
+            if git.correr(*(("config", nombre, valor) if valor else ("config", "--unset", nombre))).returncode:
+                return False
+    if antes["indice"] is not None:
+        try:
             with open(ruta_del_indice(git), "wb") as archivo:
-                archivo.write(indice)
+                archivo.write(antes["indice"])
+        except (OSError, TypeError):
+            return False
+    return True
+
+
+def ref_final(git, decision, destino, desde, principal):
+    """La ref cuyo árbol trae `apartar` a la carpeta, o None si la carpeta no cambia: la rama a la que cambia (con N4
+    la actual se iguala al servidor; las demás van a la local si tiene commits propios, M1), o la principal del
+    servidor si la copia se queda en la principal y la iguala a él (Q170)."""
+    va_a = llegada(decision, destino, principal)
+    if va_a:
+        return ref_de_llegada(git, va_a, principal, va_a == desde)
+    if desde == principal and adelantada(git, principal):
+        return f"refs/remotes/origin/{principal}"
+    return None
 
 
 def apartar_y_volver(git, args, principal, ramas, desde, creadas):
@@ -454,9 +516,8 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
             raise
         decision = None
         destino, candidatas = destino_del_flujo(args, principal, ramas, args.rama)
-    va_a = llegada(decision, destino, principal)
-    # Con N4 la rama actual se iguala al servidor; las demás van a la local si tiene commits propios (M1).
-    chocan = [l[3:] for l in choques(git, ref_de_llegada(git, va_a, principal, va_a == desde))] if va_a else []
+    final = ref_final(git, decision, destino, desde, principal)
+    chocan = [l[3:] for l in choques(git, final)] if final else []
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
     if sin_guardar(git)[1] or chocan or sueltos:

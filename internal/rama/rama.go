@@ -239,9 +239,11 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 	}
 	if llegaALaPrincipal(d) {
 		if commits := adelantada(g, s.principal); len(commits) > 0 {
+			// `apartar` iguala la principal al servidor, que trae sus archivos aunque la copia no cambie de rama (Q170).
+			_, amplio := sinGuardar(g, "refs/remotes/origin/"+s.principal)
 			return decision{}, nuevaParada("principal-adelantada", fmt.Sprintf("La rama principal %s de esta copia "+
 				"tiene commits que el servidor no tiene, y el push los subiría.", s.principal), d.rama,
-				par{"principal", s.principal}, par{"commits", commits})
+				par{"principal", s.principal}, par{"archivos", amplio}, par{"commits", commits})
 		}
 	}
 	return d, nil
@@ -435,18 +437,18 @@ func apartar(g Git, a argumentos) *objeto {
 	if p != nil {
 		return p.salida
 	}
-	desde := g.rama()
-	inicio, _ := g.salida("rev-parse", "HEAD")
-	indice, hayIndice := leerIndice(g)
+	antes := tomarFoto(g)
 	creadas := []string{}
-	salida, p := apartarYVolver(g, a, s, desde, &creadas)
+	salida, p := apartarYVolver(g, a, s, antes.desde, &creadas)
 	if p == nil {
 		return salida
 	}
 	if p.motivo == "error-de-git" {
-		deshacerApartadoVacio(g, desde, inicio, indice, hayIndice, &creadas)
+		if deshacer(g, antes) {
+			creadas = []string{}
+		}
 		p.salida.poner("apartado", creadas)
-		p.salida.poner("desde", nulable(desde))
+		p.salida.poner("desde", nulable(antes.desde))
 		p.salida.poner("rama", nulable(g.rama()))
 	}
 	return p.salida
@@ -470,30 +472,136 @@ func leerIndice(g Git) ([]byte, bool) {
 	return contenido, err == nil
 }
 
-// deshacerApartadoVacio vuelve, si git falló antes del primer commit del apartado, a donde estaba, con el archivo del
-// índice como estaba al entrar, marcas incluidas, y borra la rama vacía, para que otra corrida no aparte dentro de
-// ella (N11, B1, B4).
-func deshacerApartadoVacio(g Git, desde, inicio string, indice []byte, hayIndice bool, creadas *[]string) {
-	if len(*creadas) == 0 {
-		return
-	}
-	ultima := (*creadas)[len(*creadas)-1]
-	if ahora, _ := g.salida("rev-parse", "HEAD"); g.rama() != ultima || ahora != inicio {
-		return
-	}
-	vuelta := []string{"switch", "--quiet", "--detach", inicio}
-	if desde != "" {
-		vuelta = []string{"switch", "--quiet", desde}
-	}
-	if g.correr(vuelta...).codigo != 0 || g.correr("branch", "--quiet", "-D", ultima).codigo != 0 {
-		return
-	}
-	*creadas = (*creadas)[:len(*creadas)-1]
-	if hayIndice {
-		if ruta := rutaDelIndice(g); ruta != "" {
-			_ = os.WriteFile(ruta, indice, 0o644)
+// ramasLocales es cada rama local, `refs/heads/<rama>`, con su commit.
+func ramasLocales(g Git) map[string]string {
+	ramas := map[string]string{}
+	for _, l := range g.lineas("for-each-ref", "--format=%(objectname) %(refname)", "refs/heads") {
+		if commit, ref, ok := strings.Cut(l, " "); ok {
+			ramas[ref] = commit
 		}
 	}
+	return ramas
+}
+
+// upstreamGuardado es `branch.<rama>.remote` y `branch.<rama>.merge`, con ok=false si no están.
+func upstreamGuardado(g Git, rama string) map[string]valorDeConfig {
+	if rama == "" {
+		return nil
+	}
+	guardado := map[string]valorDeConfig{}
+	for _, clave := range []string{"remote", "merge"} {
+		valor, ok := g.salida("config", "--get", "branch."+rama+"."+clave)
+		guardado[clave] = valorDeConfig{valor, ok}
+	}
+	return guardado
+}
+
+type valorDeConfig struct {
+	valor string
+	ok    bool
+}
+
+// foto es lo que `apartar` necesita para deshacerse (Q170): la rama y el commit de la copia, el archivo del índice,
+// las ramas locales y el upstream de la actual. La carpeta no hace falta: solo la cambia el último paso, el `git
+// switch` o el `git reset --keep` que la lleva a la rama del flujo, y git no escribe nada si ese paso falla.
+type foto struct {
+	desde, inicio string
+	indice        []byte
+	hayIndice     bool
+	ramas         map[string]string
+	upstream      map[string]valorDeConfig
+}
+
+func tomarFoto(g Git) foto {
+	desde := g.rama()
+	inicio, _ := g.salida("rev-parse", "HEAD")
+	indice, hayIndice := leerIndice(g)
+	return foto{desde, inicio, indice, hayIndice, ramasLocales(g), upstreamGuardado(g, desde)}
+}
+
+// deshacer deja la copia como en `antes` después de un paso de git que falló (N11, B1, B4, Q170): en la rama de
+// origen, con la carpeta y el archivo del índice como estaban, marcas incluidas, las ramas que se movieron donde
+// estaban, sin las ramas que se crearon y con el upstream de la rama de origen. Devuelve false si no pudo, y no sigue.
+func deshacer(g Git, antes foto) bool {
+	actual, ramas := g.rama(), ramasLocales(g)
+	_, eraRama := antes.ramas["refs/heads/"+actual]
+	_, esRama := ramas["refs/heads/"+actual]
+	switch {
+	case actual == antes.desde:
+		// Un `git reset --keep` sin nada apartado: la carpeta tenía solo lo de `inicio`, y vuelve a eso.
+		if ahora, _ := g.salida("rev-parse", "HEAD"); ahora != antes.inicio &&
+			g.correr("reset", "--quiet", "--keep", antes.inicio).codigo != 0 {
+			return false
+		}
+	case actual != "" && esRama && !eraRama:
+		// En la rama del apartado la carpeta sigue como estaba: alcanza con mover las refs.
+		vuelta := []string{"update-ref", "--no-deref", "HEAD", antes.inicio}
+		if antes.desde != "" {
+			vuelta = []string{"symbolic-ref", "HEAD", "refs/heads/" + antes.desde}
+		}
+		if g.correr(vuelta...).codigo != 0 {
+			return false
+		}
+	default:
+		return false
+	}
+	ramas = ramasLocales(g)
+	for _, ref := range ordenadas(antes.ramas) {
+		if ramas[ref] != antes.ramas[ref] && g.correr("update-ref", ref, antes.ramas[ref]).codigo != 0 {
+			return false
+		}
+	}
+	for _, ref := range ordenadas(ramas) {
+		if _, estaba := antes.ramas[ref]; !estaba &&
+			g.correr("branch", "--quiet", "-D", strings.TrimPrefix(ref, "refs/heads/")).codigo != 0 {
+			return false
+		}
+	}
+	for _, clave := range []string{"remote", "merge"} {
+		v, guardado := antes.upstream[clave]
+		if !guardado {
+			continue
+		}
+		nombre := "branch." + antes.desde + "." + clave
+		if ahora, ok := g.salida("config", "--get", nombre); ahora == v.valor && ok == v.ok {
+			continue
+		}
+		orden := []string{"config", "--unset", nombre}
+		if v.ok {
+			orden = []string{"config", nombre, v.valor}
+		}
+		if g.correr(orden...).codigo != 0 {
+			return false
+		}
+	}
+	if antes.hayIndice {
+		if ruta := rutaDelIndice(g); ruta == "" || os.WriteFile(ruta, antes.indice, 0o644) != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func ordenadas(ramas map[string]string) []string {
+	refs := make([]string, 0, len(ramas))
+	for ref := range ramas {
+		refs = append(refs, ref)
+	}
+	slices.Sort(refs)
+	return refs
+}
+
+// refFinal es la ref cuyo árbol trae `apartar` a la carpeta, o "" si la carpeta no cambia: la rama a la que cambia
+// (con N4 la actual se iguala al servidor; las demás van a la local si tiene commits propios, M1), o la principal del
+// servidor si la copia se queda en la principal y la iguala a él (Q170).
+func refFinal(g Git, d *decision, destino, desde, principal string) string {
+	if vaA := llegada(d, destino, principal); vaA != "" {
+		return refDeLlegada(g, vaA, principal, vaA == desde)
+	}
+	if desde == principal && len(adelantada(g, principal)) > 0 {
+		return "refs/remotes/origin/" + principal
+	}
+	return ""
 }
 
 func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[]string) (*objeto, *parada) {
@@ -510,9 +618,8 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 		destino, candidatas = destinoDelFlujo(a, s, a.rama)
 	}
 	var chocan []string
-	if vaA := llegada(d, destino, s.principal); vaA != "" {
-		// Con N4 la rama actual se iguala al servidor; las demás van a la local si tiene commits propios (M1).
-		for _, l := range choques(g, refDeLlegada(g, vaA, s.principal, vaA == desde)) {
+	if final := refFinal(g, d, destino, desde, s.principal); final != "" {
+		for _, l := range choques(g, final) {
 			chocan = append(chocan, l[3:])
 		}
 	}
