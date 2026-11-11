@@ -885,6 +885,11 @@ class RutasIgnoradas(Base):
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
                          ("volver", "tickets/alertas", ["apartado/tickets-alertas"]), salida)
         self.assertEqual(self.contenido("apartado/tickets-alertas", ".claude/pm-conventions.md"), "el mismo puntero\n")
+        # El ignorado sale de la carpeta con el apartado, y `volver` trae el de la principal.
+        puntero = self.copia / ".claude/pm-conventions.md"
+        self.assertFalse(puntero.exists())
+        self.assertEqual(self.volver("--tipo", "tickets", "--epica", "alertas")["rama"], "main")
+        self.assertEqual(puntero.read_text(encoding="utf-8"), "el mismo puntero\n")
 
 
 class SinSeguimientoQueChoca(Base):
