@@ -807,17 +807,34 @@ func refFinal(g Git, d *decision, destino, desde, principal string, seguir bool)
 	return ""
 }
 
+// formaDelApartado es el mensaje del último commit de un apartado, como lo escribe `guardarAparte`: el asunto de uno
+// de sus dos commits, con la rama de la que salió, y el destino.
+var formaDelApartado = regexp.MustCompile(`^Apartado: lo que (?:estaba preparado en (?P<preparado>.+)|había en ` +
+	`(?P<habia>.+) antes de guardar)\n\nDestino: (?P<destino>.+)$`)
+
 // destinoGuardado es, en el reintento desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:`
-// de su último commit, adonde iba la corrida que lo armó (Q173), si sigue en esta copia o en el servidor; si no, "".
-func destinoGuardado(g Git, desde string, s delServidor) string {
+// de su último commit, adonde iba la corrida que lo armó (Q173). Solo si ese commit tiene la forma de los de `apartar`,
+// con la rama del nombre del apartado en el asunto, y el destino es la principal o una rama viva de este trabajo para
+// el `--tipo` y la `--epica` de esta corrida (Q178); si no, "".
+func destinoGuardado(g Git, a argumentos, desde string, s delServidor) string {
 	if !strings.HasPrefix(desde, "apartado/") {
 		return ""
 	}
 	if _, amplio := sinGuardar(g, ""); len(amplio) > 0 {
 		return ""
 	}
-	destino := destinoDe(g, "HEAD")
-	if destino != "" && (destino == s.principal || s.ramas[destino] || g.existe("refs/heads/"+destino)) {
+	mensaje, _ := g.salida("log", "-1", "--format=%B", "HEAD")
+	forma := formaDelApartado.FindStringSubmatch(mensaje)
+	if forma == nil {
+		return ""
+	}
+	donde := forma[formaDelApartado.SubexpIndex("preparado")] + forma[formaDelApartado.SubexpIndex("habia")]
+	if !regexp.MustCompile("^apartado/" + regexp.QuoteMeta(strings.ReplaceAll(donde, "/", "-")) + "(-[0-9]+)?$").
+		MatchString(desde) {
+		return ""
+	}
+	destino := forma[formaDelApartado.SubexpIndex("destino")]
+	if destino == s.principal || (s.ramas[destino] && esDelFlujo(destino, a.nombre(), a.tipo)) {
 		return destino
 	}
 	return ""
@@ -825,9 +842,9 @@ func destinoGuardado(g Git, desde string, s delServidor) string {
 
 // destinoDeApartar es adónde va `apartar` desde una rama que no es de este trabajo: la rama, o "" si hay que elegir; las
 // candidatas; y si la iguala al servidor y le pone el upstream (N4). En el reintento desde un apartado, la de su
-// `Destino:` (Q173); si no, la rama viva del servidor para este trabajo, o la principal.
+// `Destino:` (Q173, Q178); si no, la rama viva del servidor para este trabajo, o la principal.
 func destinoDeApartar(g Git, a argumentos, s delServidor, desde string) (string, []string, bool) {
-	destino := destinoGuardado(g, desde, s)
+	destino := destinoGuardado(g, a, desde, s)
 	if destino == "" {
 		destino, candidatas := destinoDelFlujo(a, s, a.rama)
 		// N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue.
@@ -836,7 +853,7 @@ func destinoDeApartar(g Git, a argumentos, s delServidor, desde string) (string,
 	// En el reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
 	sigue, _ := upstream(g, destino)
 	nombre := regexp.MustCompile("^apartado/" + regexp.QuoteMeta(strings.ReplaceAll(destino, "/", "-")) + "(-[0-9]+)?$")
-	return destino, nil, destino != s.principal && s.ramas[destino] && sigue != destino && nombre.MatchString(desde)
+	return destino, nil, destino != s.principal && sigue != destino && nombre.MatchString(desde)
 }
 
 func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[]string) (*objeto, *parada) {

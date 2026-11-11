@@ -473,14 +473,6 @@ class ReintentoAlMismoDestino(GitQueFalla):
             self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
         self.assertEqual(self.mismo_final(preparar, SPEC), ("guardar", "spec/alertas", "spec/alertas"))
 
-    def test_volver_con_otra_rama_viva(self):
-        def preparar():
-            self.trabajar_en("spec/alertas")
-            self.en_el_servidor("spec/alertas-2")
-            git("push", "-q", "origin", "--delete", "spec/alertas", cwd=self.otra)
-            self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
-        self.assertEqual(self.mismo_final(preparar, SPEC), ("volver", "spec/alertas", "spec/alertas"))
-
     def test_una_rama_del_flujo_sin_upstream(self):
         def preparar():
             git("switch", "-q", "-c", "spec/alertas", cwd=self.copia)
@@ -509,6 +501,109 @@ class ReintentoAlMismoDestino(GitQueFalla):
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
                          ("guardar", "spec/alertas", ["apartado/apartado-experimento"]), salida)
         self.assertEqual(self.contenido("apartado/apartado-experimento", "notas.txt"), "SEGUI TRABAJANDO\n")
+
+
+@unittest.skipIf(os.name == "nt", "el git que falla es un sh")
+class DestinoDelApartado(GitQueFalla):
+    """Q178, que precisa Q173: el reintento va al `Destino:` solo si el último commit de `apartado/*` es uno de los dos
+    que escribe `apartar` y el destino es la principal o una rama viva de este trabajo para el `--tipo` y la `--epica`
+    de esta corrida; si no, lo calcula otra vez. `revisar` arma `archivos` contra ese mismo destino (H3 y H4 de la
+    revisión 5)."""
+
+    def apartado_hacia(self, viva=None):
+        """La primera corrida, `--epica alertas` desde `experimento`, falla en el `switch` y deja la copia en
+        `apartado/experimento` con `Destino: <viva>`, o `Destino: main` si no hay una rama viva de alertas."""
+        if viva:
+            self.en_el_servidor(viva)
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        salida = self.apartar_con_falla(SPEC, "switch")
+        self.assertEqual(salida["rama"], "apartado/experimento", salida)
+        self.assertEqual(git("log", "-1", "--format=%B", "HEAD", cwd=self.copia).stdout.strip().splitlines()[-1],
+                         f"Destino: {viva or 'main'}")
+
+    def test_r5_h3_el_destino_de_otra_epica_se_calcula_otra_vez(self):
+        self.apartado_hacia("spec/alertas")
+        self.en_el_servidor("spec/pagos")
+        pagos = ("--tipo", "spec", "--epica", "pagos")
+        salida = self.parada(self.revisar(*pagos), "otra-rama")
+        self.assertNotIn("archivos", salida)
+        salida = self.apartar(*pagos)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "spec/pagos", []), salida)
+        self.assertEqual(self.rama_actual(), "spec/pagos")
+
+    def test_r5_h3_otra_epica_con_el_destino_en_la_principal_va_a_la_principal(self):
+        """La principal vale para cualquier corrida: es donde la primera habría dejado la copia sin la falla, y desde
+        la principal `revisar` da `guardar` aunque la otra épica tenga una rama viva."""
+        self.apartado_hacia()
+        self.en_el_servidor("spec/pagos")
+        salida = self.apartar("--tipo", "spec", "--epica", "pagos")
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", []), salida)
+
+    def test_r5_h3_un_commit_de_la_persona_con_una_linea_destino(self):
+        for destino in ("personal", "main"):
+            with self.subTest(destino=destino):
+                self.setUp()
+                self.en_el_servidor("spec/alertas")
+                git("switch", "-q", "-c", "personal", cwd=self.copia)
+                git("switch", "-q", "-c", "apartado/mio", cwd=self.copia)
+                self.escribir(self.copia, "notas.txt", "MIO\n")
+                git("commit", "-q", "-am", f"mi nota\n\nDestino: {destino}", cwd=self.copia)
+                salida = self.apartar(*SPEC)
+                self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                                 ("guardar", "spec/alertas", []), salida)
+
+    def test_un_commit_de_apartar_en_un_apartado_de_otro_nombre(self):
+        """La forma incluye la rama del asunto: un commit de `apartar` copiado a otro `apartado/*` no es un reintento."""
+        self.apartado_hacia()
+        git("switch", "-q", "-c", "apartado/otro", cwd=self.copia)
+        self.en_el_servidor("spec/alertas")
+        salida = self.apartar(*SPEC)
+        self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "spec/alertas"), salida)
+
+    def test_un_destino_que_ya_no_esta_en_el_servidor_se_calcula_otra_vez(self):
+        """Antes era `test_volver_con_otra_rama_viva` de `ReintentoAlMismoDestino`: la primera corrida venía de
+        `volver` en `spec/alertas`, que ya no está en el servidor, y el reintento iba ahí. Con Q178 no es una rama viva,
+        y el reintento va a la que hay, `spec/alertas-2`."""
+        self.trabajar_en("spec/alertas")
+        self.en_el_servidor("spec/alertas-2")
+        git("push", "-q", "origin", "--delete", "spec/alertas", cwd=self.otra)
+        self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
+        salida = self.apartar_con_falla(SPEC, "switch")
+        self.assertEqual(salida["rama"], "apartado/spec-alertas", salida)
+        salida = self.apartar(*SPEC)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "spec/alertas-2", []), salida)
+        self.assertEqual(self.contenido("apartado/spec-alertas", "specs/alertas/spec.md"), "# MI TRABAJO\n")
+
+    def test_r5_h4_archivos_contra_el_destino_del_apartado(self):
+        """El `Destino:` es `main` y después aparece `spec/alertas`: `revisar` lista `x.txt` si choca con `main`, adonde
+        va `apartar`, y no si choca solo con `spec/alertas`."""
+        for choca_con in ("main", "spec/alertas"):
+            with self.subTest(choca_con=choca_con):
+                self.setUp()
+                self.apartado_hacia()
+                self.en_el_servidor("spec/alertas")
+                if choca_con == "main":
+                    self.al_servidor("x.txt", "del servidor\n")
+                else:
+                    git("switch", "-q", "-c", "alertas", cwd=self.otra)
+                    self.escribir(self.otra, "x.txt", "del servidor\n")
+                    git("add", "x.txt", cwd=self.otra)
+                    git("commit", "-q", "-m", "x", cwd=self.otra)
+                    git("push", "-q", "origin", "HEAD:spec/alertas", cwd=self.otra)
+                self.escribir(self.copia, "x.txt", "MI x\n")
+                revisado = self.parada(self.revisar(*SPEC), "otra-rama")
+                salida = self.apartar(*SPEC)
+                self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "main"), salida)
+                if choca_con == "main":
+                    self.assertEqual(revisado.get("archivos"), ["?? x.txt"])
+                    self.assertEqual(salida["apartado"], ["apartado/apartado-experimento"])
+                    self.assertEqual(self.contenido("apartado/apartado-experimento", "x.txt"), "MI x\n")
+                else:
+                    self.assertNotIn("archivos", revisado)
+                    self.assertEqual(salida["apartado"], [])
+                    self.assertEqual((self.copia / "x.txt").read_text(encoding="utf-8"), "MI x\n")
 
 
 class SinHooksAlGuardar(Base):
