@@ -12,11 +12,12 @@ import base64
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from repos import ENTORNO, RAIZ, Repositorio, git
+from repos import ENTORNO, RAIZ, SCRIPT, Repositorio, git
 
 BIN = RAIZ / "bin"
 WINDOWS = os.name == "nt"
@@ -110,6 +111,18 @@ class Lanzadores(Repositorio):
                 r = correr("rama", "revisar", "--tipo", "spec", "--epica", "alertas")
                 self.assertEqual(r.returncode, 0, r.stderr)
                 self.assertEqual(r.stdout.strip(), '{"accion": "guardar", "rama": "main", "principal": "main"}')
+
+    def test_el_uso_es_el_mismo_que_el_de_rama_py(self):
+        """`flujo rama -h` y `rama.py -h` imprimen el mismo contrato, que las pruebas de tests/rama prueban contra los
+        dos."""
+        python = subprocess.run([sys.executable, "-B", str(SCRIPT), "-h"], cwd=self.copia, env=ENTORNO,
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(python.returncode, 0, python.stderr)
+        for nombre, correr in self.formas():
+            with self.subTest(forma=nombre):
+                r = correr("rama", "-h")
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(r.stdout.rstrip("\n"), python.stdout.rstrip("\n"))
 
     def test_pasa_el_codigo_de_salida_y_stderr(self):
         for nombre, correr in self.formas():
