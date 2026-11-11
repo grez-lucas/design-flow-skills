@@ -566,17 +566,17 @@ class ReferenciaDeRama(unittest.TestCase):
                       "resuelto, vuelve a correr la misma orden de `apartar`, que no guarda nada nuevo y va a la misma "
                       "rama del flujo a la que iba, sin pedir otro sí.", error)
         apartar = seccion(self.texto, "Trabajo por apartar", 2)
-        # Q178: el destino del apartado vale solo para la principal o una rama de este trabajo en el servidor, y
-        # `archivos` es lo que hay contra ese destino, no solo trabajo nuevo de la persona (H3 y H4 de la revisión 5).
+        # Q178 y Q179: el destino del apartado vale si esta orden podría ir ahí, y `archivos` es lo que hay contra ese
+        # destino, no solo trabajo nuevo de la persona (H3 y H4 de la revisión 5).
         self.assertIn("Con `otra-rama` en una rama `apartado/...` y sin `archivos`, un `apartar` anterior ya guardó ahí "
                       "lo de la persona y no alcanzó a volver a la rama del flujo: no hay nada nuevo que apartar, y "
-                      "`apartar` vuelve a la rama del flujo a la que iba, sin crear otra rama, si es la principal o una "
-                      "rama de este trabajo en el servidor; si no, va a la rama del flujo de esta orden. Con "
+                      "`apartar` vuelve a la rama del flujo a la que iba, sin crear otra rama, si esta orden también "
+                      "podría ir ahí; si no, como cuando el apartado es de otro trabajo, va a la rama del flujo de esta "
+                      "orden. Con "
                       "`archivos`, la carpeta tiene algo que ese apartado no tiene, un trabajo nuevo de la persona o un "
                       "archivo que el cambio de rama pisaría: se aparta como cualquier otro, en otra rama "
                       "`apartado/...`.", apartar)
-        self.assertIn("Tampoco va a la rama a la que iba si ya no está en el servidor: la misma orden la vuelve a "
-                      "calcular.", error)
+        self.assertNotIn("Tampoco va a la rama a la que iba si ya no está en el servidor", self.texto)
         self.assertNotIn("solo vuelve a la rama del flujo", self.texto)
 
     def test_los_casos_borde_del_reintento(self):
