@@ -4,3 +4,9 @@ bin/flujo text eol=lf
 bin/flujo-* binary
 bin/flujo.exe binary
 scripts/compilar text eol=lf
+# Lo que lee scripts/compilar llega con LF en un clon con core.autocrlf=true: con CRLF, el sed que saca la versión de
+# Go de go.mod no la encuentra y --verificar falla en Windows. Los .go, para que el código sea el mismo byte a byte en
+# los tres sistemas.
+go.mod text eol=lf
+go.sum text eol=lf
+*.go text eol=lf
