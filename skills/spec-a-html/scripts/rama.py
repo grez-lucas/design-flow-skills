@@ -77,7 +77,10 @@ Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el men
 deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` dice dónde quedó la copia. Si falla antes
 del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
 sin guardar, y otra corrida de `apartar` no guarda nada nuevo: solo vuelve a cambiar a la rama del flujo. Si el índice
-está en uso (`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado.
+está en uso (`index.lock`), para antes de tocarlo, y otra corrida reusa el apartado. `apartar` no guarda los cambios de
+adentro de un submódulo: si uno los tiene en archivos con seguimiento y el cambio de rama lo lleva a otro commit, para
+con `error-de-git` antes de guardar nada y lo nombra en `detalle`, y otra corrida para igual hasta que se guarden en el
+submódulo.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -570,6 +573,13 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
     if sin_guardar(git)[1] or chocan or sueltos:
+        if destino is not None:
+            sucios = submodulos_sucios(git, final or "HEAD")
+            if sucios:
+                raise Parada("error-de-git", "Estos submódulos tienen cambios sin guardar adentro, que `apartar` no "
+                             "guarda, y el cambio de rama los lleva a otro commit, donde git los pisaría o no dejaría "
+                             "pasar: " + ", ".join(sucios) + ". Hay que guardarlos dentro del submódulo antes de "
+                             "apartar.", desde)
         apartado, indice = guardar_aparte(git, ramas, desde or "sin-rama", chocan)
         creadas.append(apartado)
         try:
@@ -596,6 +606,25 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
     except Parada as parada:
         salida = parada.salida
     return {**salida, "apartado": creadas, "desde": desde}
+
+
+def submodulos_sucios(git, destino):
+    """Los submódulos con cambios en sus archivos con seguimiento que `git switch --recurse-submodules` a `destino`
+    llevaría a otro commit. git 2.43 se niega si el archivo cambia entre los dos commits, y si no cambia, descarta el
+    cambio sin avisar (H3 de la revisión 4); los archivos sin seguimiento de adentro quedan."""
+    raiz = git.salida("rev-parse", "--show-toplevel")
+    partes = git.rutas("status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none")
+    sucios = []
+    while partes:
+        campos = partes.pop(0).split(" ")
+        if campos[0] == "2" and partes:
+            partes.pop(0)
+        if campos[0] not in ("1", "2") or not campos[2].startswith("S") or campos[2][2] != "M":
+            continue
+        ruta = " ".join(campos[8 if campos[0] == "1" else 9:])
+        if git.salida("-C", os.path.join(raiz, ruta), "rev-parse", "HEAD") != git.salida("rev-parse", f"{destino}:{ruta}"):
+            sucios.append(ruta)
+    return sucios
 
 
 def igualar(git, rama):
