@@ -40,8 +40,9 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
 
 apartar  con el sí de la persona, ante `otra-rama`, `sin-rama`, `commits-sin-empujar`, `cambios-sin-guardar` o
          `principal-adelantada`. Guarda en `apartado/<rama>` (cada `/` cambiada por `-`, `sin-rama` con HEAD separado,
-         con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo) lo que había, con un índice temporal y
-         sin correr hooks, antes de tocar la carpeta (Q171): primero lo que estaba preparado, tal cual, después los
+         con el primer sufijo libre, o el de otra corrida que ya tiene lo mismo y que ninguna copia de `git worktree`
+         tiene en uso) lo que había, con un índice temporal y sin correr hooks, antes de tocar la carpeta (Q171):
+         primero lo que estaba preparado, tal cual, después los
          cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados y los archivos
          sin seguimiento que el cambio de rama pisaría o no dejaría pasar; los demás archivos sin seguimiento no se
          tocan. Con HEAD separado guarda también los commits que no están en ninguna rama. Si se va a guardar desde la
@@ -524,9 +525,12 @@ def commit_tree(git, arbol, padre, mensaje):
 
 def reusable(git, base, inicio, arboles):
     """Un `apartado/<base>` o `apartado/<base>-<n>` que ya tiene, sobre `inicio`, commits con estos mismos árboles: lo
-    dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171)."""
+    dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171). No uno que tiene en uso alguna copia
+    de `git worktree` (H7 de la revisión 4)."""
+    en_uso = {l[len("branch refs/heads/"):] for l in git.lineas("worktree", "list", "--porcelain")
+              if l.startswith("branch refs/heads/")}
     for rama in apartados(git, base):
-        if (git.correr("merge-base", "--is-ancestor", inicio, rama).returncode == 0
+        if rama not in en_uso and (git.correr("merge-base", "--is-ancestor", inicio, rama).returncode == 0
                 and git.lineas("log", "--reverse", "--format=%T", f"{inicio}..{rama}") == arboles):
             return rama
     return None

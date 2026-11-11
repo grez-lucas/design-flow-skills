@@ -616,10 +616,17 @@ func commitTree(g Git, arbol, padre, mensaje string) (string, *parada) {
 }
 
 // reusable es un `apartado/<base>` o `apartado/<base>-<n>` que ya tiene, sobre `inicio`, commits con estos mismos
-// árboles: lo dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171).
+// árboles: lo dejó otra corrida que guardó y no alcanzó a pasar la copia al apartado (Q171). No uno que tiene en uso
+// alguna copia de `git worktree` (H7 de la revisión 4).
 func reusable(g Git, base, inicio string, arboles []string) string {
+	enUso := map[string]bool{}
+	for _, l := range g.lineas("worktree", "list", "--porcelain") {
+		if rama, ok := strings.CutPrefix(l, "branch refs/heads/"); ok {
+			enUso[rama] = true
+		}
+	}
 	for _, rama := range apartados(g, base) {
-		if g.correr("merge-base", "--is-ancestor", inicio, rama).codigo == 0 &&
+		if !enUso[rama] && g.correr("merge-base", "--is-ancestor", inicio, rama).codigo == 0 &&
 			slices.Equal(g.lineas("log", "--reverse", "--format=%T", inicio+".."+rama), arboles) {
 			return rama
 		}

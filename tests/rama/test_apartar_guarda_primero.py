@@ -405,6 +405,29 @@ class SwitchQueFallaDespuesDeEscribir(Base):
         self.assertEqual(self.revisar(*SPEC)["accion"], "guardar")
 
 
+class ApartadoEnOtraCopia(Base):
+    """H7 de la revisión 4: `apartar` no reusa un `apartado/<rama>` que otra copia de `git worktree` tiene en uso,
+    aunque tenga lo mismo: `symbolic-ref` no lo frena como `git switch`, y las dos copias quedarían en la misma rama."""
+
+    def test_crea_otro_apartado(self):
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        vinculada = self.tmp / "vinculada"
+        git("worktree", "add", "-q", "--detach", str(vinculada), "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertEqual(self.apartar()["apartado"], ["apartado/experimento"])
+        git("switch", "-q", "apartado/experimento", cwd=self.copia)
+        git("switch", "-q", "experimento", cwd=vinculada)
+        self.escribir(vinculada, "notas.txt", "MI TRABAJO\n")
+        salida = self.correr("apartar", *EPICA, cwd=vinculada)
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento-2"]), salida)
+        self.assertEqual(self.rama_actual(), "apartado/experimento")
+        self.assertEqual(self.contenido("apartado/experimento-2", "notas.txt"), "MI TRABAJO\n")
+        en_uso = [l for l in git("worktree", "list", "--porcelain", cwd=self.copia).stdout.splitlines()
+                  if l.startswith("branch ")]
+        self.assertEqual(sorted(en_uso), ["branch refs/heads/apartado/experimento", "branch refs/heads/main"])
+
+
 class IndiceEnUso(Base):
     """Q172: con `index.lock`, otro git está usando el índice. `apartar` para antes de tocar HEAD, el índice o la
     carpeta; lo guardado queda en `apartado/<rama>` y el reintento lo reusa."""
