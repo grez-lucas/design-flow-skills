@@ -1,9 +1,15 @@
+import importlib.util
 import json
+import os
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
+_spec = importlib.util.spec_from_file_location("aislar_git", RAIZ / "tests" / "aislar_git.py")
+aislar_git = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(aislar_git)
 SKILLS = RAIZ / "skills"
 PYTHON_EN_EL_README = "| Python 3.9 o superior (`python3`, `python` o `py -3`)"
 
@@ -680,6 +686,25 @@ class VersionDelPlugin(unittest.TestCase):
         entrada = next(p for p in marketplace["plugins"] if p["name"] == plugin["name"])
         self.assertRegex(plugin.get("version", ""), r"^\d+\.\d+\.\d+$")
         self.assertEqual(entrada.get("version"), plugin["version"])
+
+
+class FinDeLineaDeLoQueSeCompila(unittest.TestCase):
+    """Un clon con `core.autocrlf=true`, el valor de Git para Windows, deja con CRLF lo que `.gitattributes` no fija.
+    `scripts/compilar` lee la versión de Go de `go.mod` con sed y el `\\r` la esconde, así que `--verificar` falla en
+    el job de Windows. Todo lo que lee la compilación llega con LF: `go.mod`, `go.sum` si existe y cada `.go`."""
+
+    def git(self, *argumentos):
+        return subprocess.run(["git", "-C", str(RAIZ), *argumentos], check=True, capture_output=True, text=True,
+                              env=aislar_git.sin_repositorio(os.environ)).stdout
+
+    def test_lo_que_lee_scripts_compilar_llega_con_lf(self):
+        rastreados = self.git("ls-files", "-z").split("\0")
+        # go.sum va aunque todavía no exista: el día que el módulo tenga dependencias, también llega con LF.
+        archivos = sorted({a for a in rastreados if a.endswith(".go")} | {"go.mod", "go.sum"})
+        self.assertIn("go.mod", archivos)
+        salida = self.git("check-attr", "-z", "eol", "--", *archivos).split("\0")
+        atributos = dict(zip(salida[0::3], salida[2::3]))
+        self.assertEqual({a: v for a, v in atributos.items() if v != "lf"}, {})
 
 
 if __name__ == "__main__":
