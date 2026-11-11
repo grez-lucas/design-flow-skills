@@ -610,6 +610,13 @@ class Ayuda(unittest.TestCase):
                       "en esa copia, y se resuelve a mano (Q177).", texto)
         self.assertNotIn("no guarda los cambios de adentro de un submódulo", texto)
 
+    def test_dice_cuando_el_reintento_respeta_el_destino(self):
+        """Q178."""
+        self.assertIn("Lo hace solo si el último commit es uno de los dos que escribe `apartar` y su `Destino:` es la "
+                      "principal o una rama viva de este trabajo para el --tipo y la --epica de la corrida; si no, la "
+                      "calcula otra vez, y `revisar` arma `archivos` contra esa misma rama (Q178).",
+                      " ".join(self.correr("-h").stdout.split()))
+
     def test_un_h_donde_no_va_es_uso_incorrecto(self):
         for args in (("revisar", "--tipo", "-h"), ("revisar", "--foo", "-h"), ("commit", "-m", "-h", "--", "x"),
                      ("commit", "-h"), ("foo", "-h"), ("volver", "--rama", "x", "-h")):

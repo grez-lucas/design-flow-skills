@@ -87,12 +87,15 @@ Si git falla en `apartar`, `volver` o `commit`, para con `error-de-git` y el men
 deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` dice dónde quedó la copia. Si falla antes
 del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
 sin guardar, y otra corrida de `apartar`, sin nada nuevo que guardar, va a la rama de su `Destino:` sin volver a
-calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). El reintento sabe que la rama del
-`Destino:` es la de la que salió el apartado solo por el nombre del apartado; un apartado sin commits propios, de HEAD
-separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra vez; y si en una corrida que
-venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo rehace y `revisar` vuelve a dar
-`principal-adelantada`, con otro sí (Q176). Si el índice está en uso (`index.lock`), para antes de tocarlo, y otra
-corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su `index.lock`.
+calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). Lo hace solo si el último commit es uno
+de los dos que escribe `apartar` y su `Destino:` es la principal o una rama viva de este trabajo para el --tipo y la
+--epica de la corrida; si no, la calcula otra vez, y `revisar` arma `archivos` contra esa misma rama (Q178). El
+reintento sabe que la rama del `Destino:` es la de la que salió el apartado solo por el nombre del apartado; un apartado
+sin commits propios, de HEAD separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra
+vez; y si en una corrida que venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo
+rehace y `revisar` vuelve a dar `principal-adelantada`, con otro sí (Q176). Si el índice está en uso (`index.lock`),
+para antes de tocarlo, y otra corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no
+deja su `index.lock`.
 
 `fetch` y `ls-remote` esperan al servidor `RAMA_TOPE` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (`taskkill /T` en Windows) y paran con `sin-servidor`. git nunca pide credenciales por la terminal.
@@ -661,28 +664,42 @@ def ref_final(git, decision, destino, desde, principal, seguir):
     return None
 
 
-def destino_guardado(git, desde, principal, ramas):
+# El mensaje del último commit de un apartado, como lo escribe `guardar_aparte`: el asunto de uno de sus dos commits,
+# con la rama de la que salió, y el destino.
+FORMA_DEL_APARTADO = re.compile(r"Apartado: lo que (?:estaba preparado en (?P<preparado>.+)|había en (?P<habia>.+) antes "
+                                r"de guardar)\n\nDestino: (?P<destino>.+)")
+
+
+def destino_guardado(git, args, desde, principal, ramas):
     """En el reintento, desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:` de su último
-    commit, adonde iba la corrida que lo armó (Q173), si sigue en esta copia o en el servidor; si no, None."""
+    commit, adonde iba la corrida que lo armó (Q173). Solo si ese commit tiene la forma de los de `apartar`, con la rama
+    del nombre del apartado en el asunto, y el destino es la principal o una rama viva de este trabajo para el `--tipo`
+    y la `--epica` de esta corrida (Q178); si no, None."""
     if not desde or not desde.startswith("apartado/") or sin_guardar(git)[1]:
         return None
-    destino = destino_de(git, "HEAD")
-    if destino and (destino == principal or destino in ramas or git.existe(f"refs/heads/{destino}")):
+    forma = FORMA_DEL_APARTADO.fullmatch(git.salida("log", "-1", "--format=%B", "HEAD") or "")
+    if not forma:
+        return None
+    donde = forma["preparado"] or forma["habia"]
+    if not re.fullmatch(rf"apartado/{re.escape(donde.replace('/', '-'))}(-[0-9]+)?", desde):
+        return None
+    destino = forma["destino"]
+    if destino == principal or (destino in ramas and es_del_flujo(destino, nombre(args), (args.tipo,))):
         return destino
     return None
 
 
 def destino_de_apartar(git, args, principal, ramas, desde):
     """Adónde va `apartar` desde una rama que no es de este trabajo: (la rama, o None si hay que elegir; las candidatas;
-    si la iguala al servidor y le pone el upstream, N4). En el reintento desde un apartado, la de su `Destino:` (Q173);
-    si no, la rama viva del servidor para este trabajo, o la principal."""
-    destino = destino_guardado(git, desde, principal, ramas)
+    si la iguala al servidor y le pone el upstream, N4). En el reintento desde un apartado, la de su `Destino:` (Q173,
+    Q178); si no, la rama viva del servidor para este trabajo, o la principal."""
+    destino = destino_guardado(git, args, desde, principal, ramas)
     if destino is None:
         destino, candidatas = destino_del_flujo(args, principal, ramas, getattr(args, "rama", None))
         # N4: la rama de este trabajo de la que salió `apartar` está en el servidor pero no lo sigue.
         return destino, candidatas, destino is not None and destino == desde
     # En el reintento desde `apartado/<rama>`, la rama de la que salió es la del nombre del apartado.
-    seguir = (destino != principal and destino in ramas and upstream(git, destino) != destino
+    seguir = (destino != principal and upstream(git, destino) != destino
               and re.fullmatch(rf"apartado/{re.escape(destino.replace('/', '-'))}(-[0-9]+)?", desde) is not None)
     return destino, [], seguir
 

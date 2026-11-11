@@ -98,16 +98,19 @@ rechazo  después de que el servidor rechazó el push a la rama actual por algo 
          la de ` + "`rama-nueva` o la `rama_nueva` de `ofrecer`" + `, aunque siga a otra rama, y para con
          ` + "`rama-nueva-rechazada`" + `, sin otro sufijo.
 
-Si git falla en ` + "`apartar`, `volver` o `commit`" + `, para con ` + "`error-de-git`" + ` y el mensaje de git en ` + "`detalle`. `apartar`" + ` no
+Si git falla en ` + "`apartar`" + `, ` + "`volver`" + ` o ` + "`commit`" + `, para con ` + "`error-de-git`" + ` y el mensaje de git en ` + "`detalle`" + `. ` + "`apartar`" + ` no
 deshace nada: ` + "`apartado`" + ` lista las ramas donde ya quedó lo apartado y ` + "`rama`" + ` dice dónde quedó la copia. Si falla antes
 del ` + "`git switch`" + `, la carpeta está como estaba. Si falla el ` + "`git switch`" + `, la copia queda en ` + "`apartado/<rama>`" + ` sin cambios
 sin guardar, y otra corrida de ` + "`apartar`" + `, sin nada nuevo que guardar, va a la rama de su ` + "`Destino:`" + ` sin volver a
-calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). El reintento sabe que la rama del
-` + "`Destino:`" + ` es la de la que salió el apartado solo por el nombre del apartado; un apartado sin commits propios, de HEAD
-separado solo con commits sueltos, no lleva ` + "`Destino:`" + ` y el reintento calcula la rama otra vez; y si en una corrida que
-venía de ` + "`ofrecer`" + ` o ` + "`volver`" + ` falla igualar la principal adelantada, el reintento no lo rehace y ` + "`revisar`" + ` vuelve a dar
-` + "`principal-adelantada`" + `, con otro sí (Q176). Si el índice está en uso (` + "`index.lock`" + `), para antes de tocarlo, y otra
-corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no deja su ` + "`index.lock`" + `.
+calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). Lo hace solo si el último commit es uno
+de los dos que escribe ` + "`apartar`" + ` y su ` + "`Destino:`" + ` es la principal o una rama viva de este trabajo para el --tipo y la
+--epica de la corrida; si no, la calcula otra vez, y ` + "`revisar`" + ` arma ` + "`archivos`" + ` contra esa misma rama (Q178). El
+reintento sabe que la rama del ` + "`Destino:`" + ` es la de la que salió el apartado solo por el nombre del apartado; un apartado
+sin commits propios, de HEAD separado solo con commits sueltos, no lleva ` + "`Destino:`" + ` y el reintento calcula la rama otra
+vez; y si en una corrida que venía de ` + "`ofrecer`" + ` o ` + "`volver`" + ` falla igualar la principal adelantada, el reintento no lo
+rehace y ` + "`revisar`" + ` vuelve a dar ` + "`principal-adelantada`" + `, con otro sí (Q176). Si el índice está en uso (` + "`index.lock`" + `),
+para antes de tocarlo, y otra corrida reusa el apartado; si no lo puede escribir, deja HEAD en la rama de origen y no
+deja su ` + "`index.lock`" + `.
 
 ` + "`fetch` y `ls-remote`" + ` esperan al servidor ` + "`RAMA_TOPE`" + ` segundos (60 si no está); pasado eso, matan a git y a sus
 hijos (` + "`taskkill /T`" + ` en Windows) y paran con ` + "`sin-servidor`" + `. git nunca pide credenciales por la terminal.
