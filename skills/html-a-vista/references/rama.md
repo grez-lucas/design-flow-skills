@@ -7,6 +7,7 @@ Qué hacer cuando `rama.py` o `git` no dejan guardar: el arreglo que propones, l
 - Antes de proponer
 - Error de rama.py
 - Trabajo por apartar
+- Copia no soportada
 - El commit de la skill
 - Sin servidor
 - Sin rama principal
@@ -29,7 +30,7 @@ Si `rama.py` sale con error o no devuelve un JSON, antes de escribir nada en el 
 
 - Si `git --version` no responde, falta git: propón instalarlo, con `winget install Git.Git` en Windows, `brew install git` en macOS (o `xcode-select --install` sin Homebrew), y el gestor del sistema en Linux, como `sudo apt install git` o `sudo dnf install git`. Con el sí, instálalo y repite `git --version`; si responde, vuelve a correr la orden de `rama.py`. En Windows la terminal ve `git` recién al reabrirla: si la prueba sigue fallando después de instalar, di que hay que reabrir la sesión y qué quedó sin hacer. Sin el sí, di qué quedó sin hacer.
 - Si el error es del nombre (mayúsculas, espacios, `/`, o un final en guion y número como `fase-2`, que se confunde con el sufijo de la rama), propón uno que sirva, en minúsculas y con guiones, por ejemplo `fase-dos` en lugar de `fase-2`, y úsalo también en las rutas de la épica, como `specs/<épica>/`. Con el sí, vuelve a correr la orden con ese nombre. Sin el sí, di qué quedó sin hacer.
-- Detente. Con otro error, o con el motivo `error-de-git`, explica en simple qué dice; con `error-de-git`, di también en qué rama quedaste y qué quedó apartado (`apartado`). Si `apartar` paró con `error-de-git` y quedaste en una rama `apartado/...`, lo de la persona ya está guardado ahí y la carpeta no tiene cambios sin guardar: dilo así y, cuando el error esté resuelto, vuelve a correr la misma orden de `apartar`, que no guarda nada nuevo y va a la misma rama del flujo a la que iba, sin pedir otro sí. Tres casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado. Si el `detalle` nombra un submódulo con cambios sin guardar adentro, `apartar` no guardó nada y la copia sigue como estaba: esos cambios son de la persona y se guardan dentro del submódulo, que `apartar` no toca. Dilo así y vuelve a correr la orden cuando la persona los haya guardado. Si tiene arreglo, como una identidad de git que falta, propón cómo y, con el sí, arréglalo y vuelve a correr la orden. Si el error no se puede arreglar desde la sesión, di qué quedó sin hacer y, si es del servidor, redacta el pedido al TL; cuando esté resuelto, vuelve a correr la orden. Sin el sí, di qué quedó sin hacer.
+- Detente. Con otro error, o con el motivo `error-de-git`, explica en simple qué dice; con `error-de-git`, di también en qué rama quedaste y qué quedó apartado (`apartado`). Si `apartar` paró con `error-de-git` y quedaste en una rama `apartado/...`, lo de la persona ya está guardado ahí y la carpeta no tiene cambios sin guardar: dilo así y, cuando el error esté resuelto, vuelve a correr la misma orden de `apartar`, que no guarda nada nuevo y va a la misma rama del flujo a la que iba, sin pedir otro sí. Tres casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado. Si tiene arreglo, como una identidad de git que falta, propón cómo y, con el sí, arréglalo y vuelve a correr la orden. Si el error no se puede arreglar desde la sesión, di qué quedó sin hacer y, si es del servidor, redacta el pedido al TL; cuando esté resuelto, vuelve a correr la orden. Sin el sí, di qué quedó sin hacer.
 
 ## Trabajo por apartar
 
@@ -38,6 +39,10 @@ Detente. Con los motivos `cambios-sin-guardar`, `otra-rama`, `sin-rama`, `commit
 Di dónde quedó lo anterior: en las ramas de `apartado`, que existen solo en esta máquina, o, si la lista viene vacía, en `desde`, donde siguen sus commits.
 
 Con `elegir`, el servidor tiene más de una rama de este trabajo: muestra las `ramas`, pregunta en cuál guardar y corre otra vez `apartar` con `--rama <la elegida>`.
+
+## Copia no soportada
+
+Detente. Con el motivo `copia-no-soportada`, la copia tiene en las `rutas` algo que `apartar` no sabe guardar sin riesgo de perder trabajo: un submódulo, un repositorio git anidado (otro repositorio clonado dentro de la carpeta, aunque esté ignorado) o un enlace simbólico en el camino del cambio de rama. Los repositorios de diseño que arman las skills no los tienen. `apartar` no hace nada en esa copia, así que no propongas apartar. Explica en simple qué hay en cada ruta y que se resuelve a mano, porque decidir qué pasa con eso no se puede hacer desde la sesión: es de quien lo puso ahí, que puede guardarlo en otro lado y sacarlo de la carpeta, o del TL si es parte del repositorio. Di qué quedó sin hacer: qué iba a guardar la skill y dónde está ahora. Cuando esté resuelto, vuelve a correr la misma orden de `rama.py`.
 
 ## El commit de la skill
 
