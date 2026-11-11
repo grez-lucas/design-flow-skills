@@ -661,10 +661,11 @@ def es_ruta_de_la_skill(ruta):
 
 
 def argumentos(argv):
-    parser = argparse.ArgumentParser(description="Decide en qué rama guarda una skill del flujo.")
+    # Sin -h de argparse: la ayuda es el contrato, y un -h que `pide_ayuda` no acepta es uso incorrecto.
+    parser = argparse.ArgumentParser(description="Decide en qué rama guarda una skill del flujo.", add_help=False)
     sub = parser.add_subparsers(dest="orden", required=True)
     for orden in ("revisar", "apartar", "volver", "rechazo"):
-        p = sub.add_parser(orden)
+        p = sub.add_parser(orden, add_help=False)
         p.add_argument("--tipo", required=True, choices=TIPOS)
         grupo = p.add_mutually_exclusive_group(required=True)
         grupo.add_argument("--epica")
@@ -676,7 +677,7 @@ def argumentos(argv):
         if orden == "volver":
             p.add_argument("--rama-nueva", help="con `ofrecer` y el sí de la persona: la `rama_nueva` aceptada")
         p.add_argument("--repo", default=".")
-    p = sub.add_parser("commit")
+    p = sub.add_parser("commit", add_help=False)
     mensaje = p.add_mutually_exclusive_group(required=True)
     mensaje.add_argument("-m", dest="mensaje", action="append", help="un párrafo del mensaje")
     mensaje.add_argument("-F", dest="archivo", help="el archivo con el mensaje, UTF-8 con o sin BOM")
@@ -725,14 +726,39 @@ def argumentos(argv):
 ORDENES = {"revisar": revisar, "apartar": apartar, "volver": volver, "commit": commit, "rechazo": rechazo}
 
 
+OPCIONES = {"commit": ("m", "F", "repo"), "rechazo": ("tipo", "epica", "mockup", "repo"),
+            "apartar": ("tipo", "epica", "mockup", "epicas", "rama", "repo"),
+            "volver": ("tipo", "epica", "mockup", "epicas", "rama-nueva", "repo"),
+            "revisar": ("tipo", "epica", "mockup", "epicas", "repo")}
+
+
 def pide_ayuda(argv):
-    """-h o --help como los lee `flujo rama`: primero, o después de una orden conocida y antes de `--`."""
+    """-h o --help como los lee `flujo rama`: primero, o después de una orden conocida y antes de `--`, con cada opción
+    anterior válida y con su valor. Si antes aparece algo que `flujo rama` rechaza, no es ayuda: argparse lo rechaza
+    con 2."""
     if argv[:1] in (["-h"], ["--help"]):
         return True
     if not argv or argv[0] not in ORDENES or (argv[0] == "commit" and "--" not in argv):
         return False
-    antes = argv[1:argv.index("--")] if "--" in argv else argv[1:]
-    return "-h" in antes or "--help" in antes
+    i = 1
+    while i < len(argv) and argv[i] != "--":
+        token = argv[i]
+        if token in ("-h", "--help"):
+            return True
+        if token.startswith("--"):
+            nombre, igual, _ = token[2:].partition("=")
+        elif token[:2] in ("-m", "-F") and argv[0] == "commit":
+            nombre, igual = token[1], "=" if len(token) > 2 else ""
+        else:
+            return False
+        if nombre not in OPCIONES[argv[0]]:
+            return False
+        if not igual:
+            if i + 1 >= len(argv) or (argv[i + 1].startswith("-") and argv[i + 1] != "-"):
+                return False
+            i += 1
+        i += 1
+    return False
 
 
 def main(argv=None):

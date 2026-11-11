@@ -570,5 +570,32 @@ class Uso(Base):
         self.falla("rechazo", "--tipo", "spec")
 
 
+class Ayuda(unittest.TestCase):
+    """-h o --help imprime el contrato y sale con 0 solo donde `flujo rama` lo lee: primero, o después de una orden
+    conocida y de opciones válidas, antes de `--`. Un -h donde iría el valor de una opción, o después de una opción que
+    no existe, es uso incorrecto: sale con 2, sin stdout (H4 de la revisión 3)."""
+
+    def correr(self, *args):
+        with tempfile.TemporaryDirectory() as tmp:
+            return subprocess.run([*orden_de_rama(), *args], cwd=tmp, env=ENTORNO, capture_output=True, text=True,
+                                  encoding="utf-8")
+
+    def test_imprime_el_contrato(self):
+        for args in (("-h",), ("--help",), ("revisar", "-h"), ("revisar", "--tipo", "spec", "-h"),
+                     ("apartar", "--tipo", "spec", "--epica", "alertas", "--help"),
+                     ("commit", "-m", "x", "-h", "--", "design/")):
+            with self.subTest(args=args):
+                r = self.correr(*args)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertTrue(r.stdout.startswith("Decide en qué rama guarda una skill del flujo"), r.stdout[:80])
+
+    def test_un_h_donde_no_va_es_uso_incorrecto(self):
+        for args in (("revisar", "--tipo", "-h"), ("revisar", "--foo", "-h"), ("commit", "-m", "-h", "--", "x"),
+                     ("commit", "-h"), ("foo", "-h"), ("volver", "--rama", "x", "-h")):
+            with self.subTest(args=args):
+                r = self.correr(*args)
+                self.assertEqual((r.returncode, r.stdout), (2, ""), r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
