@@ -22,6 +22,7 @@ from repos import ENTORNO, Repositorio, git
 
 EPICA = ("--tipo", "diseno", "--epica", "alertas")
 SPEC = ("--tipo", "spec", "--epica", "alertas")
+MOCKUP = ("--tipo", "diseno", "--mockup", "panel", "--epicas", "alertas,riego")
 
 GIT_QUE_FALLA = """#!/bin/sh
 # git que falla la vez número $FALLA_VEZ que la orden contiene $FALLA_PATRON, y deja $FALLA_MARCA al fallar.
@@ -473,6 +474,29 @@ class ReintentoAlMismoDestino(GitQueFalla):
             self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
         self.assertEqual(self.mismo_final(preparar, SPEC), ("guardar", "spec/alertas", "spec/alertas"))
 
+    def test_volver_con_otra_rama_viva(self):
+        def preparar():
+            self.trabajar_en("spec/alertas")
+            self.en_el_servidor("spec/alertas-2")
+            git("push", "-q", "origin", "--delete", "spec/alertas", cwd=self.otra)
+            self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
+        self.assertEqual(self.mismo_final(preparar, SPEC), ("volver", "spec/alertas", "spec/alertas"))
+
+    def test_q179_ofrecer_desde_la_rama_de_una_epica(self):
+        """Q179: con --mockup, la rama viva de una de las épicas da `ofrecer`, y el reintento vuelve a ella aunque no
+        sea `diseno/<mockup>`."""
+        def preparar():
+            self.trabajar_en("diseno/alertas")
+            self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>MI TRABAJO</p>\n")
+        self.assertEqual(self.mismo_final(preparar, MOCKUP), ("ofrecer", "diseno/alertas", "diseno/alertas"))
+
+    def test_q179_guardar_en_la_rama_viva_de_otro_tipo(self):
+        """Q179: con --tipo diseno --epica alertas, una `spec/alertas` viva da `guardar`, y el reintento vuelve ahí."""
+        def preparar():
+            self.trabajar_en("spec/alertas")
+            self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
+        self.assertEqual(self.mismo_final(preparar, EPICA), ("guardar", "spec/alertas", "spec/alertas"))
+
     def test_una_rama_del_flujo_sin_upstream(self):
         def preparar():
             git("switch", "-q", "-c", "spec/alertas", cwd=self.copia)
@@ -505,10 +529,9 @@ class ReintentoAlMismoDestino(GitQueFalla):
 
 @unittest.skipIf(os.name == "nt", "el git que falla es un sh")
 class DestinoDelApartado(GitQueFalla):
-    """Q178, que precisa Q173: el reintento va al `Destino:` solo si el último commit de `apartado/*` es uno de los dos
-    que escribe `apartar` y el destino es la principal o una rama viva de este trabajo para el `--tipo` y la `--epica`
-    de esta corrida; si no, lo calcula otra vez. `revisar` arma `archivos` contra ese mismo destino (H3 y H4 de la
-    revisión 5)."""
+    """Q178 y Q179, que precisan Q173: el reintento va al `Destino:` solo si el último commit de `apartado/*` es uno de
+    los dos que escribe `apartar` y el destino es una rama a la que `revisar` podría mandar esta corrida; si no, lo
+    calcula otra vez. `revisar` arma `archivos` contra ese mismo destino (H3 y H4 de la revisión 5)."""
 
     def apartado_hacia(self, viva=None):
         """La primera corrida, `--epica alertas` desde `experimento`, falla en el `switch` y deja la copia en
@@ -560,21 +583,6 @@ class DestinoDelApartado(GitQueFalla):
         self.en_el_servidor("spec/alertas")
         salida = self.apartar(*SPEC)
         self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "spec/alertas"), salida)
-
-    def test_un_destino_que_ya_no_esta_en_el_servidor_se_calcula_otra_vez(self):
-        """Antes era `test_volver_con_otra_rama_viva` de `ReintentoAlMismoDestino`: la primera corrida venía de
-        `volver` en `spec/alertas`, que ya no está en el servidor, y el reintento iba ahí. Con Q178 no es una rama viva,
-        y el reintento va a la que hay, `spec/alertas-2`."""
-        self.trabajar_en("spec/alertas")
-        self.en_el_servidor("spec/alertas-2")
-        git("push", "-q", "origin", "--delete", "spec/alertas", cwd=self.otra)
-        self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
-        salida = self.apartar_con_falla(SPEC, "switch")
-        self.assertEqual(salida["rama"], "apartado/spec-alertas", salida)
-        salida = self.apartar(*SPEC)
-        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
-                         ("guardar", "spec/alertas-2", []), salida)
-        self.assertEqual(self.contenido("apartado/spec-alertas", "specs/alertas/spec.md"), "# MI TRABAJO\n")
 
     def test_r5_h4_archivos_contra_el_destino_del_apartado(self):
         """El `Destino:` es `main` y después aparece `spec/alertas`: `revisar` lista `x.txt` si choca con `main`, adonde
