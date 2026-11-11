@@ -555,18 +555,39 @@ class ReferenciaDeRama(unittest.TestCase):
                       "la principal al servidor, pisaría o que lo bloquea", seccion_)
 
     def test_una_copia_que_quedo_en_el_apartado(self):
-        """Q172: si `apartar` para con `error-de-git` en el `git switch`, la copia queda en `apartado/<rama>` con lo de
-        la persona guardado ahí; `revisar` la da como `otra-rama`, y otra corrida de `apartar` solo vuelve a cambiar
-        de rama. La prosa lo dice en los dos lugares donde la persona lo ve."""
+        """Q172 y Q173: si `apartar` para con `error-de-git` en el `git switch`, la copia queda en `apartado/<rama>` con
+        lo de la persona guardado ahí; `revisar` la da como `otra-rama`, y otra corrida de `apartar` va a la misma rama
+        del flujo, sin otro sí. Con `archivos`, la persona siguió trabajando en el apartado y eso se aparta como
+        cualquier otro trabajo (H2 de la revisión 4). La prosa lo dice en los dos lugares donde la persona lo ve."""
         error = seccion(self.texto, "Error de rama.py", 2)
         self.assertIn("Si `apartar` paró con `error-de-git` y quedaste en una rama `apartado/...`, lo de la persona ya "
                       "está guardado ahí y la carpeta no tiene cambios sin guardar: dilo así y, cuando el error esté "
-                      "resuelto, vuelve a correr la misma orden de `apartar`, que no guarda nada nuevo y solo vuelve "
-                      "a la rama del flujo.", error)
+                      "resuelto, vuelve a correr la misma orden de `apartar`, que no guarda nada nuevo y va a la misma "
+                      "rama del flujo a la que iba, sin pedir otro sí.", error)
         apartar = seccion(self.texto, "Trabajo por apartar", 2)
-        self.assertIn("Con `otra-rama` en una rama `apartado/...`, un `apartar` anterior ya guardó ahí lo de la persona "
-                      "y no alcanzó a volver a la rama del flujo: no hay nada nuevo que apartar, y `apartar` solo "
-                      "vuelve a la rama del flujo, sin crear otra rama.", apartar)
+        self.assertIn("Con `otra-rama` en una rama `apartado/...` y sin `archivos`, un `apartar` anterior ya guardó ahí "
+                      "lo de la persona y no alcanzó a volver a la rama del flujo: no hay nada nuevo que apartar, y "
+                      "`apartar` vuelve a la misma rama del flujo a la que iba, sin crear otra rama. Con `archivos`, la "
+                      "persona siguió trabajando en ese apartado: es trabajo nuevo y se aparta como cualquier otro, en "
+                      "otra rama `apartado/...`.", apartar)
+        self.assertNotIn("solo vuelve a la rama del flujo", self.texto)
+
+    def test_un_submodulo_con_cambios_adentro(self):
+        """H3 de la revisión 4: `apartar` no guarda lo de adentro de un submódulo y para antes de guardar nada si el
+        cambio de rama lo movería; la prosa no le dice a la persona que lo suyo quedó guardado."""
+        error = seccion(self.texto, "Error de rama.py", 2)
+        self.assertIn("Si el `detalle` nombra un submódulo con cambios sin guardar adentro, `apartar` no guardó nada y "
+                      "la copia sigue como estaba: esos cambios son de la persona y se guardan dentro del submódulo, "
+                      "que `apartar` no toca. Dilo así y vuelve a correr la orden cuando la persona los haya guardado.",
+                      error)
+
+    def test_los_hooks_que_corren_al_apartar(self):
+        """Q174: al guardar no corren los hooks de commit ni de checkout; `reference-transaction` y
+        `post-index-change` sí, y si uno rechaza, `apartar` para antes de tocar la copia."""
+        apartar = seccion(self.texto, "Trabajo por apartar", 2)
+        self.assertIn("Al guardar no corren los hooks de commit ni de checkout; `reference-transaction` y "
+                      "`post-index-change` sí pueden correr, y si uno rechaza, `apartar` para con `error-de-git` antes "
+                      "de tocar HEAD, el índice o la carpeta.", apartar)
 
     def test_con_la_principal_adelantada_no_hay_cambio_de_rama(self):
         """H6 de la revisión 3: con `principal-adelantada` la copia se queda en la principal y la iguala al servidor, y
