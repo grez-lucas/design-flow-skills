@@ -346,27 +346,49 @@ def estado(git, *args):
 
 
 def choques(git, destino):
-    """Los archivos sin seguimiento que `destino` tiene y que `git switch` no dejaría pasar o pisaría: `?? <ruta>` si
-    no está ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si está
-    ignorado y tiene otro contenido, porque git reemplaza un ignorado sin avisar."""
+    """Los archivos sin seguimiento que `git switch` a `destino` no dejaría pasar o pisaría: `?? <ruta>` si no está
+    ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si está ignorado y se
+    perdería, porque git reemplaza un ignorado sin avisar. Uno ignorado se pierde si `destino` lo tiene con otro
+    contenido, si es un archivo donde `destino` tiene una carpeta, o si está dentro de una carpeta donde `destino` tiene
+    un archivo (H1 de la revisión 4)."""
     raiz = git.salida("rev-parse", "--show-toplevel")
     if not raiz or not git.existe(destino):
         return []
     seguidos = set(git.rutas("ls-files", "-z"))
-    en_destino = {}
+    en_destino, perdidos, carpetas, vistas = {}, set(), [], set()
     for entrada in git.rutas("ls-tree", "-r", "-z", "--full-tree", destino):
         datos, _, ruta = entrada.partition("\t")
         modo, tipo, objeto = datos.split(" ")
-        if tipo == "blob" and ruta not in seguidos and os.path.isfile(os.path.join(raiz, ruta)):
+        if tipo != "blob":
+            continue
+        # Una carpeta de `destino` que en la copia es un archivo sin seguimiento: el `switch` lo reemplaza.
+        partes = ruta.split("/")
+        for i in range(1, len(partes)):
+            carpeta = "/".join(partes[:i])
+            if carpeta not in vistas:
+                vistas.add(carpeta)
+                lugar = os.path.join(raiz, carpeta)
+                if carpeta not in seguidos and os.path.lexists(lugar) and (os.path.islink(lugar)
+                                                                            or not os.path.isdir(lugar)):
+                    perdidos.add(carpeta)
+        if ruta in seguidos:
+            continue
+        lugar = os.path.join(raiz, ruta)
+        if os.path.isdir(lugar) and not os.path.islink(lugar):
+            carpetas.append(ruta)
+        elif os.path.isfile(lugar):
             en_destino[ruta] = objeto
-    if not en_destino:
+    # Un archivo de `destino` que en la copia es una carpeta: el `switch` borra lo que tiene sin seguimiento.
+    if carpetas:
+        perdidos.update(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--", *carpetas))
+    rutas = sorted(set(en_destino) | perdidos)
+    if not rutas:
         return []
-    rutas = sorted(en_destino)
     ignorados = set(git.rutas("-C", raiz, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", *rutas))
-    ignoradas = [r for r in rutas if r in ignorados]
+    ignoradas = [r for r in rutas if r in ignorados and r in en_destino]
     locales = git.lineas("-C", raiz, "hash-object", "--", *ignoradas) if ignoradas else []
-    pisadas = {r for r, h in zip(ignoradas, locales) if h != en_destino[r]}
-    return [("!! " + r) if r in pisadas else ("?? " + r) for r in rutas if r in pisadas or r not in ignorados]
+    pisadas = perdidos | {r for r, h in zip(ignoradas, locales) if h != en_destino[r]}
+    return [("!! " + r) if r in ignorados else ("?? " + r) for r in rutas if r in pisadas or r not in ignorados]
 
 
 def unicas(lineas):

@@ -294,35 +294,77 @@ func lineasDeEstado(partes []string) []string {
 	return lineas
 }
 
-// choques son los archivos sin seguimiento que `destino` tiene y que `git switch` no dejaría pasar o pisaría:
-// `?? <ruta>` si no está ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si
-// está ignorado y tiene otro contenido, porque git reemplaza un ignorado sin avisar.
+// choques son los archivos sin seguimiento que `git switch` a `destino` no dejaría pasar o pisaría: `?? <ruta>` si no
+// está ignorado, aunque el contenido sea el mismo, porque git se niega igual (Q168), y `!! <ruta>` si está ignorado y
+// se perdería, porque git reemplaza un ignorado sin avisar. Uno ignorado se pierde si `destino` lo tiene con otro
+// contenido, si es un archivo donde `destino` tiene una carpeta, o si está dentro de una carpeta donde `destino` tiene
+// un archivo (H1 de la revisión 4).
 func choques(g Git, destino string) []string {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" || !g.existe(destino) {
 		return nil
 	}
+	enRaiz := Git{repo: raiz}
 	seguidos := map[string]bool{}
 	for _, r := range g.rutas("ls-files", "-z") {
 		seguidos[r] = true
 	}
 	enDestino := map[string]string{}
+	perdidos := map[string]bool{}
+	vistas := map[string]bool{}
+	var carpetas []string
 	for _, entrada := range g.rutas("ls-tree", "-r", "-z", "--full-tree", destino) {
 		datos, ruta, _ := strings.Cut(entrada, "\t")
 		campos := strings.Split(datos, " ")
-		if len(campos) != 3 || campos[1] != "blob" || seguidos[ruta] {
+		if len(campos) != 3 || campos[1] != "blob" {
 			continue
 		}
-		if info, err := os.Stat(Git{repo: raiz}.enLaCopia(ruta)); err == nil && info.Mode().IsRegular() {
+		// Una carpeta de `destino` que en la copia es un archivo sin seguimiento: el `switch` lo reemplaza.
+		partes := strings.Split(ruta, "/")
+		for i := 1; i < len(partes); i++ {
+			carpeta := strings.Join(partes[:i], "/")
+			if vistas[carpeta] {
+				continue
+			}
+			vistas[carpeta] = true
+			if info, err := os.Lstat(enRaiz.enLaCopia(carpeta)); err == nil && !seguidos[carpeta] && !info.IsDir() {
+				perdidos[carpeta] = true
+			}
+		}
+		if seguidos[ruta] {
+			continue
+		}
+		info, err := os.Lstat(enRaiz.enLaCopia(ruta))
+		switch {
+		case err != nil:
+		case info.IsDir():
+			carpetas = append(carpetas, ruta)
+		case info.Mode().IsRegular():
 			enDestino[ruta] = campos[2]
+		case info.Mode()&os.ModeSymlink != 0:
+			// Como `os.path.isfile` de rama.py: un enlace a un archivo cuenta como archivo.
+			if destinoDelEnlace, err := os.Stat(enRaiz.enLaCopia(ruta)); err == nil && destinoDelEnlace.Mode().IsRegular() {
+				enDestino[ruta] = campos[2]
+			}
 		}
 	}
-	if len(enDestino) == 0 {
-		return nil
+	// Un archivo de `destino` que en la copia es una carpeta: el `switch` borra lo que tiene sin seguimiento.
+	if len(carpetas) > 0 {
+		for _, r := range g.rutas(append([]string{"-C", raiz, "ls-files", "-z", "--others", "--"}, carpetas...)...) {
+			perdidos[r] = true
+		}
 	}
-	rutas := make([]string, 0, len(enDestino))
+	var rutas []string
 	for r := range enDestino {
 		rutas = append(rutas, r)
+	}
+	for r := range perdidos {
+		if _, esta := enDestino[r]; !esta {
+			rutas = append(rutas, r)
+		}
+	}
+	if len(rutas) == 0 {
+		return nil
 	}
 	slices.Sort(rutas)
 	ignorados := map[string]bool{}
@@ -332,11 +374,14 @@ func choques(g Git, destino string) []string {
 	}
 	var ignoradas []string
 	for _, r := range rutas {
-		if ignorados[r] {
+		if _, esta := enDestino[r]; esta && ignorados[r] {
 			ignoradas = append(ignoradas, r)
 		}
 	}
 	pisadas := map[string]bool{}
+	for r := range perdidos {
+		pisadas[r] = true
+	}
 	if len(ignoradas) > 0 {
 		locales := g.lineas(append([]string{"-C", raiz, "hash-object", "--"}, ignoradas...)...)
 		for i := 0; i < min(len(ignoradas), len(locales)); i++ {
@@ -348,7 +393,7 @@ func choques(g Git, destino string) []string {
 	var lineas []string
 	for _, r := range rutas {
 		switch {
-		case pisadas[r]:
+		case ignorados[r] && pisadas[r]:
 			lineas = append(lineas, "!! "+r)
 		case !ignorados[r]:
 			lineas = append(lineas, "?? "+r)

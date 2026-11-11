@@ -133,6 +133,57 @@ class ChoquesAlIgualarLaPrincipal(Base):
         self.assertTrue(self.igual_al_servidor())
 
 
+class ChoquesDeArchivoContraCarpeta(Base):
+    """H1 de la revisión 4: donde la principal trae un archivo, la copia tiene una carpeta con archivos sin seguimiento,
+    o al revés. Con un ignorado, `git switch` lo borraba sin avisar y no quedaba en ningún commit; sin ignorar, el
+    `switch` se negaba en cada reintento. Los dos entran al apartado, `!!` el ignorado y `??` el otro."""
+
+    def caso(self, del_servidor, excluir, local, linea):
+        self.al_servidor(del_servidor, "del servidor\n")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        if excluir:
+            (self.copia / ".git" / "info").mkdir(exist_ok=True)
+            (self.copia / ".git" / "info" / "exclude").write_text(excluir + "\n", encoding="utf-8")
+        self.escribir(self.copia, local, "MI TRABAJO\n")
+        salida = self.parada(self.revisar(), "otra-rama")
+        self.assertEqual(salida.get("archivos"), [linea], salida)
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "main", ["apartado/experimento"]), salida)
+        self.assertEqual(self.contenido("apartado/experimento", local), "MI TRABAJO\n")
+        self.assertEqual((self.copia / del_servidor).read_text(encoding="utf-8"), "del servidor\n")
+        self.assertEqual(self.ramas_locales("apartado/*"), ["apartado/experimento"])
+
+    def test_una_carpeta_ignorada_donde_la_principal_trae_un_archivo(self):
+        self.caso("cache", "cache/", "cache/mio.txt", "!! cache/mio.txt")
+
+    def test_un_archivo_ignorado_donde_la_principal_trae_una_carpeta(self):
+        self.caso("build/x.txt", "build", "build", "!! build")
+
+    def test_un_archivo_sin_seguimiento_donde_la_principal_trae_una_carpeta(self):
+        self.caso("build/x.txt", None, "build", "?? build")
+
+    def test_una_carpeta_sin_seguimiento_donde_la_principal_trae_un_archivo(self):
+        self.caso("cache", None, "cache/mio.txt", "?? cache/mio.txt")
+
+    def test_una_carpeta_ignorada_dentro_de_otra(self):
+        self.caso("a/b", "a/", "a/b/c/mio.txt", "!! a/b/c/mio.txt")
+
+    def test_al_igualar_la_principal_adelantada(self):
+        self.commit_local()
+        self.al_servidor("cache", "del servidor\n")
+        (self.copia / ".git" / "info").mkdir(exist_ok=True)
+        (self.copia / ".git" / "info" / "exclude").write_text("cache/\n", encoding="utf-8")
+        self.escribir(self.copia, "cache/mio.txt", "MI TRABAJO\n")
+        self.assertEqual(self.parada(self.revisar(), "principal-adelantada")["archivos"], ["!! cache/mio.txt"])
+        salida = self.apartar()
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", ["apartado/main"]),
+                         salida)
+        self.assertEqual(self.contenido("apartado/main", "cache/mio.txt"), "MI TRABAJO\n")
+        self.assertEqual((self.copia / "cache").read_text(encoding="utf-8"), "del servidor\n")
+        self.assertTrue(self.igual_al_servidor())
+
+
 class GitQueFalla(Base):
     def git_que_falla(self, patron, vez):
         carpeta = self.tmp / "git-que-falla"
