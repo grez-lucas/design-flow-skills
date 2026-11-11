@@ -511,13 +511,13 @@ func rutaDelIndice(g Git) string {
 	return absoluta
 }
 
-// guardarAparte arma el apartado de lo que hay en la copia sin tocar la carpeta, el índice ni HEAD y sin correr hooks
-// (Q171): un índice temporal, copia del de la copia con sus marcas, `write-tree` y `commit-tree`. Primero lo
-// preparado, tal cual, porque `git add -u` pisaría lo que está solo en el índice (H3); después los cambios de los
-// archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados (N1) y los sin seguimiento que el
-// cambio de rama pisaría o no dejaría pasar (N2, N3). Crea `apartado/<rama>`, o reusa uno que ya tiene esos mismos
-// commits, y devuelve la rama y la ruta del índice temporal, que queda con el árbol del apartado; quien la recibe la
-// borra.
+// guardarAparte arma el apartado de lo que hay en la copia sin tocar la carpeta, el índice ni HEAD y sin los hooks de
+// commit ni de checkout (Q171, Q174): un índice temporal, copia del de la copia con sus marcas, `write-tree` y
+// `commit-tree`. Primero lo preparado, tal cual, porque `git add -u` pisaría lo que está solo en el índice (H3);
+// después los cambios de los archivos con seguimiento, los archivos nuevos de las rutas que no están ignorados (N1) y
+// los sin seguimiento que el cambio de rama pisaría o no dejaría pasar (N2, N3). El último commit lleva `Destino:
+// <destino>`, si lo hay (Q173). Crea `apartado/<rama>`, o reusa uno que ya tiene esos mismos commits, y devuelve la
+// rama y la ruta del índice temporal, que queda con el árbol del apartado; quien la recibe la borra.
 func guardarAparte(g Git, s delServidor, donde string, chocan []string, destino string) (string, string, *parada) {
 	inicio, _ := g.salida("rev-parse", "HEAD")
 	real := rutaDelIndice(g)
