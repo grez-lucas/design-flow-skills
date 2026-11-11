@@ -584,6 +584,23 @@ class MensajeDesdeArchivo(Base):
                 self.assertEqual((git("rev-parse", "HEAD", cwd=self.copia).stdout, self.status(),
                                   git("ls-files", "-s", cwd=self.copia).stdout), antes)
 
+    def test_un_archivo_con_bytes_nulos_sale_con_2_sin_commit(self):
+        """Q167: un mensaje con un byte nulo es UTF-8 válido pero git no lo acepta como argumento. Sale de UTF-16 sin
+        BOM, como el de `UnicodeEncoding($false, $false)` de .NET, o de un archivo que no es texto."""
+        self.preparar()
+        antes = (git("rev-parse", "HEAD", cwd=self.copia).stdout, self.status(),
+                 git("ls-files", "-s", cwd=self.copia).stdout)
+        for nombre, contenido in (("utf-16-le-sin-bom", "Agrega la vista".encode("utf-16-le")),
+                                  ("nulo", b"Agrega\x00 la vista")):
+            with self.subTest(archivo=nombre):
+                archivo = self.tmp / f"mensaje-{nombre}.txt"
+                archivo.write_bytes(contenido)
+                error = self.correr("commit", "-F", str(archivo), "--", "design/", codigo=2)
+                self.assertIn("bytes nulos", error)
+                self.assertIn("herramienta de archivos", error)
+                self.assertEqual((git("rev-parse", "HEAD", cwd=self.copia).stdout, self.status(),
+                                  git("ls-files", "-s", cwd=self.copia).stdout), antes)
+
 
 class RutasIgnoradas(Base):
     """N1 y N2: una ruta de la skill ignorada, como el puntero que queda solo en esta máquina cuando la persona no
