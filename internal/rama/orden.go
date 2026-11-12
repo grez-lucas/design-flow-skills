@@ -40,11 +40,18 @@ revisar  antes de la primera escritura. Corre ` + "`git fetch`" + `, no cambia n
          volver   el upstream de la rama actual ya no está en el servidor y lo suyo entró a la principal: todos sus
                   commits están en alguna rama del servidor, o los archivos que tocan los que no están, desde la
                   base común con la principal, están iguales en ella (squash merge).
-         parar    cualquier otro caso, con ` + "`motivo` y `detalle`" + `. Antes que nada, para con ` + "`copia-no-soportada`" + ` y
-                  ` + "`rutas`" + ` si la copia tiene un submódulo, un repositorio git anidado en la carpeta, ignorado o no, o
-                  un enlace simbólico sin seguimiento en el camino del cambio de rama, apunte adonde apunte: donde la
-                  rama a la que va tiene un archivo o una carpeta de sus archivos, o dentro de una carpeta donde tiene
-                  un archivo. ` + "`apartar`" + ` no hace nada en esa copia, y se resuelve a mano (Q177).
+         parar    cualquier otro caso, con ` + "`motivo`" + ` y ` + "`detalle`" + `. Antes que nada, para con ` + "`copia-no-soportada`" + ` y
+                  ` + "`rutas`" + ` si en el camino del cambio de rama hay un submódulo, de la copia o de la rama a la que va,
+                  un repositorio git anidado en la carpeta, ignorado o no, o un enlace simbólico sin seguimiento,
+                  apunte adonde apunte. El camino son las rutas que cambian entre la copia y la rama a la que va, las
+                  que ` + "`apartar`" + ` guardaría y las sin seguimiento que el cambio de rama reemplaza o borra: donde la rama
+                  a la que va tiene un archivo o una carpeta de sus archivos, o dentro de una carpeta donde tiene un
+                  archivo. Un submódulo o un repositorio anidado está en el camino si una de esas rutas es la suya,
+                  está dentro de él o lo contiene. Uno fuera del camino no detiene, tampoco una copia de
+                  ` + "`git worktree`" + ` de este repositorio dentro de la carpeta. Se mira contra la rama a la que va
+                  ` + "`apartar`" + ` y, con más de una rama viva para este trabajo, contra cada una, también la que se
+                  elegiría con --rama: ` + "`revisar`" + ` lo dice antes del sí, y ` + "`apartar`" + ` para igual antes de apartar o
+                  cambiar de rama. Se resuelve a mano (Q177, Q180, Q182).
                   En lugar de ` + "`guardar`, `ofrecer` o `volver`" + `, para con ` + "`cambios-sin-guardar`" + ` si hay trabajo sin
                   guardar que entraría en el commit de la skill: en sus rutas, con los archivos nuevos, o preparado
                   en el índice, en cualquier ruta; con ` + "`ofrecer`" + `, también cualquier cambio de un archivo con

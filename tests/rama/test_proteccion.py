@@ -16,6 +16,7 @@ import unittest
 from repos import Repositorio, git
 
 EPICA = ("--tipo", "diseno", "--epica", "alertas")
+SPEC = ("--tipo", "spec", "--epica", "alertas")
 MOCKUP = ("--tipo", "diseno", "--mockup", "panel", "--epicas", "alertas,riego")
 
 
@@ -207,10 +208,12 @@ class TrabajoSinGuardar(Base):
 
 
 class FormaDeLaCopia(Base):
-    """Q177, que reemplaza la parada de Q176 con `error-de-git`: con un submódulo, un repositorio git anidado en la
-    carpeta o un enlace simbólico en el camino del cambio de rama, `revisar` para con `copia-no-soportada` y las
-    `rutas`, antes del sí, y `apartar` no hace nada en esa copia. Cada revisión encontraba otra forma de perder trabajo
-    con ellos (H3 de la revisión 4; H1, H2 y H5 de la revisión 5)."""
+    """Q177 y Q180, que reemplazan la parada de Q176 con `error-de-git`: con un submódulo, de la copia o de la rama a la
+    que va, un repositorio git anidado en la carpeta o un enlace simbólico en el camino del cambio de rama, `revisar`
+    para con `copia-no-soportada` y las `rutas`, antes del sí, y `apartar` para igual antes de apartar o cambiar de
+    rama. Cada revisión encontraba otra forma de perder trabajo con ellos (H3 de la revisión 4; H1, H2 y H5 de la
+    revisión 5; H1 y H2 de la revisión 6). Uno fuera del camino no detiene (Q180), tampoco una copia de `git worktree`
+    de este repositorio (Q182)."""
 
     def submodulo(self):
         modulo = self.tmp / "modulo"
@@ -223,16 +226,34 @@ class FormaDeLaCopia(Base):
         git("push", "-q", "origin", "HEAD:main", cwd=self.copia)
         return self.copia / "design/lib"
 
-    def al_servidor(self, ruta, texto="del servidor\n"):
+    def al_servidor(self, ruta, texto="del servidor\n", rama="main"):
         self.escribir(self.otra, ruta, texto)
         git("add", ruta, cwd=self.otra)
         git("commit", "-q", "-m", f"agrega {ruta}", cwd=self.otra)
-        git("push", "-q", "origin", "HEAD:main", cwd=self.otra)
+        git("push", "-q", "origin", f"HEAD:{rama}", cwd=self.otra)
+
+    def submodulo_en_el_servidor(self, ruta, rama="main"):
+        """Un submódulo que llega solo con la rama `rama` del servidor: la copia no lo tiene (H2 de la revisión 6)."""
+        modulo = self.tmp / "modulo-del-servidor"
+        git("init", "-q", "--initial-branch=main", str(modulo), cwd=self.tmp)
+        self.escribir(modulo, "a.css", "a {}\n")
+        git("add", "-A", cwd=modulo)
+        git("commit", "-q", "-m", "modulo", cwd=modulo)
+        git("-c", "protocol.file.allow=always", "submodule", "add", "-q", str(modulo), ruta, cwd=self.otra)
+        git("commit", "-q", "-m", "submódulo", cwd=self.otra)
+        git("push", "-q", "origin", f"HEAD:{rama}", cwd=self.otra)
+
+    def otra_rama_viva(self, rama, preparar):
+        """`spec/alertas` viva y `rama` viva con lo que agrega `preparar` en la otra copia: `apartar` da `elegir`."""
+        self.en_el_servidor("spec/alertas")
+        git("switch", "-q", "-c", "otra-viva", cwd=self.otra)
+        preparar(rama)
+        git("switch", "-q", "main", cwd=self.otra)
 
     def repositorio_anidado(self, ruta):
         """Un clon dentro de la copia, con un commit, un cambio sin commit y un archivo nuevo."""
         anidado = self.copia / ruta
-        anidado.mkdir(parents=True)
+        anidado.mkdir(parents=True, exist_ok=True)
         git("init", "-q", str(anidado), cwd=self.copia)
         self.escribir(anidado, "x.txt", "commit\n")
         git("add", "-A", cwd=anidado)
@@ -251,34 +272,87 @@ class FormaDeLaCopia(Base):
                 git("status", "--porcelain", "--ignored", "--untracked-files=all", cwd=self.copia).stdout,
                 (self.copia / ".git" / "index").read_bytes())
 
-    def no_soportada(self, rutas, *orden):
-        """`revisar` y dos `apartar` paran con `copia-no-soportada` y `rutas`, y `apartar` no cambia nada."""
+    def no_soportada(self, rutas, *orden, elegidas=()):
+        """`revisar` y dos `apartar`, y uno con `--rama` por cada una de `elegidas`, paran con `copia-no-soportada` y
+        `rutas`, y `apartar` no cambia nada."""
         salida = self.parada(self.revisar(*orden), "copia-no-soportada")
         self.assertEqual(salida["rutas"], rutas, salida)
         self.assertEqual(salida["principal"], "main", salida)
         for ruta in rutas:
             self.assertIn(ruta, salida["detalle"])
         antes = self.foto()
-        for _ in range(2):
-            self.assertEqual(self.parada(self.apartar(*orden), "copia-no-soportada"), salida)
+        for extra in ((), (), *(("--rama", rama) for rama in elegidas)):
+            self.assertEqual(self.parada(self.apartar(*(orden or EPICA), *extra), "copia-no-soportada"), salida)
             self.assertEqual(self.foto(), antes)
         self.assertEqual(self.ramas_locales("apartado/*"), [])
         return salida
 
+    def sin_parar(self, *orden):
+        """`revisar` no da `copia-no-soportada` y `apartar` aparta lo de la persona y llega a la principal."""
+        self.assertNotEqual(self.revisar(*orden).get("motivo"), "copia-no-soportada")
+        salida = self.apartar(*orden)
+        self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "main"), salida)
+        self.assertEqual(self.rama_actual(), "main")
+        return salida
+
 
 class CopiaNoSoportada(FormaDeLaCopia):
-    def test_un_submodulo_en_la_principal(self):
-        self.submodulo()
-        salida = self.no_soportada(["design/lib"])
-        self.assertEqual(salida["rama"], "main")
-        self.assertIn("submódulo", salida["detalle"])
+    def test_q180_un_submodulo_fuera_del_camino_no_detiene(self):
+        """En la principal, sin nada que apartar ni cambio de rama, se guarda; desde otra rama, la principal tiene el
+        mismo submódulo en el mismo commit, y `apartar` aparta `notas.txt` sin tocarlo."""
+        lib = self.submodulo()
+        self.assertEqual(self.revisar()["accion"], "guardar")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.escribir(lib, "a.css", "a { MI TRABAJO }\n")
+        self.assertEqual(self.sin_parar()["apartado"], ["apartado/experimento"])
+        self.assertEqual(self.contenido("apartado/experimento", "notas.txt"), "MI TRABAJO\n")
+        self.assertEqual((lib / "a.css").read_text(encoding="utf-8"), "a { MI TRABAJO }\n")
+        self.assertEqual(self.revisar()["accion"], "guardar")
 
     def test_un_submodulo_que_apunta_a_otro_commit(self):
+        """En `design/`, el submódulo en otro commit es trabajo sin guardar: `apartar` lo guardaría y el cambio de rama
+        lo movería, así que está en el camino aunque la copia no cambie de rama."""
         lib = self.submodulo()
         self.escribir(lib, "b.css", "b {}\n")
         git("add", "-A", cwd=lib)
         git("commit", "-q", "-m", "otro", cwd=lib)
-        self.no_soportada(["design/lib"])
+        salida = self.no_soportada(["design/lib"])
+        self.assertEqual(salida["rama"], "main")
+        self.assertIn("submódulo", salida["detalle"])
+
+    def test_r6_h2_un_submodulo_solo_en_la_rama_de_destino(self):
+        """La principal del servidor trae un submódulo en `lib`, y la copia tiene `lib/mio.txt` sin seguimiento."""
+        self.submodulo_en_el_servidor("lib")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.escribir(self.copia, "lib/mio.txt", "MI ARCHIVO\n")
+        salida = self.no_soportada(["lib"])
+        self.assertEqual(salida["rama"], "experimento")
+        self.assertIn("lib (submódulo)", salida["detalle"])
+        self.assertEqual((self.copia / "lib/mio.txt").read_text(encoding="utf-8"), "MI ARCHIVO\n")
+        self.assertIn("?? lib/", self.status())
+
+    def test_r6_h2_un_submodulo_en_una_de_varias_ramas_vivas(self):
+        """Con `spec/alertas` y `spec/alertas-2` vivas, `revisar` y `apartar` miran el camino a cada una antes del sí:
+        `apartar --rama spec/alertas-2` iría a un submódulo."""
+        self.otra_rama_viva("spec/alertas-2", lambda rama: self.submodulo_en_el_servidor("lib", rama))
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.no_soportada(["lib"], *SPEC, elegidas=("spec/alertas-2",))
+        salida = self.apartar(*SPEC, "--rama", "spec/alertas")
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
+                         ("guardar", "spec/alertas", ["apartado/experimento"]), salida)
+
+    def test_q180_varias_ramas_vivas_sin_nada_en_el_camino_dan_elegir(self):
+        self.submodulo()
+        git("pull", "-q", "--ff-only", cwd=self.otra)
+        self.otra_rama_viva("spec/alertas-2", lambda rama: self.al_servidor("otro.txt", rama=rama))
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.parada(self.revisar(*SPEC), "otra-rama")
+        salida = self.apartar(*SPEC)
+        self.assertEqual((salida["accion"], salida["ramas"]), ("elegir", ["spec/alertas", "spec/alertas-2"]), salida)
 
     def test_q176_un_submodulo_con_cambios_adentro_que_el_cambio_de_rama_moveria(self):
         """El caso de la parada de Q176: ahora `revisar` lo dice antes del sí."""
@@ -342,32 +416,100 @@ class CopiaNoSoportada(FormaDeLaCopia):
                 self.assertIn("repositorio git anidado", self.no_soportada(["vendor"])["detalle"])
                 self.assertAnidadoIntacto(anidado)
 
-    def test_un_repositorio_anidado_sin_choque(self):
-        """Q177 no pide que esté en el camino: un repositorio anidado en cualquier lugar de la carpeta, también dentro
-        de una carpeta ignorada, hace parar igual, aunque `apartar` no lo pisara."""
-        for ruta, regla in (("design/clon", None), ("cache/profundo/clon", "cache/")):
+    def test_r6_h1_un_repositorio_anidado_en_una_carpeta_con_archivos_con_seguimiento(self):
+        """`experimento` sigue `design/lib/t.txt`, `design/lib` es además un repositorio, y la principal del servidor
+        trae el archivo `design/lib`: git no lista ese repositorio como `design/lib/`, sino sus archivos."""
+        self.al_servidor("design/lib")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "design/lib/t.txt", "seguido\n")
+        git("add", "design/lib/t.txt", cwd=self.copia)
+        git("commit", "-q", "-m", "t", cwd=self.copia)
+        anidado = self.repositorio_anidado("design/lib")
+        self.assertIn("design/lib (repositorio git anidado)", self.no_soportada(["design/lib"])["detalle"])
+        self.assertAnidadoIntacto(anidado)
+
+    def test_q180_un_repositorio_anidado_fuera_del_camino_no_detiene(self):
+        """Dentro de una carpeta ignorada o fuera de las rutas de la skill, `apartar` no lo guarda y el cambio de rama
+        no lo toca."""
+        for ruta, regla, rama in (("cache/profundo/clon", "cache/", None), ("clon", None, "experimento")):
             with self.subTest(ruta=ruta):
                 self.setUp()
                 if regla:
                     self.ignorar(regla)
+                if rama:
+                    git("switch", "-q", "-c", rama, cwd=self.copia)
                 anidado = self.repositorio_anidado(ruta)
-                self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>cambio</p>\n")
-                self.no_soportada([ruta])
+                self.escribir(self.copia, "design/vistas/alertas/a.html", "<p>MI TRABAJO</p>\n")
+                apartado = f"apartado/{rama or 'main'}"
+                self.assertEqual(self.sin_parar()["apartado"], [apartado])
+                self.assertEqual(self.contenido(apartado, "design/vistas/alertas/a.html"), "<p>MI TRABAJO</p>\n")
                 self.assertAnidadoIntacto(anidado)
+                self.assertEqual(self.revisar()["accion"], "guardar")
 
-    def test_volver_para_igual(self):
+    def test_un_repositorio_anidado_en_las_rutas_de_la_skill(self):
+        """En `design/` es un archivo nuevo de las rutas, que `apartar` guardaría: está en el camino."""
+        anidado = self.repositorio_anidado("design/clon")
+        self.no_soportada(["design/clon"])
+        self.assertAnidadoIntacto(anidado)
+
+    def test_volver_con_un_repositorio_anidado_fuera_del_camino(self):
         self.trabajar_en("tickets/alertas")
         git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
         anidado = self.repositorio_anidado("clon")
         orden = ("--tipo", "tickets", "--epica", "alertas")
+        self.assertEqual(self.revisar(*orden)["accion"], "volver")
+        self.assertEqual(self.volver(*orden), {"accion": "guardar", "rama": "main", "principal": "main"})
+        self.assertAnidadoIntacto(anidado)
+
+    def test_volver_con_un_repositorio_anidado_en_el_camino(self):
+        self.trabajar_en("tickets/alertas")
+        git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
+        self.al_servidor("clon")
+        anidado = self.repositorio_anidado("clon")
+        orden = ("--tipo", "tickets", "--epica", "alertas")
+        self.parada(self.revisar(*orden), "copia-no-soportada")
         self.parada(self.volver(*orden), "copia-no-soportada")
         self.assertEqual(self.rama_actual(), "tickets/alertas")
         self.assertAnidadoIntacto(anidado)
 
     def test_varias_a_la_vez(self):
-        self.submodulo()
+        lib = self.submodulo()
+        git("pull", "-q", "--ff-only", cwd=self.otra)
+        self.al_servidor("clon")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(lib, "b.css", "b {}\n")
+        git("add", "-A", cwd=lib)
+        git("commit", "-q", "-m", "otro", cwd=lib)
         self.repositorio_anidado("clon")
         self.assertEqual(self.revisar()["rutas"], ["clon", "design/lib"])
+
+    def copia_vinculada(self, ruta):
+        """Una copia de `git worktree` de este repositorio dentro de la carpeta, ignorada, con un cambio sin commit."""
+        self.ignorar(ruta + "/")
+        git("worktree", "add", "-q", ruta, cwd=self.copia)
+        self.escribir(self.copia, f"{ruta}/notas.txt", "TRABAJO EN LA OTRA COPIA\n")
+        return self.copia / ruta
+
+    def assertVinculadaIntacta(self, vinculada):
+        self.assertTrue((vinculada / ".git").is_file())
+        self.assertEqual((vinculada / "notas.txt").read_text(encoding="utf-8"), "TRABAJO EN LA OTRA COPIA\n")
+        self.assertIn(str(vinculada), git("worktree", "list", "--porcelain", cwd=self.copia).stdout)
+
+    def test_q182_una_copia_vinculada_fuera_del_camino_no_detiene(self):
+        vinculada = self.copia_vinculada(".claude/worktrees/tarea")
+        self.assertEqual(self.revisar()["accion"], "guardar")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertEqual(self.sin_parar()["apartado"], ["apartado/experimento"])
+        self.assertVinculadaIntacta(vinculada)
+
+    def test_q182_una_copia_vinculada_en_el_camino(self):
+        self.al_servidor("tarea")
+        vinculada = self.copia_vinculada("tarea")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertIn("tarea (copia de `git worktree` de este repositorio)", self.no_soportada(["tarea"])["detalle"])
+        self.assertVinculadaIntacta(vinculada)
 
 
 @unittest.skipIf(os.name == "nt", "crear un enlace simbólico en Windows pide permisos")
@@ -437,6 +579,17 @@ class EnlaceEnElCamino(FormaDeLaCopia):
     def test_en_la_principal_sin_cambio_de_rama_no_detiene(self):
         self.enlace("enlace", "no-existe")
         self.assertEqual(self.revisar()["accion"], "guardar")
+
+    def test_r6_h2_en_el_camino_de_una_de_varias_ramas_vivas(self):
+        """`build` es un enlace ignorado donde `spec/alertas-2` tiene `build/x.txt`: con las dos vivas, `revisar` y
+        `apartar` lo dicen antes del sí, también con `--rama spec/alertas-2`."""
+        self.otra_rama_viva("spec/alertas-2", lambda rama: self.al_servidor("build/x.txt", rama=rama))
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.ignorar("build")
+        lugar = self.enlace("build", "no-existe")
+        self.no_soportada(["build"], *SPEC, elegidas=("spec/alertas-2",))
+        self.assertEnlace(lugar, "no-existe")
 
 
 class PrincipalAdelantada(Base):

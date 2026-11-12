@@ -223,18 +223,17 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 	d, p := ramaDelFlujo(g, a, s)
 	if p != nil {
 		if slices.Contains(apartables, p.motivo) {
-			destino, _, seguir := destinoDeApartar(g, a, s, desde)
-			final := refFinal(g, nil, destino, desde, s.principal, seguir)
-			if p := noSoportada(g, final, s.principal); p != nil {
+			destino, candidatas, seguir := destinoDeApartar(g, a, s, desde)
+			// Antes del sí, contra cada rama a la que puede ir `apartar`, con lo que guardaría (Q180).
+			_, guardados := sinGuardar(g, "")
+			if p := noSoportada(g, finales(g, nil, destino, candidatas, desde, s.principal, seguir), s.principal,
+				guardados); p != nil {
 				return decision{}, p
 			}
-			if _, amplio := sinGuardar(g, final); len(amplio) > 0 {
+			if _, amplio := sinGuardar(g, refFinal(g, nil, destino, desde, s.principal, seguir)); len(amplio) > 0 {
 				p.salida.poner("archivos", amplio)
 			}
 		}
-		return decision{}, p
-	}
-	if p := noSoportada(g, refFinal(g, &d, desde, desde, s.principal, false), s.principal); p != nil {
 		return decision{}, p
 	}
 	ref := ""
@@ -243,19 +242,30 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 	}
 	estrecho, amplio := sinGuardar(g, ref)
 	// `ofrecer` cambia de rama con lo que haya: cuenta cualquier cambio de un archivo con seguimiento.
-	if len(estrecho) > 0 || (d.accion == "ofrecer" && len(amplio) > 0) {
+	aparta := len(estrecho) > 0 || (d.accion == "ofrecer" && len(amplio) > 0)
+	var commits []string
+	if llegaALaPrincipal(d) {
+		commits = adelantada(g, s.principal)
+	}
+	// Sin nada que apartar, la skill guarda sin `apartar`, y lo que hay sin guardar no está en el camino (Q180).
+	var guardados []string
+	if aparta || len(commits) > 0 {
+		guardados = amplio
+	}
+	if p := noSoportada(g, finales(g, &d, desde, nil, desde, s.principal, false), s.principal, guardados); p != nil {
+		return decision{}, p
+	}
+	if aparta {
 		return decision{}, nuevaParada("cambios-sin-guardar", fmt.Sprintf("La copia tiene trabajo sin guardar en la rama "+
 			"%s que entraría en el commit de la skill o que el cambio de rama pisaría.", d.rama), d.rama,
 			par{"principal", s.principal}, par{"archivos", amplio})
 	}
-	if llegaALaPrincipal(d) {
-		if commits := adelantada(g, s.principal); len(commits) > 0 {
-			// `apartar` iguala la principal al servidor, que trae sus archivos aunque la copia no cambie de rama (Q170).
-			_, amplio := sinGuardar(g, "refs/remotes/origin/"+s.principal)
-			return decision{}, nuevaParada("principal-adelantada", fmt.Sprintf("La rama principal %s de esta copia "+
-				"tiene commits que el servidor no tiene, y el push los subiría.", s.principal), d.rama,
-				par{"principal", s.principal}, par{"archivos", amplio}, par{"commits", commits})
-		}
+	if len(commits) > 0 {
+		// `apartar` iguala la principal al servidor, que trae sus archivos aunque la copia no cambie de rama (Q170).
+		_, amplio := sinGuardar(g, "refs/remotes/origin/"+s.principal)
+		return decision{}, nuevaParada("principal-adelantada", fmt.Sprintf("La rama principal %s de esta copia "+
+			"tiene commits que el servidor no tiene, y el push los subiría.", s.principal), d.rama,
+			par{"principal", s.principal}, par{"archivos", amplio}, par{"commits", commits})
 	}
 	return d, nil
 }
@@ -263,8 +273,8 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 // sinGuardar es el trabajo sin guardar, en líneas de `git status --porcelain`: lo que entraría en el commit de la skill
 // o el cambio a `destino` pisaría, y lo que se aparta. Lo primero son las rutas de la skill, con sus archivos nuevos,
 // lo preparado en el índice, en cualquier ruta, y los archivos sin seguimiento que `destino` tiene, en `choques`; lo
-// segundo suma los cambios de cualquier archivo con seguimiento. Una copia con submódulos no llega acá: `revisar` y
-// `apartar` paran antes con `copia-no-soportada` (Q177).
+// segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios adentro no cuenta: `apartar`
+// no los guarda. Uno en el camino no llega acá: `revisar` y `apartar` paran antes con `copia-no-soportada` (Q180).
 func sinGuardar(g Git, destino string) (estrecho, amplio []string) {
 	enRutas := estado(g, append([]string{"--untracked-files=all", "--"}, rutasDeLaSkill...)...)
 	seguidos := estado(g, "--untracked-files=no")
@@ -410,13 +420,66 @@ func ordenadas(conjunto map[string]bool) []string {
 	return claves
 }
 
-// forma es lo que `apartar` no sabe guardar sin riesgo de perder trabajo (Q177), como ruta y qué es: los submódulos,
-// los repositorios git anidados en la carpeta, ignorados o no, que git lista como `<ruta>/` (H1 de la revisión 5), y
-// los enlaces simbólicos sin seguimiento en el camino del cambio a `destino` (H5).
-func forma(g Git, destino string) map[string]string {
+// forma es lo que `apartar` no sabe guardar sin riesgo de perder trabajo y está en el camino del cambio a alguna de las
+// refs de `finales` (Q177, Q180), como ruta y qué es. El camino son las rutas que cambian entre la copia, HEAD y el
+// índice, y cada ref; las de `guardados`, líneas de `git status --porcelain` de lo que `apartar` guardaría; y lo que
+// `camino` encuentra sin seguimiento. Un submódulo de la copia o de una ref, o un repositorio git anidado, ignorado o
+// no, está en el camino si una de esas rutas es la suya, está dentro de él o lo contiene; un enlace simbólico sin
+// seguimiento, si `camino` lo encuentra (H5 de la revisión 5). Sin cambio de rama ni nada que guardar no hay camino.
+func forma(g Git, finales, guardados []string) map[string]string {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" {
 		return nil
+	}
+	rutas, enlaces := rutasDeEstado(guardados), map[string]bool{}
+	conHead := g.existe("HEAD")
+	submodulos := submodulosDe(g, raiz, "")
+	if conHead {
+		for r := range submodulosDe(g, raiz, "HEAD") {
+			submodulos[r] = true
+		}
+	}
+	for _, final := range finales {
+		lineas, deEnlaces := camino(g, final)
+		for _, l := range lineas {
+			rutas[strings.TrimSuffix(l[3:], "/")] = true
+		}
+		for _, r := range deEnlaces {
+			enlaces[r] = true
+		}
+		for _, r := range g.rutas("diff-index", "--cached", "-z", "--name-only", "--no-renames",
+			"--ignore-submodules=none", final) {
+			rutas[r] = true
+		}
+		if conHead {
+			for _, r := range g.rutas("diff-tree", "-r", "-z", "--name-only", "--no-renames", "--ignore-submodules=none",
+				"HEAD", final) {
+				rutas[r] = true
+			}
+		}
+		for r := range submodulosDe(g, raiz, final) {
+			submodulos[r] = true
+		}
+	}
+	// Las rutas del camino y las carpetas que las contienen.
+	cerca := map[string]bool{}
+	for r := range rutas {
+		partes := strings.Split(r, "/")
+		for i := 1; i <= len(partes); i++ {
+			cerca[strings.Join(partes[:i], "/")] = true
+		}
+	}
+	enElCamino := func(ruta string) bool {
+		if cerca[ruta] {
+			return true
+		}
+		partes := strings.Split(ruta, "/")
+		for i := 1; i < len(partes); i++ {
+			if rutas[strings.Join(partes[:i], "/")] {
+				return true
+			}
+		}
+		return false
 	}
 	encontradas := map[string]string{}
 	poner := func(ruta, que string) {
@@ -424,28 +487,143 @@ func forma(g Git, destino string) map[string]string {
 			encontradas[ruta] = que
 		}
 	}
-	for _, entrada := range g.rutas("-C", raiz, "ls-files", "-z", "--stage") {
-		if datos, ruta, _ := strings.Cut(entrada, "\t"); strings.HasPrefix(datos, "160000 ") {
-			poner(ruta, "submódulo")
+	for _, r := range ordenadas(submodulos) {
+		if enElCamino(r) {
+			poner(r, "submódulo")
 		}
 	}
-	for _, ruta := range g.rutas("-C", raiz, "ls-files", "-z", "--others") {
-		if anidado, ok := strings.CutSuffix(ruta, "/"); ok {
-			poner(anidado, "repositorio git anidado")
+	vinculadas := copiasVinculadas(g, raiz)
+	for _, r := range ordenadas(anidados(raiz, cerca, rutas)) {
+		if vinculadas[r] {
+			poner(r, "copia de `git worktree` de este repositorio")
+		} else {
+			poner(r, "repositorio git anidado")
 		}
 	}
-	if destino != "" {
-		_, enlaces := camino(g, destino)
-		for _, ruta := range enlaces {
-			poner(ruta, "enlace simbólico en el camino del cambio de rama")
-		}
+	for _, r := range ordenadas(enlaces) {
+		poner(r, "enlace simbólico en el camino del cambio de rama")
 	}
 	return encontradas
 }
 
-// noSoportada para con `copia-no-soportada` si la copia tiene algo que `apartar` no sabe guardar (Q177).
-func noSoportada(g Git, destino, principal string) *parada {
-	encontradas := forma(g, destino)
+// rutasDeEstado son las rutas de líneas de `git status --porcelain`, las dos de un renombrado, sin la `/` de una
+// carpeta.
+func rutasDeEstado(lineas []string) map[string]bool {
+	rutas := map[string]bool{}
+	for _, l := range lineas {
+		cuerpo := l[3:]
+		partes := []string{cuerpo}
+		if strings.ContainsAny(l[:2], "RC") {
+			partes = strings.SplitN(cuerpo, " -> ", 2)
+		}
+		for _, r := range partes {
+			rutas[strings.TrimSuffix(r, "/")] = true
+		}
+	}
+	return rutas
+}
+
+// submodulosDe son las rutas de los submódulos de `ref`, o del índice con "".
+func submodulosDe(g Git, raiz, ref string) map[string]bool {
+	var entradas []string
+	if ref != "" {
+		entradas = g.rutas("ls-tree", "-r", "-z", "--full-tree", ref)
+	} else {
+		entradas = g.rutas("-C", raiz, "ls-files", "-z", "--stage")
+	}
+	submodulos := map[string]bool{}
+	for _, entrada := range entradas {
+		if datos, ruta, _ := strings.Cut(entrada, "\t"); strings.HasPrefix(datos, "160000 ") {
+			submodulos[ruta] = true
+		}
+	}
+	return submodulos
+}
+
+// anidados son los repositorios git anidados en el camino, con `.git` como archivo o como carpeta: una carpeta de
+// `cerca`, o una carpeta dentro de una ruta del camino que en la copia es una carpeta. Así se ven también los que git
+// no lista como `<ruta>/` porque su carpeta tiene archivos con seguimiento (H1 de la revisión 6).
+func anidados(raiz string, cerca, rutas map[string]bool) map[string]bool {
+	enRaiz := Git{repo: raiz}
+	encontrados := map[string]bool{}
+	for c := range cerca {
+		if _, err := os.Lstat(filepath.Join(enRaiz.enLaCopia(c), ".git")); err == nil {
+			encontrados[c] = true
+		}
+	}
+	for r := range rutas {
+		lugar := enRaiz.enLaCopia(r)
+		if info, err := os.Lstat(lugar); err != nil || !info.IsDir() {
+			continue
+		}
+		filepath.WalkDir(lugar, func(ruta string, entrada fs.DirEntry, err error) error {
+			if err != nil || !entrada.IsDir() {
+				return nil
+			}
+			if _, err := os.Lstat(filepath.Join(ruta, ".git")); err == nil {
+				if relativa, err := filepath.Rel(raiz, ruta); err == nil {
+					encontrados[filepath.ToSlash(relativa)] = true
+				}
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	}
+	return encontrados
+}
+
+// copiasVinculadas son las rutas, dentro de la carpeta, de las copias de `git worktree` de este repositorio (Q182).
+func copiasVinculadas(g Git, raiz string) map[string]bool {
+	base, err := filepath.EvalSymlinks(raiz)
+	if err != nil {
+		base = raiz
+	}
+	rutas := map[string]bool{}
+	for _, l := range g.lineas("worktree", "list", "--porcelain") {
+		ruta, ok := strings.CutPrefix(l, "worktree ")
+		if !ok {
+			continue
+		}
+		if real, err := filepath.EvalSymlinks(ruta); err == nil {
+			ruta = real
+		}
+		relativa, err := filepath.Rel(base, ruta)
+		if err != nil {
+			continue
+		}
+		relativa = filepath.ToSlash(relativa)
+		if relativa != "." && relativa != ".." && !strings.HasPrefix(relativa, "../") {
+			rutas[relativa] = true
+		}
+	}
+	return rutas
+}
+
+// finales son las refs a las que puede llevar la carpeta `apartar`, o la skill sin él: la de `refFinal` o, si hay que
+// elegir, la de cada candidata, como si viniera con --rama, y la de la principal si la iguala sin cambiar de rama
+// (Q180).
+func finales(g Git, d *decision, destino string, candidatas []string, desde, principal string, seguir bool) []string {
+	if d != nil || destino != "" {
+		if final := refFinal(g, d, destino, desde, principal, seguir); final != "" {
+			return []string{final}
+		}
+		return nil
+	}
+	var refs []string
+	for _, c := range candidatas {
+		if r := refFinal(g, nil, c, desde, principal, c == desde); r != "" {
+			refs = append(refs, r)
+		}
+	}
+	if r := refFinal(g, nil, "", desde, principal, false); r != "" {
+		refs = append(refs, r)
+	}
+	return unicas(refs)
+}
+
+// noSoportada para con `copia-no-soportada` si en el camino hay algo que `apartar` no sabe guardar (Q177, Q180).
+func noSoportada(g Git, finales []string, principal string, guardados []string) *parada {
+	encontradas := forma(g, finales, guardados)
 	if len(encontradas) == 0 {
 		return nil
 	}
@@ -458,9 +636,9 @@ func noSoportada(g Git, destino, principal string) *parada {
 	for i, ruta := range rutas {
 		partes[i] = ruta + " (" + encontradas[ruta] + ")"
 	}
-	return nuevaParada("copia-no-soportada", "La copia tiene algo que `apartar` no sabe guardar sin riesgo de perder "+
-		"trabajo, y se resuelve a mano (Q177): "+strings.Join(partes, ", ")+".", g.rama(), par{"principal", principal},
-		par{"rutas", rutas})
+	return nuevaParada("copia-no-soportada", "La copia tiene en el camino del cambio de rama algo que `apartar` no "+
+		"sabe guardar sin riesgo de perder trabajo, y se resuelve a mano (Q177, Q180): "+strings.Join(partes, ", ")+".",
+		g.rama(), par{"principal", principal}, par{"rutas", rutas})
 }
 
 // unicas junta las listas sin repetir líneas, en el orden en que aparecen.
@@ -883,8 +1061,11 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 	}
 	var chocan []string
 	final := refFinal(g, d, destino, desde, s.principal, seguir)
-	// Antes de escribir nada: con un submódulo, un repositorio anidado o un enlace en el camino, no hace nada (Q177).
-	if p := noSoportada(g, final, s.principal); p != nil {
+	// Antes de escribir nada: con un submódulo, un repositorio anidado o un enlace en el camino, no hace nada (Q177,
+	// Q180).
+	_, guardados := sinGuardar(g, "")
+	if p := noSoportada(g, finales(g, d, destino, candidatas, desde, s.principal, seguir), s.principal,
+		guardados); p != nil {
 		return nil, p
 	}
 	if final != "" {
