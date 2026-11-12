@@ -998,8 +998,8 @@ var formaDelApartado = regexp.MustCompile(`^Apartado: lo que (?:estaba preparado
 // destinoGuardado es, en el reintento desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:`
 // de su último commit, adonde iba la corrida que lo armó (Q173). Solo si ese commit tiene la forma de los de `apartar`,
 // con la rama del nombre del apartado en el asunto (Q178), y si `revisar` podría mandar esta corrida a ese destino
-// (Q179): es una rama donde `ramaDelFlujo` da `guardar`, `ofrecer` o `volver`, como la principal, o una de las que
-// daría `destinoDelFlujo`; si no, "".
+// (Q179): una de las que daría `destinoDelFlujo`; otra rama donde `ramaDelFlujo` da `guardar`, `ofrecer` o `volver`; o
+// la principal, solo si el apartado salió de ella o `destinoDelFlujo` también da la principal (Q181); si no, "".
 func destinoGuardado(g Git, a argumentos, desde string, s delServidor) string {
 	if !strings.HasPrefix(desde, "apartado/") {
 		return ""
@@ -1018,10 +1018,18 @@ func destinoGuardado(g Git, a argumentos, desde string, s delServidor) string {
 		return ""
 	}
 	destino := forma[formaDelApartado.SubexpIndex("destino")]
-	if _, candidatas := destinoDelFlujo(a, s, a.rama); slices.Contains(candidatas, destino) {
+	_, candidatas := destinoDelFlujo(a, s, a.rama)
+	if slices.Contains(candidatas, destino) {
 		return destino
 	}
-	if destino == s.principal || g.existe("refs/heads/"+destino) {
+	if destino == s.principal {
+		// Q181: la principal vale si esta corrida también iría ahí, porque salió de ella o no hay rama viva.
+		if donde == s.principal || len(candidatas) == 0 {
+			return destino
+		}
+		return ""
+	}
+	if g.existe("refs/heads/" + destino) {
 		if _, p := ramaDelFlujoDe(g, a, s, destino); p == nil {
 			return destino
 		}

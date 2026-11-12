@@ -511,20 +511,20 @@ class ReintentoAlMismoDestino(GitQueFalla):
 
     def test_con_algo_nuevo_en_el_apartado_no_es_un_reintento(self):
         """Quien volvió a un apartado y siguió editando ahí aparta lo nuevo en otro apartado, y el destino se calcula
-        de nuevo; sin nada nuevo, el destino es el del apartado."""
-        git("switch", "-q", "-c", "experimento", cwd=self.copia)
-        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
-        self.assertEqual(self.apartar(*SPEC)["rama"], "main")
+        de nuevo; sin nada nuevo, el destino es el del apartado. El apartado sale de la principal, así que su
+        `Destino: main` vale aunque después aparezca `spec/alertas` (Q181)."""
+        self.escribir(self.copia, "specs/alertas/spec.md", "# MI TRABAJO\n")
+        self.assertEqual(self.apartar(*SPEC)["apartado"], ["apartado/main"])
         self.en_el_servidor("spec/alertas")
-        git("switch", "-q", "apartado/experimento", cwd=self.copia)
+        git("switch", "-q", "apartado/main", cwd=self.copia)
         salida = self.apartar(*SPEC)
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", []), salida)
-        git("switch", "-q", "apartado/experimento", cwd=self.copia)
+        git("switch", "-q", "apartado/main", cwd=self.copia)
         self.escribir(self.copia, "notas.txt", "SEGUI TRABAJANDO\n")
         salida = self.apartar(*SPEC)
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]),
-                         ("guardar", "spec/alertas", ["apartado/apartado-experimento"]), salida)
-        self.assertEqual(self.contenido("apartado/apartado-experimento", "notas.txt"), "SEGUI TRABAJANDO\n")
+                         ("guardar", "spec/alertas", ["apartado/apartado-main"]), salida)
+        self.assertEqual(self.contenido("apartado/apartado-main", "notas.txt"), "SEGUI TRABAJANDO\n")
 
 
 @unittest.skipIf(os.name == "nt", "el git que falla es un sh")
@@ -555,11 +555,17 @@ class DestinoDelApartado(GitQueFalla):
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "spec/pagos", []), salida)
         self.assertEqual(self.rama_actual(), "spec/pagos")
 
-    def test_r5_h3_otra_epica_con_el_destino_en_la_principal_va_a_la_principal(self):
-        """La principal vale para cualquier corrida: es donde la primera habría dejado la copia sin la falla, y desde
-        la principal `revisar` da `guardar` aunque la otra épica tenga una rama viva."""
+    def test_q181_otra_epica_con_el_destino_en_la_principal_va_a_su_rama_viva(self):
+        """H3 de la revisión 6: la principal vale solo si esta corrida también iría ahí. Con `spec/pagos` viva, la
+        misma orden sin la falla previa termina en `spec/pagos`, y el reintento también."""
         self.apartado_hacia()
         self.en_el_servidor("spec/pagos")
+        salida = self.apartar("--tipo", "spec", "--epica", "pagos")
+        self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "spec/pagos", []), salida)
+        self.assertEqual(self.rama_actual(), "spec/pagos")
+
+    def test_q181_el_destino_en_la_principal_vale_sin_rama_viva(self):
+        self.apartado_hacia()
         salida = self.apartar("--tipo", "spec", "--epica", "pagos")
         self.assertEqual((salida["accion"], salida["rama"], salida["apartado"]), ("guardar", "main", []), salida)
 
@@ -585,9 +591,10 @@ class DestinoDelApartado(GitQueFalla):
         self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "spec/alertas"), salida)
 
     def test_r5_h4_archivos_contra_el_destino_del_apartado(self):
-        """El `Destino:` es `main` y después aparece `spec/alertas`: `revisar` lista `x.txt` si choca con `main`, adonde
-        va `apartar`, y no si choca solo con `spec/alertas`."""
-        for choca_con in ("main", "spec/alertas"):
+        """El `Destino:` es `main` y después aparece `spec/alertas`: con Q181 la corrida ya no iría a `main`, así que
+        `apartar` va a `spec/alertas`, y `revisar` lista `x.txt` si choca con `spec/alertas` y no si choca solo con
+        `main`."""
+        for choca_con in ("spec/alertas", "main"):
             with self.subTest(choca_con=choca_con):
                 self.setUp()
                 self.apartado_hacia()
@@ -603,8 +610,8 @@ class DestinoDelApartado(GitQueFalla):
                 self.escribir(self.copia, "x.txt", "MI x\n")
                 revisado = self.parada(self.revisar(*SPEC), "otra-rama")
                 salida = self.apartar(*SPEC)
-                self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "main"), salida)
-                if choca_con == "main":
+                self.assertEqual((salida["accion"], salida["rama"]), ("guardar", "spec/alertas"), salida)
+                if choca_con == "spec/alertas":
                     self.assertEqual(revisado.get("archivos"), ["?? x.txt"])
                     self.assertEqual(salida["apartado"], ["apartado/apartado-experimento"])
                     self.assertEqual(self.contenido("apartado/apartado-experimento", "x.txt"), "MI x\n")

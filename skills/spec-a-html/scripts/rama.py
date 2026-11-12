@@ -95,10 +95,11 @@ deshace nada: `apartado` lista las ramas donde ya quedó lo apartado y `rama` di
 del `git switch`, la carpeta está como estaba. Si falla el `git switch`, la copia queda en `apartado/<rama>` sin cambios
 sin guardar, y otra corrida de `apartar`, sin nada nuevo que guardar, va a la rama de su `Destino:` sin volver a
 calcularla y hace lo que faltaba para llegar, como igualarla al servidor (Q173). Lo hace solo si el último commit es uno
-de los dos que escribe `apartar` y su `Destino:` es una rama a la que `revisar` podría mandar esta corrida: la
-principal, una rama donde daría `guardar`, `ofrecer` o `volver`, también una local cuya copia en el servidor ya no está,
-o una rama viva del servidor para este trabajo; si no, la calcula otra vez, y `revisar` arma `archivos` contra esa misma
-rama (Q178, Q179). El reintento sabe que la rama del `Destino:` es la de la que salió el apartado solo por el nombre del
+de los dos que escribe `apartar` y su `Destino:` es una rama a la que `revisar` podría mandar esta corrida: una rama viva
+del servidor para este trabajo; otra rama, no la principal, donde daría `guardar`, `ofrecer` o `volver`, también una
+local cuya copia en el servidor ya no está; o la principal, solo si el apartado salió de ella o si no hay una rama viva
+del servidor para este trabajo; si no, la calcula otra vez, y `revisar` arma `archivos` contra esa misma rama (Q178,
+Q179, Q181). El reintento sabe que la rama del `Destino:` es la de la que salió el apartado solo por el nombre del
 apartado; un apartado sin commits propios, de HEAD separado solo con commits sueltos, no lleva `Destino:` y el reintento
 calcula la rama otra vez; y si en una corrida que venía de `ofrecer` o `volver` falla igualar la principal adelantada,
 el reintento no lo rehace y `revisar` vuelve a dar `principal-adelantada`, con otro sí (Q176). Si el índice está en uso
@@ -763,9 +764,9 @@ FORMA_DEL_APARTADO = re.compile(r"Apartado: lo que (?:estaba preparado en (?P<pr
 def destino_guardado(git, args, desde, principal, ramas):
     """En el reintento, desde un `apartado/<rama>` sin nada nuevo que guardar, la rama del `Destino:` de su último
     commit, adonde iba la corrida que lo armó (Q173). Solo si ese commit tiene la forma de los de `apartar`, con la rama
-    del nombre del apartado en el asunto (Q178), y si `revisar` podría mandar esta corrida a ese destino (Q179): es una
-    rama donde `rama_del_flujo` da `guardar`, `ofrecer` o `volver`, como la principal, o una de las que daría
-    `destino_del_flujo`; si no, None."""
+    del nombre del apartado en el asunto (Q178), y si `revisar` podría mandar esta corrida a ese destino (Q179): una de
+    las que daría `destino_del_flujo`; otra rama donde `rama_del_flujo` da `guardar`, `ofrecer` o `volver`; o la
+    principal, solo si el apartado salió de ella o `destino_del_flujo` también da la principal (Q181); si no, None."""
     if not desde or not desde.startswith("apartado/") or sin_guardar(git)[1]:
         return None
     forma = FORMA_DEL_APARTADO.fullmatch(git.salida("log", "-1", "--format=%B", "HEAD") or "")
@@ -775,9 +776,13 @@ def destino_guardado(git, args, desde, principal, ramas):
     if not re.fullmatch(rf"apartado/{re.escape(donde.replace('/', '-'))}(-[0-9]+)?", desde):
         return None
     destino = forma["destino"]
-    if destino in destino_del_flujo(args, principal, ramas)[1]:
+    candidatas = destino_del_flujo(args, principal, ramas)[1]
+    if destino in candidatas:
         return destino
-    if destino == principal or git.existe(f"refs/heads/{destino}"):
+    if destino == principal:
+        # Q181: la principal vale si esta corrida también iría ahí, porque salió de ella o no hay rama viva.
+        return destino if donde == principal or not candidatas else None
+    if git.existe(f"refs/heads/{destino}"):
         try:
             rama_del_flujo(git, args, principal, ramas, destino)
             return destino
