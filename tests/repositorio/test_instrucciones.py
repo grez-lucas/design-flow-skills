@@ -580,9 +580,9 @@ class ReferenciaDeRama(unittest.TestCase):
         self.assertNotIn("solo vuelve a la rama del flujo", self.texto)
 
     def test_los_casos_borde_del_reintento(self):
-        """Q176: lo que la persona tiene que saber de los tres casos borde de Q173."""
+        """Q176 y Q181: lo que la persona tiene que saber de los casos borde de Q173."""
         error = seccion(self.texto, "Error de rama.py", 2)
-        self.assertIn('Tres casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado.', error)
+        self.assertIn('Cuatro casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; si iba a la principal desde otra rama y ahora el servidor tiene una rama viva de este trabajo, va a esa; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado.', error)
 
     def test_una_copia_no_soportada(self):
         """Q177, Q180 y Q182: con `copia-no-soportada`, lo que está en el camino del cambio de rama, cuándo lo dice
