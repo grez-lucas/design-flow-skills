@@ -505,11 +505,29 @@ class CopiaNoSoportada(FormaDeLaCopia):
                 self.no_soportada([ruta])
                 self.assertAnidadoIntacto(anidado)
 
-    def test_q184_una_copia_vinculada_ignorada_en_design_no_detiene(self):
-        """Q182 sigue: una copia de `git worktree` de este repositorio no es un repositorio anidado fuera del camino."""
-        vinculada = self.copia_vinculada("design/wt")
-        self.assertEqual(self.revisar()["accion"], "guardar")
-        self.assertVinculadaIntacta(vinculada)
+    def test_q187_una_copia_vinculada_ignorada_en_design_detiene(self):
+        """Q187: una copia de `git worktree` de este repositorio dentro de `design/` o `specs/` cuenta como repositorio
+        anidado, esté o no en el camino."""
+        for ruta in ("design/wt", "specs/wt"):
+            with self.subTest(ruta=ruta):
+                self.setUp()
+                vinculada = self.copia_vinculada(ruta)
+                self.assertIn(f"{ruta} (copia de `git worktree` de este repositorio)", self.no_soportada([ruta])["detalle"])
+                self.assertVinculadaIntacta(vinculada)
+
+    def test_r7_r1_una_copia_vinculada_en_design_que_solo_la_rama_actual_ignora(self):
+        """R1 del recheck de la revisión 7: `experimento` ignora `design/wt/` en su `.gitignore` y la principal no."""
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, ".gitignore", "design/wt/\n")
+        git("add", ".gitignore", cwd=self.copia)
+        git("commit", "-q", "-m", "ignora wt", cwd=self.copia)
+        git("worktree", "add", "-q", "-b", "tarea", str(self.copia / "design/wt"), "main", cwd=self.copia)
+        self.escribir(self.copia, "design/wt/notas.txt", "TRABAJO EN LA OTRA COPIA\n")
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertEqual(self.no_soportada(["design/wt"])["rama"], "experimento")
+        self.assertEqual((self.copia / "notas.txt").read_text(encoding="utf-8"), "MI TRABAJO\n")
+        self.assertVinculadaIntacta(self.copia / "design/wt")
+        self.assertEqual(git("-C", "design/wt", "branch", "--show-current", cwd=self.copia).stdout, "tarea\n")
 
     def copia_vinculada(self, ruta):
         """Una copia de `git worktree` de este repositorio dentro de la carpeta, ignorada, con un cambio sin commit."""

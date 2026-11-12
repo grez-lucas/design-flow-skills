@@ -613,10 +613,11 @@ class Ayuda(unittest.TestCase):
                       "está en el camino donde la rama a la que va tiene un archivo o una carpeta de sus archivos, o "
                       "dentro de una carpeta donde tiene un archivo. Uno fuera del camino no detiene, tampoco una copia "
                       "de `git worktree` de este repositorio fuera del camino; un repositorio anidado dentro de "
-                      "`design/` o `specs/`, ignorado o no, detiene siempre (Q184). Se mira contra la rama a la que va "
+                      "`design/` o `specs/`, ignorado o no, también una copia de `git worktree` de este repositorio, "
+                      "detiene siempre (Q184, Q187). Se mira contra la rama a la que va "
                       "`apartar` y, con más de una rama viva para este trabajo, contra cada una, también la que se "
                       "elegiría con --rama: `revisar` lo dice antes del sí, y `apartar` para igual antes de apartar o "
-                      "cambiar de rama. Se resuelve a mano (Q177, Q180, Q182, Q184).", texto)
+                      "cambiar de rama. Se resuelve a mano (Q177, Q180, Q182, Q184, Q187).", texto)
         self.assertNotIn("`apartar` no hace nada en esa copia", texto)
         self.assertNotIn("no guarda los cambios de adentro de un submódulo", texto)
 

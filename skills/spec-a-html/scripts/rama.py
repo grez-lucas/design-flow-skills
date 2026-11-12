@@ -34,10 +34,11 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
                   dentro de él o lo contiene. Un enlace está en el camino donde la rama a la que va tiene un archivo
                   o una carpeta de sus archivos, o dentro de una carpeta donde tiene un archivo. Uno fuera del camino
                   no detiene, tampoco una copia de `git worktree` de este repositorio fuera del camino; un
-                  repositorio anidado dentro de `design/` o `specs/`, ignorado o no, detiene siempre (Q184). Se mira
-                  contra la rama a la que va `apartar` y, con más de una rama viva para este trabajo, contra cada
-                  una, también la que se elegiría con --rama: `revisar` lo dice antes del sí, y `apartar` para igual
-                  antes de apartar o cambiar de rama. Se resuelve a mano (Q177, Q180, Q182, Q184).
+                  repositorio anidado dentro de `design/` o `specs/`, ignorado o no, también una copia de
+                  `git worktree` de este repositorio, detiene siempre (Q184, Q187). Se mira contra la rama a la que
+                  va `apartar` y, con más de una rama viva para este trabajo, contra cada una, también la que se
+                  elegiría con --rama: `revisar` lo dice antes del sí, y `apartar` para igual antes de apartar o
+                  cambiar de rama. Se resuelve a mano (Q177, Q180, Q182, Q184, Q187).
                   Después, para con `rama-en-otra-copia` y `rutas`, las de esas copias, si la rama a la que van
                   `apartar` o `volver`, también la principal y, con más de una rama viva, cualquiera de ellas, está
                   puesta en otra copia de `git worktree` de este repositorio: git no la deja cambiar ni igualar desde
@@ -451,7 +452,8 @@ def forma(git, finales, guardados=()):
     `camino` encuentra sin seguimiento. Un submódulo de la copia o de una ref, o un repositorio git anidado, ignorado o
     no, está en el camino si una de esas rutas es la suya, está dentro de él o lo contiene; un enlace simbólico sin
     seguimiento, si `camino` lo encuentra (H5 de la revisión 5). Sin cambio de rama ni nada que guardar no hay camino.
-    Aparte, todo repositorio anidado dentro de `design/` o `specs/`, ignorado o no, esté o no en el camino (Q184)."""
+    Aparte, todo repositorio anidado dentro de `design/` o `specs/`, ignorado o no, esté o no en el camino, también una
+    copia de `git worktree` de este repositorio (Q184, Q187)."""
     raiz = git.salida("rev-parse", "--show-toplevel")
     if not raiz:
         return {}
@@ -477,10 +479,9 @@ def forma(git, finales, guardados=()):
 
     encontradas = {ruta: "submódulo" for ruta in sorted(submodulos) if en_el_camino(ruta)}
     vinculadas = copias_vinculadas(git, raiz)
-    # Q184: en las rutas de la skill, todo repositorio anidado, ignorado o no, esté o no en el camino. Un submódulo
-    # (Q180) y una copia de `git worktree` de este repositorio (Q182) ahí siguen contando solo en el camino.
-    en_la_skill = {r for r in anidados(raiz, set(), CARPETAS_DE_LA_SKILL)
-                   if r not in submodulos and (r not in vinculadas or en_el_camino(r))}
+    # Q184 y Q187: en las rutas de la skill, todo repositorio anidado, ignorado o no, esté o no en el camino, también
+    # una copia de `git worktree` de este repositorio. Un submódulo ahí sigue contando solo en el camino (Q180).
+    en_la_skill = {r for r in anidados(raiz, set(), CARPETAS_DE_LA_SKILL) if r not in submodulos}
     anidados_en_el_camino = anidados(raiz, cerca, rutas)
     for ruta in sorted(anidados_en_el_camino | en_la_skill):
         encontradas.setdefault(ruta, "copia de `git worktree` de este repositorio" if ruta in vinculadas

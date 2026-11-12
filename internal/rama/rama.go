@@ -434,7 +434,8 @@ func ordenadas(conjunto map[string]bool) []string {
 // `camino` encuentra sin seguimiento. Un submódulo de la copia o de una ref, o un repositorio git anidado, ignorado o
 // no, está en el camino si una de esas rutas es la suya, está dentro de él o lo contiene; un enlace simbólico sin
 // seguimiento, si `camino` lo encuentra (H5 de la revisión 5). Sin cambio de rama ni nada que guardar no hay camino.
-// Aparte, todo repositorio anidado dentro de `design/` o `specs/`, ignorado o no, esté o no en el camino (Q184).
+// Aparte, todo repositorio anidado dentro de `design/` o `specs/`, ignorado o no, esté o no en el camino, también una
+// copia de `git worktree` de este repositorio (Q184, Q187).
 func forma(g Git, finales, guardados []string) map[string]string {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" {
@@ -502,8 +503,8 @@ func forma(g Git, finales, guardados []string) map[string]string {
 		}
 	}
 	vinculadas := copiasVinculadas(g, raiz)
-	// Q184: en las rutas de la skill, todo repositorio anidado, ignorado o no, esté o no en el camino. Un submódulo
-	// (Q180) y una copia de `git worktree` de este repositorio (Q182) ahí siguen contando solo en el camino.
+	// Q184 y Q187: en las rutas de la skill, todo repositorio anidado, ignorado o no, esté o no en el camino, también
+	// una copia de `git worktree` de este repositorio. Un submódulo ahí sigue contando solo en el camino (Q180).
 	enElCaminoAnidados := anidados(raiz, cerca, rutas)
 	todos := map[string]bool{}
 	for r := range enElCaminoAnidados {
@@ -514,7 +515,7 @@ func forma(g Git, finales, guardados []string) map[string]string {
 		carpetas[c] = true
 	}
 	for r := range anidados(raiz, map[string]bool{}, carpetas) {
-		if !submodulos[r] && (!vinculadas[r] || enElCamino(r)) {
+		if !submodulos[r] {
 			todos[r] = true
 		}
 	}
