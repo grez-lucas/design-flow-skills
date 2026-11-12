@@ -15,7 +15,9 @@ var (
 	tipos = []string{"spec", "tickets", "diseno"}
 	// rutasDeLaSkill es lo único que una skill agrega a su commit.
 	rutasDeLaSkill = []string{"design/", "specs/", ".gitignore", ".claude/pm-conventions.md"}
-	apartables     = []string{"otra-rama", "sin-rama", "commits-sin-empujar", "cambios-sin-guardar",
+	// carpetasDeLaSkill son las carpetas de la skill donde todo repositorio anidado detiene (Q184).
+	carpetasDeLaSkill = []string{"design", "specs"}
+	apartables        = []string{"otra-rama", "sin-rama", "commits-sin-empujar", "cambios-sin-guardar",
 		"principal-adelantada"}
 )
 
@@ -230,6 +232,9 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 				guardados); p != nil {
 				return decision{}, p
 			}
+			if p := enOtraCopia(g, ramasDeDestino(nil, destino, candidatas, s.principal), s.principal); p != nil {
+				return decision{}, p
+			}
 			if _, amplio := sinGuardar(g, refFinal(g, nil, destino, desde, s.principal, seguir)); len(amplio) > 0 {
 				p.salida.poner("archivos", amplio)
 			}
@@ -253,6 +258,9 @@ func revisar(g Git, a argumentos, ya *delServidor) (decision, *parada) {
 		guardados = amplio
 	}
 	if p := noSoportada(g, finales(g, &d, desde, nil, desde, s.principal, false), s.principal, guardados); p != nil {
+		return decision{}, p
+	}
+	if p := enOtraCopia(g, ramasDeDestino(&d, desde, nil, s.principal), s.principal); p != nil {
 		return decision{}, p
 	}
 	if aparta {
@@ -426,6 +434,7 @@ func ordenadas(conjunto map[string]bool) []string {
 // `camino` encuentra sin seguimiento. Un submódulo de la copia o de una ref, o un repositorio git anidado, ignorado o
 // no, está en el camino si una de esas rutas es la suya, está dentro de él o lo contiene; un enlace simbólico sin
 // seguimiento, si `camino` lo encuentra (H5 de la revisión 5). Sin cambio de rama ni nada que guardar no hay camino.
+// Aparte, todo repositorio anidado dentro de `design/` o `specs/`, ignorado o no, esté o no en el camino (Q184).
 func forma(g Git, finales, guardados []string) map[string]string {
 	raiz, ok := g.salida("rev-parse", "--show-toplevel")
 	if !ok || raiz == "" {
@@ -493,11 +502,30 @@ func forma(g Git, finales, guardados []string) map[string]string {
 		}
 	}
 	vinculadas := copiasVinculadas(g, raiz)
-	for _, r := range ordenadas(anidados(raiz, cerca, rutas)) {
-		if vinculadas[r] {
+	// Q184: en las rutas de la skill, todo repositorio anidado, ignorado o no, esté o no en el camino. Un submódulo
+	// (Q180) y una copia de `git worktree` de este repositorio (Q182) ahí siguen contando solo en el camino.
+	enElCaminoAnidados := anidados(raiz, cerca, rutas)
+	todos := map[string]bool{}
+	for r := range enElCaminoAnidados {
+		todos[r] = true
+	}
+	carpetas := map[string]bool{}
+	for _, c := range carpetasDeLaSkill {
+		carpetas[c] = true
+	}
+	for r := range anidados(raiz, map[string]bool{}, carpetas) {
+		if !submodulos[r] && (!vinculadas[r] || enElCamino(r)) {
+			todos[r] = true
+		}
+	}
+	for _, r := range ordenadas(todos) {
+		switch {
+		case vinculadas[r]:
 			poner(r, "copia de `git worktree` de este repositorio")
-		} else {
+		case enElCaminoAnidados[r]:
 			poner(r, "repositorio git anidado")
+		default:
+			poner(r, "repositorio git anidado en las rutas de la skill, Q184")
 		}
 	}
 	for _, r := range ordenadas(enlaces) {
@@ -639,6 +667,72 @@ func noSoportada(g Git, finales []string, principal string, guardados []string) 
 	return nuevaParada("copia-no-soportada", "La copia tiene en el camino del cambio de rama algo que `apartar` no "+
 		"sabe guardar sin riesgo de perder trabajo, y se resuelve a mano (Q177, Q180): "+strings.Join(partes, ", ")+".",
 		g.rama(), par{"principal", principal}, par{"rutas", rutas})
+}
+
+// ramasDeDestino son las ramas a las que cambia o que iguala `apartar`, o `volver` después de `revisar`: la principal
+// con `ofrecer` y `volver`, el destino de `apartar` o, si hay que elegir, cada candidata (Q185).
+func ramasDeDestino(d *decision, destino string, candidatas []string, principal string) []string {
+	if d != nil {
+		if d.accion == "ofrecer" || d.accion == "volver" {
+			return []string{principal}
+		}
+		return nil
+	}
+	if destino != "" {
+		return []string{destino}
+	}
+	return candidatas
+}
+
+// enOtraCopia para con `rama-en-otra-copia` si alguna de `ramas` está puesta en otra copia de `git worktree` de este
+// repositorio, donde git no deja cambiarla ni igualarla (Q185).
+func enOtraCopia(g Git, ramas []string, principal string) *parada {
+	if len(ramas) == 0 {
+		return nil
+	}
+	propia, ok := g.salida("rev-parse", "--show-toplevel")
+	if !ok || propia == "" {
+		propia = g.repo
+	}
+	propia = real(propia)
+	puestas := map[string]string{}
+	ruta := ""
+	for _, l := range g.lineas("worktree", "list", "--porcelain") {
+		if r, ok := strings.CutPrefix(l, "worktree "); ok {
+			ruta = r
+		} else if rama, ok := strings.CutPrefix(l, "branch refs/heads/"); ok && ruta != "" && real(ruta) != propia &&
+			slices.Contains(ramas, rama) {
+			if _, esta := puestas[rama]; !esta {
+				puestas[rama] = ruta
+			}
+		}
+	}
+	if len(puestas) == 0 {
+		return nil
+	}
+	nombres := make([]string, 0, len(puestas))
+	for rama := range puestas {
+		nombres = append(nombres, rama)
+	}
+	slices.Sort(nombres)
+	partes, rutas := make([]string, len(nombres)), make([]string, len(nombres))
+	for i, rama := range nombres {
+		partes[i], rutas[i] = rama+" en "+puestas[rama], puestas[rama]
+	}
+	return nuevaParada("rama-en-otra-copia", "La rama a la que va `apartar` o `volver` está puesta en otra copia de "+
+		"`git worktree` de este repositorio, y git no la deja cambiar ni igualar desde acá (Q185): "+
+		strings.Join(partes, ", ")+".", g.rama(), par{"principal", principal}, par{"rutas", unicas(rutas)})
+}
+
+// real es la ruta sin enlaces simbólicos, como `os.path.realpath`, o la misma si no se puede resolver.
+func real(ruta string) string {
+	if r, err := filepath.EvalSymlinks(ruta); err == nil {
+		if abs, err := filepath.Abs(r); err == nil {
+			return abs
+		}
+		return r
+	}
+	return ruta
 }
 
 // unicas junta las listas sin repetir líneas, en el orden en que aparecen.
@@ -1074,6 +1168,9 @@ func apartarYVolver(g Git, a argumentos, s delServidor, desde string, creadas *[
 	_, guardados := sinGuardar(g, "")
 	if p := noSoportada(g, finales(g, d, destino, candidatas, desde, s.principal, seguir), s.principal,
 		guardados); p != nil {
+		return nil, p
+	}
+	if p := enOtraCopia(g, ramasDeDestino(d, destino, candidatas, s.principal), s.principal); p != nil {
 		return nil, p
 	}
 	if final != "" {
