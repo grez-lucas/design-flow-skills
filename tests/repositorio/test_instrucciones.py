@@ -595,8 +595,8 @@ class ReferenciaDeRama(unittest.TestCase):
                       "clonado dentro de la carpeta, aunque esté ignorado) o un enlace simbólico. Los repositorios de "
                       "diseño que arman las skills no los tienen. Uno que no está en el camino, como un repositorio en "
                       "una carpeta ignorada fuera de `design/` y `specs/` o una copia de `git worktree` de este "
-                      "repositorio, no detiene; un repositorio anidado dentro de `design/` o `specs/` detiene siempre, "
-                      "aunque esté ignorado. `revisar` lo "
+                      "repositorio fuera de esas carpetas, no detiene; un repositorio anidado dentro de `design/` o "
+                      "`specs/`, también una copia de `git worktree`, detiene siempre, aunque esté ignorado. `revisar` lo "
                       "dice antes del sí, mirando cada rama a la que podría ir `apartar`, y `apartar` para igual antes "
                       "de apartar o cambiar de rama: la copia está como estaba, así que no propongas apartar. Explica "
                       "en simple qué hay en cada ruta y que se resuelve a mano", seccion(self.texto, "Copia no soportada", 2))
