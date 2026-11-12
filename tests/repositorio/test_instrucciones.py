@@ -582,7 +582,7 @@ class ReferenciaDeRama(unittest.TestCase):
     def test_los_casos_borde_del_reintento(self):
         """Q176 y Q181: lo que la persona tiene que saber de los casos borde de Q173."""
         error = seccion(self.texto, "Error de rama.py", 2)
-        self.assertIn('Cuatro casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; si iba a la principal desde otra rama y ahora el servidor tiene una rama viva de este trabajo, va a esa; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado.', error)
+        self.assertIn('Cuatro casos no siguen esa regla: si la copia estaba en HEAD separado solo con commits sueltos, el apartado no lleva la rama del flujo y la misma orden la vuelve a calcular, así que puede devolver `elegir`; si la orden venía de `ofrecer` o `volver` y lo que falló fue igualar la principal, la orden siguiente para con `principal-adelantada` y hay que pedir el sí otra vez; si iba a la principal desde otra rama y ahora el servidor tiene una rama viva de este trabajo, la calcula otra vez, así que va a esa rama o, con más de una, devuelve `elegir`; y `apartar` reconoce la rama de la que salió el apartado solo por el nombre del apartado.', error)
 
     def test_una_copia_no_soportada(self):
         """Q177, Q180 y Q182: con `copia-no-soportada`, lo que está en el camino del cambio de rama, cuándo lo dice
@@ -594,12 +594,23 @@ class ReferenciaDeRama(unittest.TestCase):
                       "submódulo, de la copia o de la rama a la que va, un repositorio git anidado (otro repositorio "
                       "clonado dentro de la carpeta, aunque esté ignorado) o un enlace simbólico. Los repositorios de "
                       "diseño que arman las skills no los tienen. Uno que no está en el camino, como un repositorio en "
-                      "una carpeta ignorada o una copia de `git worktree` de este repositorio, no detiene. `revisar` lo "
+                      "una carpeta ignorada fuera de `design/` y `specs/` o una copia de `git worktree` de este "
+                      "repositorio, no detiene; un repositorio anidado dentro de `design/` o `specs/` detiene siempre, "
+                      "aunque esté ignorado. `revisar` lo "
                       "dice antes del sí, mirando cada rama a la que podría ir `apartar`, y `apartar` para igual antes "
                       "de apartar o cambiar de rama: la copia está como estaba, así que no propongas apartar. Explica "
                       "en simple qué hay en cada ruta y que se resuelve a mano", seccion(self.texto, "Copia no soportada", 2))
         self.assertNotIn("`apartar` no hace nada en esa copia", self.texto)
         self.assertNotIn("nombra un submódulo con cambios sin guardar adentro", self.texto)
+
+    def test_una_rama_en_otra_copia(self):
+        """Q185: con `rama-en-otra-copia`, qué pasa, que nada se movió y cómo se resuelve."""
+        self.assertIn("- Rama en otra copia\n", seccion(self.texto, "Contenido", 2))
+        self.assertIn("Detente. Con el motivo `rama-en-otra-copia`, la rama a la que iba `apartar` o `volver` está "
+                      "puesta en otra copia de `git worktree` de este repositorio, la de cada ruta de `rutas`, y git no "
+                      "la deja cambiar ni igualar desde acá. `revisar` lo dice antes del sí y nada se movió. Explica en "
+                      "simple qué rama está en qué copia y propón que en esa otra copia se cambie de rama o se cierre", 
+                      seccion(self.texto, "Rama en otra copia", 2))
 
     def test_los_hooks_que_corren_al_apartar(self):
         """Q174: al guardar no corren los hooks de commit ni de checkout; `reference-transaction` y
