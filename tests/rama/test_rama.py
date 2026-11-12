@@ -601,23 +601,32 @@ class Ayuda(unittest.TestCase):
         self.assertIn('El reintento sabe que la rama del `Destino:` es la de la que salió el apartado solo por el nombre del apartado; un apartado sin commits propios, de HEAD separado solo con commits sueltos, no lleva `Destino:` y el reintento calcula la rama otra vez; y si en una corrida que venía de `ofrecer` o `volver` falla igualar la principal adelantada, el reintento no lo rehace y `revisar` vuelve a dar `principal-adelantada`, con otro sí (Q176).', " ".join(self.correr("-h").stdout.split()))
 
     def test_dice_cuando_la_copia_no_esta_soportada(self):
-        """Q177, Q180 y Q182: el motivo de `revisar`, solo en el camino y contra qué rama se mira; la parada de Q176 con
-        `error-de-git` ya no está."""
+        """Q177, Q180, Q182 y Q184: el motivo de `revisar`, qué es el camino para cada cosa y contra qué rama se mira
+        (H3 y H4 de la revisión 7); la parada de Q176 con `error-de-git` ya no está."""
         texto = " ".join(self.correr("-h").stdout.split())
         self.assertIn("Antes que nada, para con `copia-no-soportada` y `rutas` si en el camino del cambio de rama hay "
                       "un submódulo, de la copia o de la rama a la que va, un repositorio git anidado en la carpeta, "
-                      "ignorado o no, o un enlace simbólico sin seguimiento, apunte adonde apunte. El camino son las "
-                      "rutas que cambian entre la copia y la rama a la que va, las que `apartar` guardaría y las sin "
-                      "seguimiento que el cambio de rama reemplaza o borra: donde la rama a la que va tiene un archivo o "
-                      "una carpeta de sus archivos, o dentro de una carpeta donde tiene un archivo. Un submódulo o un "
-                      "repositorio anidado está en el camino si una de esas rutas es la suya, está dentro de él o lo "
-                      "contiene. Uno fuera del camino no detiene, tampoco una copia de `git worktree` de este "
-                      "repositorio dentro de la carpeta. Se mira contra la rama a la que va `apartar` y, con más de "
-                      "una rama viva para este trabajo, contra cada una, también la que se elegiría con --rama: "
-                      "`revisar` lo dice antes del sí, y `apartar` para igual antes de apartar o cambiar de rama. Se "
-                      "resuelve a mano (Q177, Q180, Q182).", texto)
+                      "ignorado o no, o un enlace simbólico sin seguimiento, apunte adonde apunte. Para un submódulo o "
+                      "un repositorio anidado, el camino son las rutas que cambian entre la copia y la rama a la que "
+                      "va, las que `apartar` guardaría y las sin seguimiento que el cambio de rama reemplaza o borra, y "
+                      "está en el camino si una de esas rutas es la suya, está dentro de él o lo contiene. Un enlace "
+                      "está en el camino donde la rama a la que va tiene un archivo o una carpeta de sus archivos, o "
+                      "dentro de una carpeta donde tiene un archivo. Uno fuera del camino no detiene, tampoco una copia "
+                      "de `git worktree` de este repositorio fuera del camino; un repositorio anidado dentro de "
+                      "`design/` o `specs/`, ignorado o no, detiene siempre (Q184). Se mira contra la rama a la que va "
+                      "`apartar` y, con más de una rama viva para este trabajo, contra cada una, también la que se "
+                      "elegiría con --rama: `revisar` lo dice antes del sí, y `apartar` para igual antes de apartar o "
+                      "cambiar de rama. Se resuelve a mano (Q177, Q180, Q182, Q184).", texto)
         self.assertNotIn("`apartar` no hace nada en esa copia", texto)
         self.assertNotIn("no guarda los cambios de adentro de un submódulo", texto)
+
+    def test_dice_cuando_la_rama_esta_en_otra_copia(self):
+        """Q185 y H2 de la revisión 7."""
+        self.assertIn("Después, para con `rama-en-otra-copia` y `rutas`, las de esas copias, si la rama a la que van "
+                      "`apartar` o `volver`, también la principal y, con más de una rama viva, cualquiera de ellas, está "
+                      "puesta en otra copia de `git worktree` de este repositorio: git no la deja cambiar ni igualar "
+                      "desde acá. Lo dice antes del sí y sin mover nada; se resuelve cambiando de rama en esa otra copia "
+                      "o cerrándola (Q185).", " ".join(self.correr("-h").stdout.split()))
 
     def test_dice_cuando_el_reintento_respeta_el_destino(self):
         """Q178, Q179 y Q181."""

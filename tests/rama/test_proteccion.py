@@ -483,6 +483,34 @@ class CopiaNoSoportada(FormaDeLaCopia):
         self.repositorio_anidado("clon")
         self.assertEqual(self.revisar()["rutas"], ["clon", "design/lib"])
 
+    def test_r7_h1_un_anidado_en_design_que_solo_la_rama_actual_ignora(self):
+        """Q184: `experimento` ignora `design/vendor/` en su `.gitignore` y la principal no; con las reglas de la rama
+        actual no está en el camino, pero con las de la principal `apartar` lo guardaría. Para antes del sí."""
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, ".gitignore", "design/vendor/\n")
+        git("add", ".gitignore", cwd=self.copia)
+        git("commit", "-q", "-m", "ignora vendor", cwd=self.copia)
+        anidado = self.repositorio_anidado("design/vendor")
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertEqual(self.no_soportada(["design/vendor"])["rama"], "experimento")
+        self.assertEqual((self.copia / "notas.txt").read_text(encoding="utf-8"), "MI TRABAJO\n")
+        self.assertAnidadoIntacto(anidado)
+
+    def test_q184_un_anidado_ignorado_en_las_rutas_de_la_skill_detiene_siempre(self):
+        for ruta in ("design/cache/clon", "specs/clon"):
+            with self.subTest(ruta=ruta):
+                self.setUp()
+                self.ignorar(ruta.rsplit("/", 1)[0] + "/")
+                anidado = self.repositorio_anidado(ruta)
+                self.no_soportada([ruta])
+                self.assertAnidadoIntacto(anidado)
+
+    def test_q184_una_copia_vinculada_ignorada_en_design_no_detiene(self):
+        """Q182 sigue: una copia de `git worktree` de este repositorio no es un repositorio anidado fuera del camino."""
+        vinculada = self.copia_vinculada("design/wt")
+        self.assertEqual(self.revisar()["accion"], "guardar")
+        self.assertVinculadaIntacta(vinculada)
+
     def copia_vinculada(self, ruta):
         """Una copia de `git worktree` de este repositorio dentro de la carpeta, ignorada, con un cambio sin commit."""
         self.ignorar(ruta + "/")
@@ -590,6 +618,61 @@ class EnlaceEnElCamino(FormaDeLaCopia):
         lugar = self.enlace("build", "no-existe")
         self.no_soportada(["build"], *SPEC, elegidas=("spec/alertas-2",))
         self.assertEnlace(lugar, "no-existe")
+
+
+class RamaEnOtraCopia(FormaDeLaCopia):
+    """Q185 y H2 de la revisión 7: si la rama a la que van `apartar` o `volver` está puesta en otra copia de
+    `git worktree` de este repositorio, `revisar`, `apartar` y `volver` paran con `rama-en-otra-copia` y la ruta de esa
+    copia, antes del sí y sin mover nada; git no deja cambiar ni igualar esa rama desde acá."""
+
+    def otra_copia(self, ruta, rama):
+        git("worktree", "add", "-q", str(ruta), rama, cwd=self.copia)
+        return next(l[len("worktree "):] for l in git("worktree", "list", "--porcelain", cwd=self.copia).stdout.splitlines()
+                    if l.startswith("worktree ") and l.endswith(ruta.name))
+
+    def en_otra_copia(self, ruta, *orden, con_volver=False):
+        salida = self.parada(self.revisar(*orden), "rama-en-otra-copia")
+        self.assertEqual(salida["rutas"], [ruta], salida)
+        self.assertIn(ruta, salida["detalle"])
+        antes = self.foto()
+        for _ in range(2):
+            self.assertEqual(self.parada(self.apartar(*(orden or EPICA)), "rama-en-otra-copia"), salida)
+            self.assertEqual(self.foto(), antes)
+        if con_volver:
+            self.assertEqual(self.parada(self.volver(*orden), "rama-en-otra-copia"), salida)
+            self.assertEqual(self.foto(), antes)
+        self.assertEqual(self.ramas_locales("apartado/*"), [])
+        return salida
+
+    def test_r7_h2_la_rama_viva_puesta_en_una_copia_de_claude_worktrees(self):
+        self.en_el_servidor("spec/alertas")
+        git("fetch", "-q", cwd=self.copia)
+        git("branch", "-q", "--track", "spec/alertas", "origin/spec/alertas", cwd=self.copia)
+        self.ignorar(".claude/worktrees/")
+        ruta = self.otra_copia(self.copia / ".claude/worktrees/tarea", "spec/alertas")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertEqual(self.en_otra_copia(ruta, *SPEC)["rama"], "experimento")
+        self.assertEqual((self.copia / "notas.txt").read_text(encoding="utf-8"), "MI TRABAJO\n")
+
+    def test_r7_h2_la_principal_puesta_en_otra_copia_fuera_de_la_carpeta(self):
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        ruta = self.otra_copia(self.tmp / "otra-sesion", "main")
+        self.en_otra_copia(ruta, *SPEC)
+
+    def test_volver_con_la_principal_en_otra_copia(self):
+        self.trabajar_en("tickets/alertas")
+        git("push", "-q", "origin", "--delete", "tickets/alertas", cwd=self.copia)
+        ruta = self.otra_copia(self.tmp / "otra-sesion", "main")
+        self.en_otra_copia(ruta, "--tipo", "tickets", "--epica", "alertas", con_volver=True)
+
+    def test_una_rama_que_no_es_el_destino_en_otra_copia_no_detiene(self):
+        git("branch", "-q", "otra", cwd=self.copia)
+        self.otra_copia(self.tmp / "otra-sesion", "otra")
+        git("switch", "-q", "-c", "experimento", cwd=self.copia)
+        self.escribir(self.copia, "notas.txt", "MI TRABAJO\n")
+        self.assertEqual(self.sin_parar()["apartado"], ["apartado/experimento"])
 
 
 class PrincipalAdelantada(Base):
