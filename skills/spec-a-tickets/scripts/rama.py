@@ -26,10 +26,17 @@ revisar  antes de la primera escritura. Corre `git fetch`, no cambia nada más y
                   commits están en alguna rama del servidor, o los archivos que tocan los que no están, desde la
                   base común con la principal, están iguales en ella (squash merge).
          parar    cualquier otro caso, con `motivo` y `detalle`. Antes que nada, para con `copia-no-soportada` y
-                  `rutas` si la copia tiene un submódulo, un repositorio git anidado en la carpeta, ignorado o no, o
-                  un enlace simbólico sin seguimiento en el camino del cambio de rama, apunte adonde apunte: donde la
-                  rama a la que va tiene un archivo o una carpeta de sus archivos, o dentro de una carpeta donde tiene
-                  un archivo. `apartar` no hace nada en esa copia, y se resuelve a mano (Q177).
+                  `rutas` si en el camino del cambio de rama hay un submódulo, de la copia o de la rama a la que va,
+                  un repositorio git anidado en la carpeta, ignorado o no, o un enlace simbólico sin seguimiento,
+                  apunte adonde apunte. El camino son las rutas que cambian entre la copia y la rama a la que va, las
+                  que `apartar` guardaría y las sin seguimiento que el cambio de rama reemplaza o borra: donde la rama
+                  a la que va tiene un archivo o una carpeta de sus archivos, o dentro de una carpeta donde tiene un
+                  archivo. Un submódulo o un repositorio anidado está en el camino si una de esas rutas es la suya,
+                  está dentro de él o lo contiene. Uno fuera del camino no detiene, tampoco una copia de
+                  `git worktree` de este repositorio dentro de la carpeta. Se mira contra la rama a la que va
+                  `apartar` y, con más de una rama viva para este trabajo, contra cada una, también la que se
+                  elegiría con --rama: `revisar` lo dice antes del sí, y `apartar` para igual antes de apartar o
+                  cambiar de rama. Se resuelve a mano (Q177, Q180, Q182).
                   En lugar de `guardar`, `ofrecer` o `volver`, para con `cambios-sin-guardar` si hay trabajo sin
                   guardar que entraría en el commit de la skill: en sus rutas, con los archivos nuevos, o preparado
                   en el índice, en cualquier ruta; con `ofrecer`, también cualquier cambio de un archivo con
@@ -318,22 +325,26 @@ def revisar(git, args, del_servidor=None):
         decision = rama_del_flujo(git, args, principal, ramas)
     except Parada as parada:
         if parada.motivo in APARTABLES:
-            destino, _, seguir = destino_de_apartar(git, args, principal, ramas, desde)
-            final = ref_final(git, None, destino, desde, principal, seguir)
-            no_soportada(git, final, principal)
-            amplio = sin_guardar(git, final)[1]
+            destino, candidatas, seguir = destino_de_apartar(git, args, principal, ramas, desde)
+            # Antes del sí, contra cada rama a la que puede ir `apartar`, con lo que guardaría (Q180).
+            no_soportada(git, finales(git, None, destino, candidatas, desde, principal, seguir), principal,
+                         sin_guardar(git)[1])
+            amplio = sin_guardar(git, ref_final(git, None, destino, desde, principal, seguir))[1]
             if amplio:
                 parada.salida["archivos"] = amplio
         raise
-    no_soportada(git, ref_final(git, decision, desde, desde, principal, False), principal)
     destino = llegada(decision, None, principal)
     estrecho, amplio = sin_guardar(git, destino and f"refs/remotes/origin/{destino}")
     # `ofrecer` cambia de rama con lo que haya: cuenta cualquier cambio de un archivo con seguimiento.
-    if estrecho or (decision["accion"] == "ofrecer" and amplio):
+    aparta = estrecho or (decision["accion"] == "ofrecer" and amplio)
+    commits = adelantada(git, principal) if llega_a_la_principal(decision) else []
+    # Sin nada que apartar, la skill guarda sin `apartar`, y lo que hay sin guardar no está en el camino (Q180).
+    no_soportada(git, finales(git, decision, desde, [], desde, principal, False), principal,
+                 amplio if aparta or commits else [])
+    if aparta:
         raise Parada("cambios-sin-guardar", f"La copia tiene trabajo sin guardar en la rama {decision['rama']} que "
                      "entraría en el commit de la skill o que el cambio de rama pisaría.", decision["rama"],
                      principal=principal, archivos=amplio)
-    commits = adelantada(git, principal) if llega_a_la_principal(decision) else []
     if commits:
         # `apartar` iguala la principal al servidor, que trae sus archivos aunque la copia no cambie de rama (Q170).
         raise Parada("principal-adelantada", f"La rama principal {principal} de esta copia tiene commits que el "
@@ -346,8 +357,8 @@ def sin_guardar(git, destino=None):
     """El trabajo sin guardar, en líneas de `git status --porcelain`: (lo que entraría en el commit de la skill o el
     cambio a `destino` pisaría, lo que se aparta). Lo primero son las rutas de la skill, con sus archivos nuevos, lo
     preparado en el índice, en cualquier ruta, y los archivos sin seguimiento que `destino` tiene, en `choques`; lo
-    segundo suma los cambios de cualquier archivo con seguimiento. Una copia con submódulos no llega acá: `revisar` y
-    `apartar` paran antes con `copia-no-soportada` (Q177)."""
+    segundo suma los cambios de cualquier archivo con seguimiento. Un submódulo con cambios adentro no cuenta: `apartar`
+    no los guarda. Uno en el camino no llega acá: `revisar` y `apartar` paran antes con `copia-no-soportada` (Q180)."""
     en_rutas = estado(git, "--untracked-files=all", "--", *RUTAS)
     seguidos = estado(git, "--untracked-files=no")
     preparados = [l for l in seguidos if l[0] not in " ?"]
@@ -422,34 +433,110 @@ def camino(git, destino):
     return [("!! " + r) if r in ignorados else ("?? " + r) for r in rutas], sorted(enlaces)
 
 
-def forma(git, destino):
-    """Lo que `apartar` no sabe guardar sin riesgo de perder trabajo (Q177), como {ruta: qué es}: los submódulos, los
-    repositorios git anidados en la carpeta, ignorados o no, que git lista como `<ruta>/` (H1 de la revisión 5), y los
-    enlaces simbólicos sin seguimiento en el camino del cambio a `destino` (H5)."""
+def forma(git, finales, guardados=()):
+    """Lo que `apartar` no sabe guardar sin riesgo de perder trabajo y está en el camino del cambio a alguna de las refs
+    de `finales` (Q177, Q180), como {ruta: qué es}. El camino son las rutas que cambian entre la copia, HEAD y el
+    índice, y cada ref; las de `guardados`, líneas de `git status --porcelain` de lo que `apartar` guardaría; y lo que
+    `camino` encuentra sin seguimiento. Un submódulo de la copia o de una ref, o un repositorio git anidado, ignorado o
+    no, está en el camino si una de esas rutas es la suya, está dentro de él o lo contiene; un enlace simbólico sin
+    seguimiento, si `camino` lo encuentra (H5 de la revisión 5). Sin cambio de rama ni nada que guardar no hay camino."""
     raiz = git.salida("rev-parse", "--show-toplevel")
     if not raiz:
         return {}
-    encontradas = {}
-    for entrada in git.rutas("-C", raiz, "ls-files", "-z", "--stage"):
-        datos, _, ruta = entrada.partition("\t")
-        if datos.startswith("160000 "):
-            encontradas[ruta] = "submódulo"
-    for ruta in git.rutas("-C", raiz, "ls-files", "-z", "--others"):
-        if ruta.endswith("/"):
-            encontradas.setdefault(ruta[:-1], "repositorio git anidado")
-    for ruta in (camino(git, destino)[1] if destino else []):
+    rutas, enlaces = rutas_de_estado(guardados), set()
+    con_head = git.existe("HEAD")
+    submodulos = submodulos_de(git, None) | (submodulos_de(git, "HEAD") if con_head else set())
+    for final in finales:
+        lineas, de_enlaces = camino(git, final)
+        rutas.update(linea[3:].rstrip("/") for linea in lineas)
+        enlaces.update(de_enlaces)
+        rutas.update(git.rutas("diff-index", "--cached", "-z", "--name-only", "--no-renames", "--ignore-submodules=none",
+                               final))
+        if con_head:
+            rutas.update(git.rutas("diff-tree", "-r", "-z", "--name-only", "--no-renames", "--ignore-submodules=none",
+                                   "HEAD", final))
+        submodulos |= submodulos_de(git, final)
+    # Las rutas del camino y las carpetas que las contienen.
+    cerca = {"/".join(partes[:i]) for partes in (r.split("/") for r in rutas) for i in range(1, len(partes) + 1)}
+
+    def en_el_camino(ruta):
+        partes = ruta.split("/")
+        return ruta in cerca or any("/".join(partes[:i]) in rutas for i in range(1, len(partes)))
+
+    encontradas = {ruta: "submódulo" for ruta in sorted(submodulos) if en_el_camino(ruta)}
+    vinculadas = copias_vinculadas(git, raiz)
+    for ruta in sorted(anidados(raiz, cerca, rutas)):
+        encontradas.setdefault(ruta, "copia de `git worktree` de este repositorio" if ruta in vinculadas
+                               else "repositorio git anidado")
+    for ruta in sorted(enlaces):
         encontradas.setdefault(ruta, "enlace simbólico en el camino del cambio de rama")
     return encontradas
 
 
-def no_soportada(git, destino, principal):
-    """Para con `copia-no-soportada` si la copia tiene algo que `apartar` no sabe guardar (Q177)."""
-    encontradas = forma(git, destino)
+def rutas_de_estado(lineas):
+    """Las rutas de líneas de `git status --porcelain`, las dos de un renombrado, sin la `/` de una carpeta."""
+    rutas = set()
+    for linea in lineas:
+        cuerpo = linea[3:]
+        for ruta in (cuerpo.split(" -> ", 1) if set(linea[:2]) & set("RC") else [cuerpo]):
+            rutas.add(ruta.rstrip("/"))
+    return rutas
+
+
+def submodulos_de(git, ref):
+    """Las rutas de los submódulos de `ref`, o del índice con None."""
+    entradas = (git.rutas("ls-tree", "-r", "-z", "--full-tree", ref) if ref
+                else git.rutas("-C", git.salida("rev-parse", "--show-toplevel"), "ls-files", "-z", "--stage"))
+    return {entrada.partition("\t")[2] for entrada in entradas if entrada.startswith("160000 ")}
+
+
+def anidados(raiz, cerca, rutas):
+    """Los repositorios git anidados en el camino, con `.git` como archivo o como carpeta: una carpeta de `cerca`, o una
+    carpeta dentro de una ruta del camino que en la copia es una carpeta. Así se ven también los que git no lista como
+    `<ruta>/` porque su carpeta tiene archivos con seguimiento (H1 de la revisión 6)."""
+    encontrados = {c for c in cerca if os.path.lexists(os.path.join(raiz, c, ".git"))}
+    for ruta in rutas:
+        lugar = os.path.join(raiz, ruta)
+        if os.path.isdir(lugar) and not os.path.islink(lugar):
+            for carpeta, subcarpetas, archivos in os.walk(lugar):
+                if ".git" in subcarpetas or ".git" in archivos:
+                    encontrados.add(os.path.relpath(carpeta, raiz).replace(os.sep, "/"))
+                    subcarpetas[:] = []
+                subcarpetas.sort()
+    return encontrados
+
+
+def copias_vinculadas(git, raiz):
+    """Las rutas, dentro de la carpeta, de las copias de `git worktree` de este repositorio (Q182)."""
+    base = os.path.realpath(raiz)
+    rutas = set()
+    for linea in git.lineas("worktree", "list", "--porcelain"):
+        if linea.startswith("worktree "):
+            relativa = os.path.relpath(os.path.realpath(linea[len("worktree "):]), base).replace(os.sep, "/")
+            if relativa != "." and not relativa.startswith("../") and relativa != "..":
+                rutas.add(relativa)
+    return rutas
+
+
+def finales(git, decision, destino, candidatas, desde, principal, seguir):
+    """Las refs a las que puede llevar la carpeta `apartar`, o la skill sin él: la de `ref_final` o, si hay que elegir,
+    la de cada candidata, como si viniera con --rama, y la de la principal si la iguala sin cambiar de rama (Q180)."""
+    if decision is not None or destino is not None:
+        final = ref_final(git, decision, destino, desde, principal, seguir)
+        return [final] if final else []
+    refs = [ref_final(git, None, c, desde, principal, c == desde) for c in candidatas]
+    return unicas([r for r in [*refs, ref_final(git, None, None, desde, principal, False)] if r])
+
+
+def no_soportada(git, finales, principal, guardados=()):
+    """Para con `copia-no-soportada` si en el camino hay algo que `apartar` no sabe guardar (Q177, Q180)."""
+    encontradas = forma(git, finales, guardados)
     if encontradas:
         rutas = sorted(encontradas)
-        raise Parada("copia-no-soportada", "La copia tiene algo que `apartar` no sabe guardar sin riesgo de perder "
-                     "trabajo, y se resuelve a mano (Q177): " + ", ".join(f"{r} ({encontradas[r]})" for r in rutas)
-                     + ".", git.rama(), principal=principal, rutas=rutas)
+        raise Parada("copia-no-soportada", "La copia tiene en el camino del cambio de rama algo que `apartar` no sabe "
+                     "guardar sin riesgo de perder trabajo, y se resuelve a mano (Q177, Q180): "
+                     + ", ".join(f"{r} ({encontradas[r]})" for r in rutas) + ".", git.rama(), principal=principal,
+                     rutas=rutas)
 
 
 def unicas(lineas):
@@ -724,8 +811,10 @@ def apartar_y_volver(git, args, principal, ramas, desde, creadas):
         decision = None
         destino, candidatas, seguir = destino_de_apartar(git, args, principal, ramas, desde)
     final = ref_final(git, decision, destino, desde, principal, seguir)
-    # Antes de escribir nada: con un submódulo, un repositorio anidado o un enlace en el camino, no hace nada (Q177).
-    no_soportada(git, final, principal)
+    # Antes de escribir nada: con un submódulo, un repositorio anidado o un enlace en el camino, no hace nada (Q177,
+    # Q180).
+    no_soportada(git, finales(git, decision, destino, candidatas, desde, principal, seguir), principal,
+                 sin_guardar(git)[1])
     chocan = [l[3:] for l in choques(git, final)] if final else []
 
     sueltos = desde is None and git.salida("rev-list", "--count", "HEAD", "--not", "--branches", "--remotes") != "0"
