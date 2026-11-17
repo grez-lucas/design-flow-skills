@@ -33,12 +33,14 @@ IDENTIDAD = ["-c", "user.name=prueba", "-c", "user.email=prueba@example.com", "-
 
 
 def git_bash():
-    """El bash de Git para Windows, al lado del `git.exe` de `cmd\\`; no el de WSL de System32."""
-    git_exe = shutil.which("git")
-    if not git_exe:
+    """El bash de Git para Windows, `bin\\bash.exe` en la raíz de la instalación, no el de WSL de System32. La raíz sale de
+    `git --exec-path` (`<raíz>/ucrt64/libexec/git-core`, o `mingw64` en versiones anteriores), que da lo mismo desde
+    PowerShell, donde git es `<raíz>\\cmd\\git.exe`, y desde Git Bash, donde es `<raíz>\\ucrt64\\bin\\git.exe`."""
+    if not shutil.which("git"):
         return None
-    bash = Path(git_exe).resolve().parents[1] / "bin" / "bash.exe"
-    return str(bash) if bash.is_file() else None
+    ruta = subprocess.run(["git", "--exec-path"], env=ENTORNO, capture_output=True, text=True).stdout.strip()
+    bash = Path(ruta).parents[2] / "bin" / "bash.exe" if ruta else None
+    return str(bash) if bash and bash.is_file() else None
 
 
 def bash():
