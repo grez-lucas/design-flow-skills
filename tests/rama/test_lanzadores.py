@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from repos import ENTORNO, RAIZ, SCRIPT, Repositorio, git
+from repos import ENTORNO, RAIZ, SCRIPT, Repositorio, git, git_bash
 
 BIN = RAIZ / "bin"
 WINDOWS = os.name == "nt"
@@ -41,15 +41,6 @@ MENSAJES = [
     "%PATH%",
 ]
 RUTA_RARA = "design/con espacio/señal & 100% ñ.html"
-
-
-def git_bash():
-    """El bash de Git para Windows, al lado del `git.exe` de `cmd\\`; no el de WSL de System32."""
-    git_exe = shutil.which("git")
-    if not git_exe:
-        return None
-    bash = Path(git_exe).resolve().parents[1] / "bin" / "bash.exe"
-    return str(bash) if bash.is_file() else None
 
 
 def powershell():
@@ -115,8 +106,11 @@ class Lanzadores(Repositorio):
     def test_el_uso_es_el_mismo_que_el_de_rama_py(self):
         """`flujo rama -h` y `rama.py -h` imprimen el mismo contrato, que las pruebas de tests/rama prueban contra los
         dos."""
-        python = subprocess.run([sys.executable, "-B", str(SCRIPT), "-h"], cwd=self.copia, env=ENTORNO,
-                                capture_output=True, text=True, encoding="utf-8")
+        # `flujo` escribe UTF-8 en todos los sistemas; Python, con la salida en un tubo, en la página de códigos ANSI de
+        # Windows (cp1252 en el runner de CI). Se compara el texto, así que Python escribe UTF-8 por PYTHONIOENCODING.
+        python = subprocess.run([sys.executable, "-B", str(SCRIPT), "-h"], cwd=self.copia,
+                                env={**ENTORNO, "PYTHONIOENCODING": "utf-8"}, capture_output=True, text=True,
+                                encoding="utf-8")
         self.assertEqual(python.returncode, 0, python.stderr)
         for nombre, correr in self.formas():
             with self.subTest(forma=nombre):
