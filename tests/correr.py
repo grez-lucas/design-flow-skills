@@ -19,7 +19,7 @@ salta sin fallar.
 
 Seguro dentro de `git rebase --exec`: cada carpeta corre con GIT_DIR, GIT_WORK_TREE y GIT_INDEX_FILE apuntando a un
 repositorio señuelo, y la carpeta falla si el señuelo cambia, porque un test que hereda el repositorio del entorno
-escribiría en él. `claude` y `actionlint` corren sin esas variables.
+escribiría en él; el aviso dice qué rutas del señuelo cambiaron, aparecieron o desaparecieron. `claude` y `actionlint` corren sin esas variables.
 """
 import hashlib
 import os
@@ -54,12 +54,18 @@ def saltados(salida):
 
 
 def huella(directorio):
-    h = hashlib.sha256()
-    for p in sorted(directorio.rglob("*")):
-        h.update(p.relative_to(directorio).as_posix().encode() + b"\0")
-        if p.is_file() and not p.is_symlink():
-            h.update(p.read_bytes())
-    return h.hexdigest()
+    """Cada ruta dentro de `directorio`, con el sha256 de su contenido si es un archivo."""
+    return {p.relative_to(directorio).as_posix():
+            hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() and not p.is_symlink() else None
+            for p in sorted(directorio.rglob("*"))}
+
+
+def cambios(antes, despues):
+    """Lo que cambió entre dos huellas, como `cambió: ...; apareció: ...; desapareció: ...`."""
+    partes = [("cambió", sorted(r for r in antes.keys() & despues.keys() if antes[r] != despues[r])),
+              ("apareció", sorted(despues.keys() - antes.keys())),
+              ("desapareció", sorted(antes.keys() - despues.keys()))]
+    return "; ".join(f"{nombre}: {', '.join(rutas)}" for nombre, rutas in partes if rutas)
 
 
 def senuelo(directorio, entorno):
@@ -91,9 +97,10 @@ def correr_carpeta(carpeta, entorno, nombre=None, extra=None):
             sys.stderr.flush()
             lineas.append(linea)
         rc = proceso.wait()
-        if huella(repositorio) != antes:
+        despues = huella(repositorio)
+        if despues != antes:
             print(f"{nombre}: un test escribió en el repositorio señuelo de GIT_DIR; dentro de `git rebase --exec` "
-                  "habría escrito en el repositorio del rebase", flush=True)
+                  f"habría escrito en el repositorio del rebase ({cambios(antes, despues)})", flush=True)
             return nombre, "falló"
     if rc != 0:
         return nombre, "falló"

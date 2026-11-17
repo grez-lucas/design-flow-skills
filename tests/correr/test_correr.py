@@ -256,6 +256,9 @@ class RepositorioDelEntorno(Base):
         self.assertEqual(resumen.get("tests/hereda"), "falló", salida)
         self.assertEqual(resumen.get("tests/aislada"), "ok", salida)
         self.assertIn("señuelo", salida)
+        # Nombra lo que cambió en el señuelo, para buscar al test sin volver a correr: el commit mueve HEAD.
+        self.assertRegex(salida, r"cambió: [^\n]*\.git/logs/HEAD")
+        self.assertRegex(salida, r"apareció: [^\n]*\.git/objects/")
         self.assertEqual(huella(self.real), antes, "el comando dejó que un test escribiera en el repositorio del entorno")
 
     def test_claude_y_actionlint_corren_en_la_raiz_sin_el_repositorio_del_entorno(self):
