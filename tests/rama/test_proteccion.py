@@ -12,6 +12,7 @@ Uso: python3 -m unittest discover -s tests/rama -v
 """
 import os
 import unittest
+from pathlib import Path
 
 from repos import Repositorio, git
 
@@ -539,7 +540,12 @@ class CopiaNoSoportada(FormaDeLaCopia):
     def assertVinculadaIntacta(self, vinculada):
         self.assertTrue((vinculada / ".git").is_file())
         self.assertEqual((vinculada / "notas.txt").read_text(encoding="utf-8"), "TRABAJO EN LA OTRA COPIA\n")
-        self.assertIn(str(vinculada), git("worktree", "list", "--porcelain", cwd=self.copia).stdout)
+        # git da la ruta real: sin enlaces simbólicos y, en Windows, la larga con `/` (`runneradmin`, no `RUNNER~1`).
+        # Se compara la ruta resuelta de los dos lados, no el texto.
+        copias = [Path(l[len("worktree "):]).resolve()
+                  for l in git("worktree", "list", "--porcelain", cwd=self.copia).stdout.splitlines()
+                  if l.startswith("worktree ")]
+        self.assertIn(vinculada.resolve(), copias)
 
     def test_q182_una_copia_vinculada_fuera_del_camino_no_detiene(self):
         vinculada = self.copia_vinculada(".claude/worktrees/tarea")
