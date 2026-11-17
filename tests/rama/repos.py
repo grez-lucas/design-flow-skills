@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,21 @@ _spec.loader.exec_module(aislar_git)
 # variables del repositorio del entorno, como dentro de `git rebase --exec`.
 ENTORNO = {**aislar_git.sin_repositorio(os.environ), "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 IDENTIDAD = ["-c", "user.name=prueba", "-c", "user.email=prueba@example.com", "-c", "commit.gpgsign=false"]
+
+
+def git_bash():
+    """El bash de Git para Windows, al lado del `git.exe` de `cmd\\`; no el de WSL de System32."""
+    git_exe = shutil.which("git")
+    if not git_exe:
+        return None
+    bash = Path(git_exe).resolve().parents[1] / "bin" / "bash.exe"
+    return str(bash) if bash.is_file() else None
+
+
+def bash():
+    """El bash con que corren las órdenes de las skills: en Windows, el de Git para Windows, porque `bash` a secas en un
+    subprocess busca primero en System32, donde está el de WSL; en los demás sistemas, el del PATH."""
+    return git_bash() if os.name == "nt" else shutil.which("bash")
 
 
 def orden_de_rama():

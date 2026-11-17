@@ -1,26 +1,29 @@
 """Pruebas de conducta de las órdenes que `spec-a-tickets` entrega al TL para subir los tickets (B1, B10): se leen de
-`references/trackers.md`, se corren con `bash` y un `gh` y un `glab` de prueba que guardan lo que reciben, y el cuerpo
-tiene que ser el archivo sin su título, con los tildes intactos.
+`references/trackers.md`, se corren con `bash` (en Windows el de Git para Windows, como dice `trackers.md`) y un `gh`
+y un `glab` de prueba que guardan lo que reciben, y el cuerpo tiene que ser el archivo sin su título, con los tildes
+intactos.
 Uso: python3 -m unittest discover -s tests/rama -v
 """
 import os
 import re
-import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from repos import bash
+
 RAIZ = Path(__file__).resolve().parents[2]
 TRACKERS = RAIZ / "skills" / "spec-a-tickets" / "references" / "trackers.md"
 TICKET = "# [US-REC-001] Ver facturas vencidas\n\n**Depende de:** ninguno\n\nCOMO contadora, QUIERO ver las facturas vencidas, PARA cobrarlas a tiempo: ñandú, acción, pingüino.\n"
+BASH = bash()
 FALSO = """#!/bin/sh
 printf '%s\\n' "$@" > "$SALIDA/argumentos"
 cat > "$SALIDA/entrada"
 """
 
 
-@unittest.skipUnless(shutil.which("bash"), "sin bash")
+@unittest.skipUnless(BASH, "sin bash, o en Windows sin el de Git para Windows")
 class OrdenesParaElTL(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -46,7 +49,7 @@ class OrdenesParaElTL(unittest.TestCase):
     def correr(self, orden):
         entorno = {**os.environ, "PATH": f"{self.tmp / 'bin'}{os.pathsep}{os.environ['PATH']}", "SALIDA": str(self.tmp)}
         (self.tmp / "entrada").write_bytes(b"")
-        subprocess.run(["bash", "-c", orden], cwd=self.tmp, env=entorno, check=True, stdin=subprocess.DEVNULL, timeout=30)
+        subprocess.run([BASH, "-c", orden], cwd=self.tmp, env=entorno, check=True, stdin=subprocess.DEVNULL, timeout=30)
         return ((self.tmp / "argumentos").read_text(encoding="utf-8").splitlines(),
                 (self.tmp / "entrada").read_bytes())
 
