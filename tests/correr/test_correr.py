@@ -22,6 +22,10 @@ aislar_git = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(aislar_git)
 # Sin GIT_DIR ni las demás variables del repositorio del entorno, como dentro de `git rebase --exec`.
 setUpModule = aislar_git.aislar_modulo
+sys.modules["aislar_git"] = aislar_git
+spec = importlib.util.spec_from_file_location("correr", TESTS / "correr.py")
+correr = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(correr)
 
 PASA = """import unittest
 
@@ -395,6 +399,22 @@ class SoloRama(Base):
 
 # Una orden de unittest para una carpeta concreta de tests/, como las de la lista que el comando reemplaza.
 POR_CARPETA = re.compile(r"unittest discover -s tests/[\w-]+")
+
+
+class Senuelo(unittest.TestCase):
+    """El señuelo queda quieto mientras se toma la huella: su repositorio no corre el mantenimiento automático de git, que
+    el commit del armado lanzaba en segundo plano y que en macOS seguía con `.git/objects/maintenance.lock` cuando se
+    tomaba la huella de antes (job de macOS del PR 50)."""
+
+    def test_el_senuelo_no_corre_mantenimiento_ni_gc_automaticos(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repositorio = Path(tmp) / "senuelo"
+            correr.senuelo(repositorio, aislar_git.sin_repositorio(os.environ))
+            for clave, valor in (("maintenance.auto", "false"), ("gc.auto", "0")):
+                with self.subTest(clave=clave):
+                    r = subprocess.run(["git", "config", "--file", str(repositorio / ".git" / "config"), "--get", clave],
+                                       capture_output=True, text=True)
+                    self.assertEqual(r.stdout.strip(), valor)
 
 
 class CIYReadme(unittest.TestCase):

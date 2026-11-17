@@ -70,6 +70,11 @@ def cambios(antes, despues):
 
 def senuelo(directorio, entorno):
     subprocess.run(["git", "init", "-q", str(directorio)], check=True, capture_output=True, env=entorno)
+    # Sin mantenimiento ni gc automáticos: el commit de abajo lanzaba `git maintenance run --auto --detach`, que en macOS
+    # seguía con `.git/objects/maintenance.lock` cuando se tomaba la huella de antes, y el señuelo "cambiaba" sin test.
+    for clave, valor in (("maintenance.auto", "false"), ("gc.auto", "0")):
+        subprocess.run(["git", "-C", str(directorio), "config", clave, valor], check=True, capture_output=True,
+                       env=entorno)
     subprocess.run(["git", "-C", str(directorio), "-c", "user.name=senuelo", "-c", "user.email=senuelo@example.com",
                     "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "senuelo"],
                    check=True, capture_output=True, env=entorno)
